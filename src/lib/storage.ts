@@ -79,7 +79,8 @@ function mapRowToGallery(row: any, photosRows: any[] = [], selectionRow: any = n
     commentsList: rawCommentsMap[p.id] || []
   }));
 
-  const selectedPhotoIds: string[] = selectionRow?.selected_photo_ids || [];
+  const selectedPhotoIds: string[] =
+    selectionRow?.selected_photo_ids || selectionRow?.selected_photos || [];
   const legacyComments: Record<string, string> = selectionRow?.comments || {};
   const isCompleted = row.status === 'completed';
   const votersList: GalleryVoter[] = Array.isArray(selectionRow?.voters)
@@ -175,11 +176,16 @@ export async function saveClientSelection(
     !!clientSelection?.completedAt;
   const timestamp = clientSelection?.completedAt || (isFinalized ? now : null);
 
+  const selectedPhotoIdsList = Array.isArray(clientSelection?.selectedPhotoIds)
+    ? clientSelection.selectedPhotoIds
+    : Array.isArray((clientSelection as any)?.selectedPhotos)
+    ? (clientSelection as any).selectedPhotos
+    : [];
+
   const fullPayload: any = {
     gallery_id: galleryId,
-    selected_photo_ids: Array.isArray(clientSelection?.selectedPhotoIds)
-      ? clientSelection.selectedPhotoIds
-      : [],
+    selected_photo_ids: selectedPhotoIdsList,
+    selected_photos: selectedPhotoIdsList,
     comments: clientSelection?.comments || {},
     votes: clientSelection?.votes || {},
     comments_map: clientSelection?.commentsMap || {},
@@ -191,34 +197,36 @@ export async function saveClientSelection(
     updated_at: now
   };
 
+  // Strip any properties with value undefined
+  Object.keys(fullPayload).forEach((key) => {
+    if (fullPayload[key] === undefined) {
+      delete fullPayload[key];
+    }
+  });
+
   try {
-    const { error } = await supabase
+    let currentPayload: any = { ...fullPayload };
+    let { error } = await supabase
       .from('client_selections')
-      .upsert(fullPayload, { onConflict: 'gallery_id' });
+      .upsert(currentPayload, { onConflict: 'gallery_id' });
 
     if (error) {
-      console.warn('[Supabase Sync Warning] Failed to save client selection with full payload:', error.message || error);
-      // Fallback if comments_map or finalized_at column does not exist in schema cache
-      if (
-        error.message?.includes('comments_map') ||
-        error.message?.includes('finalized_at') ||
-        error.code === 'PGRST204'
-      ) {
-        const fallbackPayload: any = {
-          gallery_id: galleryId,
-          selected_photo_ids: fullPayload.selected_photo_ids,
-          comments: fullPayload.comments,
-          votes: fullPayload.votes,
-          voters: fullPayload.voters,
-          approved_at: timestamp,
-          updated_at: now
-        };
-        const { error: fbErr } = await supabase
-          .from('client_selections')
-          .upsert(fallbackPayload, { onConflict: 'gallery_id' });
-        if (fbErr) {
-          console.warn('[Supabase Sync Warning] Fallback client selection save failed:', fbErr.message || fbErr);
+      // Dynamically strip missing columns reported by PostgREST schema cache without logging early warnings
+      for (let attempt = 0; attempt < 6 && error; attempt++) {
+        const match = error.message?.match(/Could not find the '([^']+)' column/i);
+        if (match && match[1] && match[1] in currentPayload && match[1] !== 'gallery_id') {
+          const missingCol = match[1];
+          delete currentPayload[missingCol];
+          const retryRes = await supabase
+            .from('client_selections')
+            .upsert(currentPayload, { onConflict: 'gallery_id' });
+          error = retryRes.error;
+        } else {
+          break;
         }
+      }
+      if (error) {
+        console.warn('[Supabase Sync Warning] Final client selection save attempt failed:', error.message || error);
       }
     }
   } catch (e) {
