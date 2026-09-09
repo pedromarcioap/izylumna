@@ -116,6 +116,7 @@ function mapRowToGallery(row: any, photosRows: any[] = [], selectionRow: any = n
     watermarkText: row.watermark_text || 'PROVA • LUMINA STUDIO • PROVA',
     photos,
     clientSelection: {
+      id: selectionRow?.id,
       selectedPhotoIds,
       comments: legacyComments,
       votes: rawVotes,
@@ -182,7 +183,10 @@ export async function saveClientSelection(
     ? (clientSelection as any).selectedPhotos
     : [];
 
+  const selectionId = clientSelection?.id || crypto.randomUUID();
+
   const fullPayload: any = {
+    id: selectionId,
     gallery_id: galleryId,
     selected_photo_ids: selectedPhotoIdsList,
     selected_photos: selectedPhotoIdsList,

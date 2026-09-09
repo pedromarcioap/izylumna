@@ -48,6 +48,7 @@ export interface Photo {
 }
 
 export interface ClientSelectionData {
+  id?: string;
   selectedPhotoIds: string[]; // Legacy compatibility array
   comments: Record<string, string>; // Legacy photoId -> text comment
   completedAt?: string;
