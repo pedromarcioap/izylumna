@@ -1,7 +1,7 @@
-import React, { useEffect } from 'react';
-import { Gallery, Photo } from '../../types';
+import React, { useEffect, useState } from 'react';
+import { Gallery, Photo, GalleryVoter, PhotoVote, PhotoCommentItem } from '../../types';
 import { Watermark } from '../common/Watermark';
-import { X, ChevronLeft, ChevronRight, Heart, MessageSquare, ShieldAlert } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Heart, MessageSquare, Sparkles, Users, Send } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 
@@ -11,8 +11,7 @@ export interface ClientLightboxProps {
   currentIndex: number;
   photos: Photo[];
   gallery: Gallery;
-  selectedIds: string[];
-  comments: Record<string, string>;
+  currentVoter: GalleryVoter | null;
   isSubmitted: boolean;
   onNavigate: (index: number) => void;
   onToggleSelect: (photo: Photo) => void;
@@ -25,8 +24,7 @@ export const ClientLightbox: React.FC<ClientLightboxProps> = ({
   currentIndex,
   photos,
   gallery,
-  selectedIds,
-  comments,
+  currentVoter,
   isSubmitted,
   onNavigate,
   onToggleSelect,
@@ -52,10 +50,19 @@ export const ClientLightbox: React.FC<ClientLightboxProps> = ({
 
   if (!isOpen || !currentPhoto) return null;
 
-  const isSelected = selectedIds.includes(currentPhoto.id);
-  const selectionIndex = selectedIds.indexOf(currentPhoto.id);
-  const isExtra = isSelected && selectionIndex >= gallery.quotaIncluded;
-  const comment = comments[currentPhoto.id];
+  const threshold = gallery.consensusThreshold || 2;
+  const votesMap = gallery.clientSelection.votes || {};
+  const photoVotes: PhotoVote[] = currentPhoto.votes?.length
+    ? currentPhoto.votes
+    : votesMap[currentPhoto.id] || [];
+
+  const hasVoted = photoVotes.some((v) => v.voterId === currentVoter?.id);
+  const isConsensus = photoVotes.length >= threshold;
+
+  const commentsMap = gallery.clientSelection.commentsMap || {};
+  const photoComments: PhotoCommentItem[] = currentPhoto.commentsList?.length
+    ? currentPhoto.commentsList
+    : commentsMap[currentPhoto.id] || [];
 
   return (
     <div
@@ -63,7 +70,7 @@ export const ClientLightbox: React.FC<ClientLightboxProps> = ({
       onContextMenu={(e) => e.preventDefault()}
     >
       {/* Top Header Controls */}
-      <div className="flex items-center justify-between p-4 sm:p-6 z-30 bg-gradient-to-b from-black/80 to-transparent">
+      <div className="flex items-center justify-between p-4 sm:p-6 z-30 bg-gradient-to-b from-black/90 to-transparent">
         <div className="flex items-center gap-3">
           <span className="font-mono text-xs sm:text-sm text-zinc-300 bg-white/10 px-3 py-1 rounded-full border border-white/10">
             Foto {currentIndex + 1} de {photos.length}
@@ -71,9 +78,10 @@ export const ClientLightbox: React.FC<ClientLightboxProps> = ({
           <span className="font-mono text-xs text-zinc-400 hidden sm:inline-block">
             {currentPhoto.originalFileName}
           </span>
-          {isSelected && (
-            <Badge variant={isExtra ? 'amber' : 'default'} size="sm">
-              {isExtra ? `+ EXTRA #${selectionIndex + 1}` : `Selecionada #${selectionIndex + 1}`}
+          {isConsensus && (
+            <Badge variant="amber" size="sm" className="gap-1 animate-pulse">
+              <Sparkles className="w-3.5 h-3.5 fill-current" />
+              <span>Consenso ({photoVotes.length} Votos)</span>
             </Badge>
           )}
         </div>
@@ -81,13 +89,13 @@ export const ClientLightbox: React.FC<ClientLightboxProps> = ({
         <div className="flex items-center gap-3">
           {/* Add comment button */}
           <Button
-            variant={comment ? 'primary' : 'outline'}
+            variant={photoComments.length > 0 ? 'primary' : 'outline'}
             size="sm"
             onClick={() => onOpenCommentModal(currentPhoto)}
             className="text-xs"
           >
             <MessageSquare className="w-3.5 h-3.5 mr-1" />
-            <span>{comment ? 'Ver Observação' : 'Comentar'}</span>
+            <span>{photoComments.length > 0 ? `Comentários (${photoComments.length})` : 'Adicionar Comentário'}</span>
           </Button>
 
           {/* Close Lightbox */}
@@ -118,7 +126,7 @@ export const ClientLightbox: React.FC<ClientLightboxProps> = ({
             src={currentPhoto.url}
             alt={currentPhoto.caption || currentPhoto.originalFileName}
             draggable={false}
-            className="max-h-[75vh] sm:max-h-[82vh] max-w-[90vw] object-contain rounded-lg shadow-2xl protected-photo pointer-events-none"
+            className="max-h-[72vh] sm:max-h-[78vh] max-w-[90vw] object-contain rounded-lg shadow-2xl protected-photo pointer-events-none"
           />
 
           {/* Watermark overlay */}
@@ -139,29 +147,40 @@ export const ClientLightbox: React.FC<ClientLightboxProps> = ({
       </div>
 
       {/* Bottom Control Bar */}
-      <div className="p-4 sm:p-6 bg-gradient-to-t from-black/90 to-transparent flex flex-col sm:flex-row items-center justify-between gap-4 z-30">
-        <div className="text-center sm:text-left">
-          {currentPhoto.caption && (
-            <p className="text-sm text-zinc-200 font-medium">{currentPhoto.caption}</p>
+      <div className="p-4 sm:p-6 bg-gradient-to-t from-black/95 via-black/80 to-transparent flex flex-col sm:flex-row items-center justify-between gap-4 z-30 border-t border-zinc-900/60">
+        <div className="text-center sm:text-left space-y-1">
+          {photoVotes.length > 0 ? (
+            <div className="flex items-center gap-2 text-xs text-amber-300 font-medium justify-center sm:justify-start">
+              <Users className="w-4 h-4 text-amber-400" />
+              <span>
+                Votado por:{' '}
+                <strong className="text-white font-semibold">
+                  {photoVotes.map((v) => v.voterName).join(', ')}
+                </strong>
+              </span>
+            </div>
+          ) : (
+            <p className="text-xs text-zinc-400">Nenhum voto registrado nesta foto ainda.</p>
           )}
-          {comment && (
-            <p className="text-xs text-sky-300 italic mt-0.5">
-              Observação: &ldquo;{comment}&rdquo;
+
+          {photoComments.length > 0 && (
+            <p className="text-xs text-sky-300 italic">
+              Última observação: &ldquo;{photoComments[photoComments.length - 1].text}&rdquo; ({photoComments[photoComments.length - 1].voterName})
             </p>
           )}
         </div>
 
-        {/* Favorite / Select Toggle in Lightbox */}
+        {/* Favorite / Vote Toggle in Lightbox */}
         <div className="flex items-center gap-3">
           <Button
-            variant={isSelected ? 'amber' : 'outline'}
+            variant={hasVoted ? 'amber' : 'outline'}
             size="lg"
             disabled={isSubmitted}
             onClick={() => onToggleSelect(currentPhoto)}
             className="text-sm px-6 font-semibold shadow-lg"
           >
-            <Heart className={`w-5 h-5 mr-2 ${isSelected ? 'fill-current' : ''}`} />
-            <span>{isSelected ? 'Foto Selecionada' : 'Selecionar Esta Foto'}</span>
+            <Heart className={`w-5 h-5 mr-2 ${hasVoted ? 'fill-current' : ''}`} />
+            <span>{hasVoted ? 'Voto Registrado (Remover)' : 'Votar Nesta Foto'}</span>
           </Button>
         </div>
       </div>

@@ -1,13 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Gallery, Photo } from '../../types';
+import { Gallery, Photo, GalleryVoter } from '../../types';
 import { ClientAuthPin } from './ClientAuthPin';
 import { ClientStickyHeader } from './ClientStickyHeader';
 import { ClientPhotoGrid } from './ClientPhotoGrid';
 import { ClientLightbox } from './ClientLightbox';
 import { ClientCommentModal } from './ClientCommentModal';
 import { ClientFinalizeModal } from './ClientFinalizeModal';
-import { ClientCompletedView } from './ClientCompletedView';
-import { updateClientSelection } from '../../lib/storage';
+import { ClientVoterModal } from './ClientVoterModal';
+import {
+  togglePhotoVoteAsync,
+  addPhotoCommentAsync,
+  deletePhotoCommentAsync,
+  finalizeVoterSelectionAsync
+} from '../../lib/storage';
 
 export interface ClientPortalViewProps {
   gallery: Gallery;
@@ -21,197 +26,205 @@ export interface ClientPortalViewProps {
 export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
   gallery,
   allGalleries = [],
-  onSelectGallery,
   onUpdateGallery,
-  onShowToast,
-  onSwitchToAdmin
+  onShowToast
 }) => {
-  // Session unlock for private galleries
+  // Session unlock for private galleries (PIN access)
   const [isUnlocked, setIsUnlocked] = useState<boolean>(() => {
     if (gallery.privacy === 'public') return true;
     const sessionKey = `lumina_unlocked_${gallery.id}`;
     return sessionStorage.getItem(sessionKey) === 'true';
   });
 
-  const [activeFilter, setActiveFilter] = useState<'all' | 'selected' | 'commented'>('all');
+  // Current logged in voter identity (check both global and gallery-specific keys)
+  const [currentVoter, setCurrentVoter] = useState<GalleryVoter | null>(() => {
+    try {
+      const storedGal = localStorage.getItem(`izylumna_voter_${gallery.id}`);
+      if (storedGal) return JSON.parse(storedGal);
+
+      const storedGlobal = localStorage.getItem('izylumna_current_voter');
+      if (storedGlobal) return JSON.parse(storedGlobal);
+
+      return null;
+    } catch (e) {
+      return null;
+    }
+  });
+
+  const [isIdentityModalOpen, setIsIdentityModalOpen] = useState(false);
+  const [activeFilter, setActiveFilter] = useState<'all' | 'my_choices' | 'consensus' | 'commented'>('all');
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [commentPhoto, setCommentPhoto] = useState<Photo | null>(null);
   const [isFinalizeModalOpen, setIsFinalizeModalOpen] = useState(false);
   const [forceReviewMode, setForceReviewMode] = useState(false);
 
-  // Sync unlocked state if gallery changes
+  // Open voter identity modal if unlocked but no voter is selected
   useEffect(() => {
-    if (gallery.privacy === 'public') {
-      setIsUnlocked(true);
-    } else {
-      const sessionKey = `lumina_unlocked_${gallery.id}`;
-      setIsUnlocked(sessionStorage.getItem(sessionKey) === 'true');
+    if (isUnlocked && !currentVoter) {
+      setIsIdentityModalOpen(true);
     }
-    setForceReviewMode(false);
-  }, [gallery.id, gallery.privacy]);
+  }, [isUnlocked, currentVoter, gallery.id]);
 
-  const handleUnlock = () => {
-    const sessionKey = `lumina_unlocked_${gallery.id}`;
+  const handleUnlock = (matchedGallery?: Gallery) => {
+    const targetGal = matchedGallery || gallery;
+    const sessionKey = `lumina_unlocked_${targetGal.id}`;
     sessionStorage.setItem(sessionKey, 'true');
     setIsUnlocked(true);
-    onShowToast('Galeria Desbloqueada!', `Bem-vindo à seleção do ensaio ${gallery.title}`, 'success');
+
+    // If PIN matches another gallery, prompt selection
+    if (matchedGallery && matchedGallery.id !== gallery.id) {
+      onShowToast('Galeria Encontrada!', `Carregando ensaio de ${matchedGallery.clientName}`, 'success');
+    } else {
+      onShowToast('Acesso Liberado!', `PIN correto. Por favor, identifique-se para votar.`, 'success');
+    }
   };
 
-  const selectedIds = gallery.clientSelection.selectedPhotoIds || [];
-  const comments = gallery.clientSelection.comments || {};
-  const isSubmitted = gallery.clientSelection.status === 'submitted' && !forceReviewMode;
-  const quota = gallery.quotaIncluded;
+  const handleSelectVoter = (voter: GalleryVoter) => {
+    try {
+      localStorage.setItem('izylumna_current_voter', JSON.stringify(voter));
+      localStorage.setItem(`izylumna_voter_${gallery.id}`, JSON.stringify(voter));
+    } catch (e) {
+      console.warn('Failed to save voter identity to localStorage:', e);
+    }
+    setCurrentVoter(voter);
+    setIsIdentityModalOpen(false);
+    onShowToast('Votante Ativo', `Bem-vindo(a), ${voter.name}! Suas escolhas serão gravadas sob seu nome.`, 'info');
+  };
 
-  // Toggle photo selection with strict policy enforcement
-  const handleToggleSelect = (photo: Photo) => {
-    if (isSubmitted) return;
+  const threshold = gallery.consensusThreshold || 2;
+  const votesMap = gallery.clientSelection?.votes || {};
+  const commentsMap = gallery.clientSelection?.commentsMap || {};
 
-    const isAlreadySelected = selectedIds.includes(photo.id);
+  // Count my votes
+  const myVotesCount = gallery.photos.filter((p) =>
+    (votesMap[p.id] || []).some((v) => v.voterId === currentVoter?.id)
+  ).length;
 
-    if (isAlreadySelected) {
-      // Unselect photo
-      const newSelected = selectedIds.filter((id) => id !== photo.id);
-      const updated = updateClientSelection(gallery.id, {
-        ...gallery.clientSelection,
-        selectedPhotoIds: newSelected
-      });
-      if (updated) onUpdateGallery(updated);
+  // Count consensus photos
+  const consensusPhotos = gallery.photos.filter(
+    (p) => (votesMap[p.id] || []).length >= threshold
+  );
+  const consensusCount = consensusPhotos.length;
+
+  // Count photos with comments
+  const commentsCount = gallery.photos.filter(
+    (p) => (commentsMap[p.id] || []).length > 0
+  ).length;
+
+  const isSubmitted = currentVoter?.hasFinalized && !forceReviewMode;
+
+  // Handle vote toggle for current voter
+  const handleToggleSelect = async (photo: Photo) => {
+    if (!currentVoter) {
+      setIsIdentityModalOpen(true);
       return;
     }
 
-    // New selection: check quota and policy
-    const currentCount = selectedIds.length;
+    const updated = await togglePhotoVoteAsync(gallery, photo.id, currentVoter);
+    onUpdateGallery(updated);
 
-    // Policy 1: BLOCK
-    if (gallery.excessPolicy === 'block' && currentCount >= quota) {
-      onShowToast(
-        'Limite de Fotos Atingido!',
-        `Você atingiu o limite de ${quota} fotos contratadas no seu pacote. Desmarque uma foto para poder escolher outra.`,
-        'warning'
-      );
+    const hasVotedNow = (updated.clientSelection?.votes?.[photo.id] || []).some(
+      (v) => v.voterId === currentVoter.id
+    );
+
+    if (hasVotedNow) {
+      onShowToast('Voto Registrado!', `Voto em ${photo.originalFileName} adicionado por ${currentVoter.name}`, 'success');
+    } else {
+      onShowToast('Voto Removido', `Voto removido de ${photo.originalFileName}`, 'info');
+    }
+  };
+
+  // Add Comment
+  const handleAddComment = async (photoId: string, text: string) => {
+    if (!currentVoter) {
+      setIsIdentityModalOpen(true);
       return;
     }
-
-    // Policy 2: CHARGE
-    if (gallery.excessPolicy === 'charge' && currentCount >= quota) {
-      const extraIndex = currentCount - quota + 1;
-      onShowToast(
-        'Foto Excedente Selecionada',
-        `Foto extra #${extraIndex} adicionada (+ R$ ${gallery.extraPhotoPrice.toFixed(2)} adicionados ao seu subtotal).`,
-        'info'
-      );
-    }
-
-    // Policy 3: FREE APPROVAL
-    if (gallery.excessPolicy === 'free_approval' && currentCount >= quota) {
-      onShowToast(
-        'Foto Extra Adicionada',
-        'Foto extra adicionada à sua seleção para tratamento e envio em alta resolução (sem custo adicional).',
-        'info'
-      );
-    }
-
-    // Add photo
-    const newSelected = [...selectedIds, photo.id];
-    const updated = updateClientSelection(gallery.id, {
-      ...gallery.clientSelection,
-      selectedPhotoIds: newSelected
-    });
-    if (updated) onUpdateGallery(updated);
+    const updated = await addPhotoCommentAsync(gallery, photoId, currentVoter, text);
+    onUpdateGallery(updated);
+    onShowToast('Comentário Adicionado', 'Sua orientação foi registrada no mural da foto.', 'success');
   };
 
-  // Comments handler
-  const handleSaveComment = (photoId: string, commentText: string) => {
-    const newComments = { ...comments, [photoId]: commentText };
-    const updated = updateClientSelection(gallery.id, {
-      ...gallery.clientSelection,
-      comments: newComments
-    });
-    if (updated) onUpdateGallery(updated);
-    onShowToast('Observação Salva', 'Sua orientação de tratamento foi salva com sucesso nesta foto.', 'success');
+  // Delete Comment
+  const handleDeleteComment = async (photoId: string, commentId: string) => {
+    const updated = await deletePhotoCommentAsync(gallery, photoId, commentId);
+    onUpdateGallery(updated);
+    onShowToast('Comentário Excluído', 'Comentário removido.', 'info');
   };
 
-  const handleRemoveComment = (photoId: string) => {
-    const newComments = { ...comments };
-    delete newComments[photoId];
-    const updated = updateClientSelection(gallery.id, {
-      ...gallery.clientSelection,
-      comments: newComments
-    });
-    if (updated) onUpdateGallery(updated);
-    onShowToast('Observação Removida', 'Observação excluída da foto.', 'info');
+  // Submit Finalization for Voter
+  const handleConfirmSubmit = async () => {
+    if (!currentVoter) return;
+    const updated = await finalizeVoterSelectionAsync(gallery, currentVoter.id);
+    const voterUpdated = { ...currentVoter, hasFinalized: true };
+    setCurrentVoter(voterUpdated);
+    localStorage.setItem(`izylumna_voter_${gallery.id}`, JSON.stringify(voterUpdated));
+    localStorage.setItem('izylumna_current_voter', JSON.stringify(voterUpdated));
+    onUpdateGallery(updated);
+    setForceReviewMode(false);
+    onShowToast('Seleção Finalizada!', `A escolha de ${currentVoter.name} foi gravada com sucesso.`, 'success');
   };
 
-  // Submit Final Approval
-  const handleConfirmSubmit = (clientNotes: string) => {
-    const extraCount = Math.max(0, selectedIds.length - quota);
-    const extraTotal = gallery.excessPolicy === 'charge' ? extraCount * gallery.extraPhotoPrice : 0;
-
-    const updated = updateClientSelection(gallery.id, {
-      ...gallery.clientSelection,
-      status: 'submitted',
-      completedAt: new Date().toISOString(),
-      clientNotes,
-      totalExtraAmount: extraTotal
+  // Filter photos logic
+  const filteredPhotos = gallery.photos
+    .filter((photo) => {
+      if (activeFilter === 'my_choices') {
+        return (votesMap[photo.id] || []).some((v) => v.voterId === currentVoter?.id);
+      }
+      if (activeFilter === 'consensus') {
+        return (votesMap[photo.id] || []).length >= threshold;
+      }
+      if (activeFilter === 'commented') {
+        return (commentsMap[photo.id] || []).length > 0;
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      if (activeFilter === 'consensus') {
+        const countA = (votesMap[a.id] || []).length;
+        const countB = (votesMap[b.id] || []).length;
+        return countB - countA; // Sort most voted first
+      }
+      return 0;
     });
 
-    if (updated) {
-      onUpdateGallery(updated);
-      setForceReviewMode(false);
-      onShowToast('Aprovação Concluída!', 'Sua seleção foi enviada com sucesso para o fotógrafo.', 'success');
-    }
-  };
+  const myVotedPhotos = gallery.photos.filter((p) =>
+    (votesMap[p.id] || []).some((v) => v.voterId === currentVoter?.id)
+  );
 
-  // Reopen for testing
-  const handleReopenSelection = () => {
-    const updated = updateClientSelection(gallery.id, {
-      ...gallery.clientSelection,
-      status: 'pending'
-    });
-    if (updated) {
-      onUpdateGallery(updated);
-      setForceReviewMode(true);
-      onShowToast('Seleção Reaberta', 'A galeria está liberada novamente para teste de seleção.', 'info');
-    }
-  };
-
-  // Filter photos
-  const filteredPhotos = gallery.photos.filter((photo) => {
-    if (activeFilter === 'selected') return selectedIds.includes(photo.id);
-    if (activeFilter === 'commented') return !!comments[photo.id];
-    return true;
-  });
-
-  const selectedPhotos = gallery.photos.filter((p) => selectedIds.includes(p.id));
-
-  // If private and locked, show PIN card
+  // Step 1: If private and locked, show PIN prompt
   if (!isUnlocked) {
-    return <ClientAuthPin gallery={gallery} onUnlock={handleUnlock} />;
+    return <ClientAuthPin gallery={gallery} allGalleries={allGalleries} onUnlock={handleUnlock} />;
   }
 
-  // If already submitted and user didn't request reviewing, show completion view
-  if (isSubmitted) {
+  // Step 2: If unlocked but voter identity has not been confirmed, block grid and require name
+  if (!currentVoter || isIdentityModalOpen) {
     return (
-      <ClientCompletedView
-        gallery={gallery}
-        onReviewSelection={() => setForceReviewMode(true)}
-        onReopenSelectionForTesting={handleReopenSelection}
-        onSwitchToAdmin={onSwitchToAdmin}
-      />
+      <div className="min-h-screen bg-[#0c0d0e]">
+        <ClientVoterModal
+          isOpen={true}
+          gallery={gallery}
+          onSelectVoter={handleSelectVoter}
+        />
+      </div>
     );
   }
 
+  // Step 3: Render collaborative gallery
   return (
-    <div className="min-h-screen pb-20">
-      {/* Sticky Top Progress and Filters Header */}
+    <div className="min-h-screen pb-20 bg-[#0c0d0e]">
+      {/* Sticky Top Header */}
       <ClientStickyHeader
         gallery={gallery}
-        selectedIds={selectedIds}
-        commentsCount={Object.keys(comments).length}
+        currentVoter={currentVoter}
+        onChangeVoter={() => setIsIdentityModalOpen(true)}
+        myVotesCount={myVotesCount}
+        consensusCount={consensusCount}
+        commentsCount={commentsCount}
         activeFilter={activeFilter}
         onFilterChange={setActiveFilter}
         onOpenFinalizeModal={() => setIsFinalizeModalOpen(true)}
-        isSubmitted={isSubmitted}
+        isSubmitted={Boolean(isSubmitted)}
       />
 
       {/* Intro Description Banner */}
@@ -230,9 +243,8 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
       <ClientPhotoGrid
         gallery={gallery}
         photos={filteredPhotos}
-        selectedIds={selectedIds}
-        comments={comments}
-        isSubmitted={isSubmitted}
+        currentVoter={currentVoter}
+        isSubmitted={Boolean(isSubmitted)}
         onToggleSelect={handleToggleSelect}
         onOpenLightbox={(idx) => {
           const photo = filteredPhotos[idx];
@@ -250,9 +262,8 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
           currentIndex={lightboxIndex}
           photos={gallery.photos}
           gallery={gallery}
-          selectedIds={selectedIds}
-          comments={comments}
-          isSubmitted={isSubmitted}
+          currentVoter={currentVoter}
+          isSubmitted={Boolean(isSubmitted)}
           onNavigate={(newIdx) => setLightboxIndex(newIdx)}
           onToggleSelect={handleToggleSelect}
           onOpenCommentModal={(photo) => setCommentPhoto(photo)}
@@ -265,9 +276,10 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
           isOpen={!!commentPhoto}
           onClose={() => setCommentPhoto(null)}
           photo={commentPhoto}
-          existingComment={comments[commentPhoto.id]}
-          onSaveComment={handleSaveComment}
-          onRemoveComment={handleRemoveComment}
+          currentVoter={currentVoter}
+          commentsList={commentsMap[commentPhoto.id] || []}
+          onAddComment={handleAddComment}
+          onDeleteComment={handleDeleteComment}
         />
       )}
 
@@ -276,9 +288,9 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
         isOpen={isFinalizeModalOpen}
         onClose={() => setIsFinalizeModalOpen(false)}
         gallery={gallery}
-        selectedPhotos={selectedPhotos}
-        comments={comments}
-        isSubmitted={isSubmitted}
+        currentVoter={currentVoter}
+        myVotedPhotos={myVotedPhotos}
+        consensusCount={consensusCount}
         onConfirmSubmit={handleConfirmSubmit}
       />
     </div>

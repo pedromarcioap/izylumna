@@ -1,14 +1,13 @@
 import React from 'react';
-import { Gallery, Photo } from '../../types';
+import { Gallery, Photo, GalleryVoter, PhotoVote } from '../../types';
 import { Watermark } from '../common/Watermark';
-import { Heart, Maximize2, MessageSquare, Check, Sparkles, DollarSign, Ban } from 'lucide-react';
+import { Heart, Maximize2, MessageSquare, Sparkles, Users } from 'lucide-react';
 import { Badge } from '../ui/Badge';
 
 export interface ClientPhotoGridProps {
   gallery: Gallery;
   photos: Photo[];
-  selectedIds: string[];
-  comments: Record<string, string>;
+  currentVoter: GalleryVoter | null;
   isSubmitted: boolean;
   onToggleSelect: (photo: Photo) => void;
   onOpenLightbox: (index: number) => void;
@@ -18,15 +17,15 @@ export interface ClientPhotoGridProps {
 export const ClientPhotoGrid: React.FC<ClientPhotoGridProps> = ({
   gallery,
   photos,
-  selectedIds,
-  comments,
+  currentVoter,
   isSubmitted,
   onToggleSelect,
   onOpenLightbox,
   onOpenCommentModal
 }) => {
-  const selectedSet = new Set(selectedIds);
-  const quota = gallery.quotaIncluded;
+  const threshold = gallery.consensusThreshold || 2;
+  const votesMap = gallery.clientSelection.votes || {};
+  const commentsMap = gallery.clientSelection.commentsMap || {};
 
   if (photos.length === 0) {
     return (
@@ -34,7 +33,7 @@ export const ClientPhotoGrid: React.FC<ClientPhotoGridProps> = ({
         <Heart className="w-12 h-12 mx-auto text-zinc-600 mb-3" />
         <h3 className="text-lg font-semibold text-zinc-200">Nenhuma foto para exibir</h3>
         <p className="text-sm text-zinc-400 mt-1">
-          Nenhuma fotografia encontrada para o filtro atual. Mude o filtro para visualizar todo o ensaio.
+          Nenhuma fotografia encontrada para o filtro atual. Mude o filtro no menu superior para visualizar o ensaio.
         </p>
       </div>
     );
@@ -43,18 +42,25 @@ export const ClientPhotoGrid: React.FC<ClientPhotoGridProps> = ({
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
       {photos.map((photo, index) => {
-        const isSelected = selectedSet.has(photo.id);
-        const selectionIndex = selectedIds.indexOf(photo.id);
-        const isExtra = isSelected && selectionIndex >= quota;
-        const comment = comments[photo.id];
+        const photoVotes: PhotoVote[] = photo.votes?.length
+          ? photo.votes
+          : votesMap[photo.id] || [];
+
+        const hasVoted = photoVotes.some((v) => v.voterId === currentVoter?.id);
+        const isConsensus = photoVotes.length >= threshold;
+        const photoComments = photo.commentsList?.length
+          ? photo.commentsList
+          : commentsMap[photo.id] || [];
 
         return (
           <div
             key={photo.id}
             onContextMenu={(e) => e.preventDefault()}
             className={`group relative rounded-2xl overflow-hidden bg-zinc-950 border transition-all duration-300 flex flex-col justify-between ${
-              isSelected
-                ? 'border-amber-500 shadow-xl shadow-amber-500/10 ring-1 ring-amber-500/50'
+              isConsensus
+                ? 'border-amber-400 shadow-xl shadow-amber-500/20 ring-1 ring-amber-400/50'
+                : hasVoted
+                ? 'border-amber-500/80 shadow-lg shadow-amber-500/10'
                 : 'border-zinc-850 hover:border-zinc-700 shadow-lg shadow-black/40'
             }`}
           >
@@ -66,7 +72,7 @@ export const ClientPhotoGrid: React.FC<ClientPhotoGridProps> = ({
                 loading="lazy"
                 draggable={false}
                 className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 protected-photo select-none pointer-events-none ${
-                  isSelected ? 'brightness-105' : 'brightness-95 group-hover:brightness-100'
+                  hasVoted ? 'brightness-105' : 'brightness-95 group-hover:brightness-100'
                 }`}
               />
 
@@ -83,20 +89,32 @@ export const ClientPhotoGrid: React.FC<ClientPhotoGridProps> = ({
                 onDoubleClick={() => onOpenLightbox(index)}
               />
 
-              {/* Top Left: Order Badge (#1, #2, etc.) and Extra Badge */}
-              <div className="absolute top-3 left-3 z-30 flex flex-col gap-1 pointer-events-none">
-                {isSelected && (
+              {/* Top Left: Badges for Consensus & Votes count */}
+              <div className="absolute top-3 left-3 z-30 flex flex-col gap-1.5 pointer-events-none">
+                {isConsensus && (
                   <Badge
-                    variant={isExtra ? 'amber' : 'default'}
+                    variant="amber"
                     size="sm"
-                    className="font-mono font-bold shadow-lg backdrop-blur-md bg-black/80 border-amber-400/40 text-amber-300"
+                    className="font-semibold shadow-lg backdrop-blur-md bg-amber-500 text-zinc-950 border-amber-300 gap-1 animate-pulse"
                   >
-                    {isExtra ? `+ EXTRA #${selectionIndex + 1}` : `#${selectionIndex + 1}`}
+                    <Sparkles className="w-3.5 h-3.5 fill-current" />
+                    <span>CONSENSO ({photoVotes.length} Votos)</span>
+                  </Badge>
+                )}
+
+                {!isConsensus && photoVotes.length > 0 && (
+                  <Badge
+                    variant="default"
+                    size="sm"
+                    className="font-mono font-bold shadow-lg backdrop-blur-md bg-black/80 border-amber-500/40 text-amber-300 gap-1"
+                  >
+                    <Heart className="w-3 h-3 fill-current text-amber-400" />
+                    <span>{photoVotes.length} {photoVotes.length === 1 ? 'voto' : 'votos'}</span>
                   </Badge>
                 )}
               </div>
 
-              {/* Top Right: Selection Heart / Check Button */}
+              {/* Top Right: Heart Vote Button for Current Participant */}
               <div className="absolute top-3 right-3 z-30">
                 <button
                   type="button"
@@ -106,13 +124,14 @@ export const ClientPhotoGrid: React.FC<ClientPhotoGridProps> = ({
                     onToggleSelect(photo);
                   }}
                   className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 shadow-lg backdrop-blur-md active:scale-90 ${
-                    isSelected
+                    hasVoted
                       ? 'bg-amber-500 text-zinc-950 shadow-amber-500/40 ring-2 ring-white/60'
                       : 'bg-black/60 text-white/80 hover:text-white hover:bg-black/80 border border-white/20'
                   }`}
-                  aria-label={isSelected ? 'Desmarcar foto' : 'Selecionar foto'}
+                  aria-label={hasVoted ? 'Remover voto' : 'Votar nesta foto'}
+                  title={hasVoted ? 'Remover seu voto' : 'Votar nesta foto'}
                 >
-                  <Heart className={`w-5 h-5 ${isSelected ? 'fill-current' : ''}`} />
+                  <Heart className={`w-5 h-5 ${hasVoted ? 'fill-current' : ''}`} />
                 </button>
               </div>
 
@@ -125,14 +144,19 @@ export const ClientPhotoGrid: React.FC<ClientPhotoGridProps> = ({
                     e.stopPropagation();
                     onOpenCommentModal(photo);
                   }}
-                  className={`p-2 rounded-full backdrop-blur-md transition-all ${
-                    comment
+                  className={`p-2 rounded-full backdrop-blur-md transition-all relative ${
+                    photoComments.length > 0
                       ? 'bg-sky-500 text-zinc-950 shadow-md shadow-sky-500/30'
                       : 'bg-black/60 text-white/80 hover:text-white hover:bg-black/80 border border-white/20'
                   }`}
-                  title={comment ? 'Editar observação' : 'Adicionar comentário nesta foto'}
+                  title={photoComments.length > 0 ? 'Ver observações da foto' : 'Adicionar comentário'}
                 >
-                  <MessageSquare className={`w-4 h-4 ${comment ? 'fill-current' : ''}`} />
+                  <MessageSquare className={`w-4 h-4 ${photoComments.length > 0 ? 'fill-current' : ''}`} />
+                  {photoComments.length > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-sky-400 text-black text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                      {photoComments.length}
+                    </span>
+                  )}
                 </button>
 
                 {/* Lightbox button */}
@@ -150,39 +174,44 @@ export const ClientPhotoGrid: React.FC<ClientPhotoGridProps> = ({
               </div>
             </div>
 
-            {/* Photo Footer: Filename & Comment preview */}
-            <div className="p-3 bg-zinc-950/90 border-t border-zinc-850 flex flex-col justify-between gap-1 text-xs">
+            {/* Photo Footer: Filename, Voter Chips, & Comments preview */}
+            <div className="p-3 bg-zinc-950/90 border-t border-zinc-850 flex flex-col justify-between gap-1.5 text-xs">
               <div className="flex items-center justify-between">
-                <span className="font-mono text-zinc-400 truncate max-w-[170px] text-[11px]">
+                <span className="font-mono text-zinc-400 truncate max-w-[150px] text-[11px]">
                   {photo.originalFileName}
                 </span>
 
-                {isExtra && gallery.excessPolicy === 'charge' && (
-                  <span className="text-[11px] font-mono text-amber-400 font-semibold">
-                    +R$ {gallery.extraPhotoPrice.toFixed(2)}
-                  </span>
-                )}
-                {isExtra && gallery.excessPolicy === 'free_approval' && (
-                  <span className="text-[10px] uppercase font-mono text-sky-400 font-semibold">
-                    Extra Cortesia
-                  </span>
+                {/* Voters List Badges */}
+                {photoVotes.length > 0 && (
+                  <div className="flex items-center gap-1">
+                    <Users className="w-3 h-3 text-zinc-500" />
+                    <div className="flex -space-x-1.5 overflow-hidden">
+                      {photoVotes.map((v, i) => (
+                        <div
+                          key={v.voterId || i}
+                          className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 font-bold text-[9px] shadow-sm"
+                          title={`Votado por: ${v.voterName}`}
+                        >
+                          {v.voterName.slice(0, 1).toUpperCase()}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 )}
               </div>
 
-              {photo.caption && (
-                <p className="text-zinc-500 text-[11px] truncate">{photo.caption}</p>
-              )}
-
-              {/* Comment Bubble display */}
-              {comment && (
+              {/* Display recent comments */}
+              {photoComments.length > 0 && (
                 <div
                   onClick={() => onOpenCommentModal(photo)}
-                  className="mt-1 p-2 rounded-lg bg-sky-950/30 border border-sky-500/30 text-sky-200 text-[11px] leading-snug cursor-pointer hover:bg-sky-950/50 transition-colors"
+                  className="mt-1 p-2 rounded-lg bg-sky-950/30 border border-sky-500/30 text-sky-200 text-[11px] leading-snug cursor-pointer hover:bg-sky-950/50 transition-colors space-y-1"
                 >
                   <span className="font-semibold text-sky-400 block text-[9px] uppercase tracking-wider">
-                    Sua observação:
+                    {photoComments.length} {photoComments.length === 1 ? 'Comentário:' : 'Comentários:'}
                   </span>
-                  <p className="line-clamp-2 italic">&ldquo;{comment}&rdquo;</p>
+                  <p className="line-clamp-2 italic text-zinc-300">
+                    <strong className="text-sky-300 font-semibold">{photoComments[photoComments.length - 1].voterName}:</strong> &ldquo;{photoComments[photoComments.length - 1].text}&rdquo;
+                  </p>
                 </div>
               )}
             </div>

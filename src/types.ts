@@ -4,6 +4,30 @@ export type GalleryStatus = 'draft' | 'awaiting_client' | 'completed';
 
 export type PrivacyType = 'public' | 'private';
 
+export interface GalleryVoter {
+  id: string;
+  name: string;
+  isDecisionMaker?: boolean; // Decision maker (e.g. Noiva/Noivo)
+  hasFinalized?: boolean;
+  finalizedAt?: string;
+  avatarColor?: string;
+}
+
+export interface PhotoVote {
+  voterId: string;
+  voterName: string;
+  createdAt: string;
+}
+
+export interface PhotoCommentItem {
+  id: string;
+  voterId: string;
+  voterName: string;
+  text: string;
+  createdAt: string;
+}
+
+// Legacy format support
 export interface PhotoComment {
   photoId: string;
   comment: string;
@@ -19,15 +43,22 @@ export interface Photo {
   orientation?: 'landscape' | 'portrait' | 'square';
   caption?: string;
   isStarred?: boolean;
+  votes?: PhotoVote[];
+  commentsList?: PhotoCommentItem[];
 }
 
 export interface ClientSelectionData {
-  selectedPhotoIds: string[];
-  comments: Record<string, string>; // photoId -> comment
+  selectedPhotoIds: string[]; // Legacy compatibility array
+  comments: Record<string, string>; // Legacy photoId -> text comment
   completedAt?: string;
   clientNotes?: string;
   totalExtraAmount?: number;
   status: 'pending' | 'submitted';
+
+  // Collaborative Voting Extensions
+  votes?: Record<string, PhotoVote[]>; // photoId -> list of votes
+  commentsMap?: Record<string, PhotoCommentItem[]>; // photoId -> list of comments
+  voters?: GalleryVoter[]; // Active registered voters
 }
 
 export interface Gallery {
@@ -42,22 +73,28 @@ export interface Gallery {
   status: GalleryStatus;
   privacy: PrivacyType;
   pinCode?: string; // 4 to 6 digits if private
-  
+
+  // Collaborative Consensus Configuration
+  predefinedVoters?: GalleryVoter[]; // Pre-defined roles ("Noiva", "Noivo", "Pai da Noiva")
+  consensusThreshold?: number; // Minimum votes required for consensus (default 2)
+  allowFreeVoterRegistration?: boolean; // Toggle if anyone with PIN can type their name
+  voters?: GalleryVoter[]; // Active registered voters for this gallery
+
   // Quota and Excess Rules
   quotaIncluded: number; // Y photos included in the package
   excessPolicy: ExcessPolicy;
   extraPhotoPrice: number; // R$ per extra photo (used if excessPolicy === 'charge')
-  
+
   // Protection & Display
   watermarkEnabled: boolean;
   watermarkText?: string;
-  
+
   // Photos
   photos: Photo[];
-  
+
   // Client submission data
   clientSelection: ClientSelectionData;
-  
+
   createdAt: string;
   updatedAt: string;
 }

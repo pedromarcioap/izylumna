@@ -1,8 +1,16 @@
-import { Gallery, ClientSelectionData, Photo, PhotographerProfile } from '../types';
+import {
+  Gallery,
+  ClientSelectionData,
+  Photo,
+  PhotographerProfile,
+  GalleryVoter,
+  PhotoVote,
+  PhotoCommentItem
+} from '../types';
 import { supabase } from './supabase';
 
-const LOCAL_CACHE_KEY = 'izylumna_supabase_galleries_cache_v1';
-const PROFILE_CACHE_KEY = 'izylumna_supabase_profile_cache_v1';
+const LOCAL_CACHE_KEY = 'izylumna_supabase_galleries_cache_v2';
+const PROFILE_CACHE_KEY = 'izylumna_supabase_profile_cache_v2';
 
 // In-memory cache for immediate synchronous renders
 let cachedGalleries: Gallery[] = [];
@@ -47,13 +55,11 @@ export function generateUniquePin(existingPins: string[] = []): string {
   const taken = new Set(existingPins);
   let attempt = '';
   for (let i = 0; i < 100; i++) {
-    // Generate 4-digit PIN between 1000 and 9999
     attempt = Math.floor(1000 + Math.random() * 9000).toString();
     if (!taken.has(attempt)) {
       return attempt;
     }
   }
-  // Fallback to 6-digit PIN
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
@@ -61,16 +67,22 @@ export function generateUniquePin(existingPins: string[] = []): string {
  * Maps raw Supabase database rows into a full TypeScript Gallery object
  */
 function mapRowToGallery(row: any, photosRows: any[] = [], selectionRow: any = null): Gallery {
+  const rawVotes: Record<string, PhotoVote[]> = selectionRow?.votes || {};
+  const rawCommentsMap: Record<string, PhotoCommentItem[]> = selectionRow?.comments_map || {};
+
   const photos: Photo[] = (photosRows || []).map((p: any) => ({
     id: p.id,
     url: p.url,
     originalFileName: p.original_filename,
-    isStarred: p.is_starred || false
+    isStarred: p.is_starred || false,
+    votes: rawVotes[p.id] || [],
+    commentsList: rawCommentsMap[p.id] || []
   }));
 
   const selectedPhotoIds: string[] = selectionRow?.selected_photo_ids || [];
-  const comments: Record<string, string> = selectionRow?.comments || {};
+  const legacyComments: Record<string, string> = selectionRow?.comments || {};
   const isCompleted = row.status === 'completed';
+  const votersList: GalleryVoter[] = selectionRow?.voters || row.voters || [];
 
   return {
     id: row.id,
@@ -84,6 +96,13 @@ function mapRowToGallery(row: any, photosRows: any[] = [], selectionRow: any = n
     status: row.status || 'awaiting_client',
     privacy: row.privacy || 'private',
     pinCode: row.pin_code || '1001',
+
+    // Collaborative Consensus Configuration
+    predefinedVoters: row.predefined_voters || [],
+    consensusThreshold: Number(row.consensus_threshold) || 2,
+    allowFreeVoterRegistration: row.allow_free_voter_registration ?? true,
+    voters: votersList,
+
     quotaIncluded: Number(row.quota_included) || 20,
     excessPolicy: row.excess_policy || 'charge',
     extraPhotoPrice: Number(row.extra_photo_price) || 30,
@@ -92,7 +111,10 @@ function mapRowToGallery(row: any, photosRows: any[] = [], selectionRow: any = n
     photos,
     clientSelection: {
       selectedPhotoIds,
-      comments,
+      comments: legacyComments,
+      votes: rawVotes,
+      commentsMap: rawCommentsMap,
+      voters: votersList,
       completedAt: selectionRow?.approved_at || undefined,
       status: isCompleted ? 'submitted' : 'pending'
     },
@@ -102,7 +124,7 @@ function mapRowToGallery(row: any, photosRows: any[] = [], selectionRow: any = n
 }
 
 /**
- * Fetch all galleries directly from Supabase
+ * Fetch all galleries with resilient Supabase -> localStorage fallback
  */
 export async function getGalleriesAsync(): Promise<Gallery[]> {
   try {
@@ -111,25 +133,22 @@ export async function getGalleriesAsync(): Promise<Gallery[]> {
       .select('*')
       .order('created_at', { ascending: false });
 
-    if (galErr) {
-      console.error('Error fetching galleries from Supabase:', galErr);
-      return cachedGalleries;
+    if (galErr || !dbGalleries) {
+      console.warn('[Supabase Fallback] Error fetching galleries from DB (using localStorage):', galErr?.message || galErr);
+      return getGalleries();
     }
 
-    if (!dbGalleries || dbGalleries.length === 0) {
-      updateLocalCache([]);
-      return [];
+    if (dbGalleries.length === 0) {
+      return cachedGalleries;
     }
 
     const galleryIds = dbGalleries.map((g) => g.id);
 
-    // Fetch all photos for these galleries
     const { data: dbPhotos } = await supabase
       .from('photos')
       .select('*')
       .in('gallery_id', galleryIds);
 
-    // Fetch all client selections for these galleries
     const { data: dbSelections } = await supabase
       .from('client_selections')
       .select('*')
@@ -146,35 +165,36 @@ export async function getGalleriesAsync(): Promise<Gallery[]> {
       selectionsByGallery[s.gallery_id] = s;
     });
 
-    const galleries: Gallery[] = dbGalleries.map((g) =>
+    const dbMappedGalleries: Gallery[] = dbGalleries.map((g) =>
       mapRowToGallery(g, photosByGallery[g.id] || [], selectionsByGallery[g.id] || null)
     );
 
-    updateLocalCache(galleries);
-    return galleries;
+    // Merge local-only galleries created in fallback mode
+    const mergedMap = new Map<string, Gallery>();
+    dbMappedGalleries.forEach((g) => mergedMap.set(g.id, g));
+    cachedGalleries.forEach((cg) => {
+      if (!mergedMap.has(cg.id)) {
+        mergedMap.set(cg.id, cg);
+      }
+    });
+
+    const mergedList = Array.from(mergedMap.values());
+    updateLocalCache(mergedList);
+    return mergedList;
   } catch (e) {
-    console.error('Failed to load galleries from Supabase:', e);
-    return cachedGalleries;
+    console.warn('[Supabase Fallback] Exception loading galleries from Supabase:', e);
+    return getGalleries();
   }
 }
 
-/**
- * Synchronous getter returning local cached galleries
- */
 export function getGalleries(): Gallery[] {
   return cachedGalleries;
 }
 
-/**
- * Synchronous getter for gallery by ID
- */
 export function getGalleryById(id: string): Gallery | undefined {
   return cachedGalleries.find((g) => g.id === id);
 }
 
-/**
- * Fetch a single gallery by its UNIQUE PIN code from Supabase
- */
 export async function getGalleryByPinAsync(pinCode: string): Promise<Gallery | null> {
   const cleanPin = pinCode.trim();
   if (!cleanPin) return null;
@@ -187,7 +207,6 @@ export async function getGalleryByPinAsync(pinCode: string): Promise<Gallery | n
       .maybeSingle();
 
     if (error || !dbGallery) {
-      // Fallback check in cache
       const cached = cachedGalleries.find((g) => g.pinCode === cleanPin);
       return cached || null;
     }
@@ -205,93 +224,24 @@ export async function getGalleryByPinAsync(pinCode: string): Promise<Gallery | n
 
     return mapRowToGallery(dbGallery, dbPhotos || [], dbSelection || null);
   } catch (e) {
-    console.error('Error fetching gallery by PIN:', e);
+    console.warn('[Supabase Fallback] Error fetching gallery by PIN, trying local cache:', e);
     return cachedGalleries.find((g) => g.pinCode === cleanPin) || null;
   }
 }
 
 /**
- * Save or update a Gallery in Supabase
+ * Save or update a Gallery in Supabase with automatic local fallback
  */
 export async function saveGalleryAsync(gallery: Gallery): Promise<Gallery> {
   const now = new Date().toISOString();
-  
-  // Ensure PIN is unique across galleries
+
   const existingPins = cachedGalleries.filter((g) => g.id !== gallery.id).map((g) => g.pinCode || '');
   let pinCode = gallery.pinCode?.trim();
   if (!pinCode || existingPins.includes(pinCode)) {
     pinCode = generateUniquePin(existingPins);
   }
 
-  const galleryPayload = {
-    title: gallery.title,
-    client_name: gallery.clientName,
-    client_email: gallery.clientEmail || '',
-    client_phone: gallery.clientPhone || '',
-    event_date: gallery.eventDate || now.split('T')[0],
-    description: gallery.description || '',
-    status: gallery.status || 'awaiting_client',
-    privacy: gallery.privacy || 'private',
-    pin_code: pinCode,
-    quota_included: gallery.quotaIncluded,
-    excess_policy: gallery.excessPolicy,
-    extra_photo_price: gallery.extraPhotoPrice,
-    watermark_enabled: gallery.watermarkEnabled,
-    watermark_text: gallery.watermarkText || 'PROVA • LUMINA STUDIO • PROVA',
-    cover_photo_url: gallery.coverPhotoUrl || (gallery.photos[0]?.url || ''),
-    updated_at: now
-  };
-
   let galleryId = gallery.id;
-
-  // Validate if id is valid UUID or generate/upsert
-  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(galleryId);
-
-  if (isUUID) {
-    const { error } = await supabase
-      .from('galleries')
-      .upsert({ id: galleryId, ...galleryPayload });
-    if (error) console.error('Error upserting gallery:', error);
-  } else {
-    const { data, error } = await supabase
-      .from('galleries')
-      .insert([galleryPayload])
-      .select('id')
-      .single();
-    if (error) {
-      console.error('Error inserting new gallery:', error);
-    } else if (data?.id) {
-      galleryId = data.id;
-    }
-  }
-
-  // Sync photos to Supabase
-  if (gallery.photos && gallery.photos.length > 0) {
-    // Remove old photos for this gallery and insert new set
-    await supabase.from('photos').delete().eq('gallery_id', galleryId);
-
-    const photosPayload = gallery.photos.map((p) => ({
-      gallery_id: galleryId,
-      url: p.url,
-      original_filename: p.originalFileName,
-      is_starred: p.isStarred || false
-    }));
-
-    const { error: photoErr } = await supabase.from('photos').insert(photosPayload);
-    if (photoErr) console.error('Error inserting photos:', photoErr);
-  }
-
-  // Sync client_selection row
-  const selectionPayload = {
-    gallery_id: galleryId,
-    selected_photo_ids: gallery.clientSelection?.selectedPhotoIds || [],
-    comments: gallery.clientSelection?.comments || {},
-    approved_at: gallery.clientSelection?.completedAt || null,
-    updated_at: now
-  };
-
-  await supabase.from('client_selections').upsert(selectionPayload, { onConflict: 'gallery_id' });
-
   const updatedGallery: Gallery = {
     ...gallery,
     id: galleryId,
@@ -299,7 +249,7 @@ export async function saveGalleryAsync(gallery: Gallery): Promise<Gallery> {
     updatedAt: now
   };
 
-  // Update local memory and cache
+  // 1. Immediately update local cache & localStorage
   const idx = cachedGalleries.findIndex((g) => g.id === gallery.id || g.id === galleryId);
   let newGalleries: Gallery[];
   if (idx >= 0) {
@@ -310,23 +260,112 @@ export async function saveGalleryAsync(gallery: Gallery): Promise<Gallery> {
   }
   updateLocalCache(newGalleries);
 
+  // 2. Safely attempt Supabase synchronization
+  try {
+    const galleryPayload = {
+      title: gallery.title,
+      client_name: gallery.clientName,
+      client_email: gallery.clientEmail || '',
+      client_phone: gallery.clientPhone || '',
+      event_date: gallery.eventDate || now.split('T')[0],
+      description: gallery.description || '',
+      status: gallery.status || 'awaiting_client',
+      privacy: gallery.privacy || 'private',
+      pin_code: pinCode,
+      predefined_voters: gallery.predefinedVoters || [],
+      consensus_threshold: gallery.consensusThreshold || 2,
+      allow_free_voter_registration: gallery.allowFreeVoterRegistration ?? true,
+      voters: gallery.voters || [],
+      quota_included: gallery.quotaIncluded,
+      excess_policy: gallery.excessPolicy,
+      extra_photo_price: gallery.extraPhotoPrice,
+      watermark_enabled: gallery.watermarkEnabled,
+      watermark_text: gallery.watermarkText || 'PROVA • LUMINA STUDIO • PROVA',
+      cover_photo_url: gallery.coverPhotoUrl || (gallery.photos[0]?.url || ''),
+      updated_at: now
+    };
+
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(galleryId);
+
+    if (isUUID) {
+      const { error } = await supabase.from('galleries').upsert({ id: galleryId, ...galleryPayload });
+      if (error) {
+        console.warn('[Supabase Sync Warning] Failed to upsert gallery (operating in local fallback):', error.message || error);
+      }
+    } else {
+      const { data, error } = await supabase
+        .from('galleries')
+        .insert([galleryPayload])
+        .select('id')
+        .single();
+      if (error) {
+        console.warn('[Supabase Sync Warning] Failed to insert gallery (operating in local fallback):', error.message || error);
+      } else if (data?.id) {
+        galleryId = data.id;
+        updatedGallery.id = galleryId;
+        // update local cache with database UUID
+        const finalIdx = cachedGalleries.findIndex((g) => g.id === gallery.id || g.id === galleryId);
+        if (finalIdx >= 0) {
+          cachedGalleries[finalIdx] = updatedGallery;
+        } else {
+          cachedGalleries = [updatedGallery, ...cachedGalleries];
+        }
+        updateLocalCache(cachedGalleries);
+      }
+    }
+
+    // Sync photos
+    if (gallery.photos && gallery.photos.length > 0) {
+      await supabase.from('photos').delete().eq('gallery_id', galleryId);
+
+      const photosPayload = gallery.photos.map((p) => ({
+        gallery_id: galleryId,
+        url: p.url,
+        original_filename: p.originalFileName,
+        is_starred: p.isStarred || false
+      }));
+
+      const { error: photoErr } = await supabase.from('photos').insert(photosPayload);
+      if (photoErr) {
+        console.warn('[Supabase Sync Warning] Failed to sync photos:', photoErr.message || photoErr);
+      }
+    }
+
+    // Sync client selections & voting state
+    const selectionPayload = {
+      gallery_id: galleryId,
+      selected_photo_ids: gallery.clientSelection?.selectedPhotoIds || [],
+      comments: gallery.clientSelection?.comments || {},
+      votes: gallery.clientSelection?.votes || {},
+      comments_map: gallery.clientSelection?.commentsMap || {},
+      voters: gallery.voters || gallery.clientSelection?.voters || [],
+      approved_at: gallery.clientSelection?.completedAt || null,
+      updated_at: now
+    };
+
+    const { error: selErr } = await supabase
+      .from('client_selections')
+      .upsert(selectionPayload, { onConflict: 'gallery_id' });
+    if (selErr) {
+      console.warn('[Supabase Sync Warning] Failed to sync selections:', selErr.message || selErr);
+    }
+  } catch (e) {
+    console.warn('[Supabase Fallback] Network or RLS error saving gallery, saved locally:', e);
+  }
+
   return updatedGallery;
 }
 
-/**
- * Synchronous wrapper for saveGallery (invokes async save in background)
- */
 export function saveGallery(gallery: Gallery): void {
   saveGalleryAsync(gallery);
 }
 
-/**
- * Delete gallery from Supabase
- */
 export async function deleteGalleryAsync(id: string): Promise<void> {
-  const { error } = await supabase.from('galleries').delete().eq('id', id);
-  if (error) {
-    console.error('Error deleting gallery from Supabase:', error);
+  try {
+    const { error } = await supabase.from('galleries').delete().eq('id', id);
+    if (error) console.warn('[Supabase Sync Warning] Failed to delete gallery from DB:', error.message);
+  } catch (e) {
+    console.warn('[Supabase Fallback] Failed deleting gallery from Supabase, removing locally:', e);
   }
   const filtered = cachedGalleries.filter((g) => g.id !== id);
   updateLocalCache(filtered);
@@ -337,73 +376,265 @@ export function deleteGallery(id: string): void {
 }
 
 /**
- * Update client selection in Supabase
+ * Toggle a vote for a specific photo by a voter with local fallback
  */
-export async function updateClientSelectionAsync(
-  galleryId: string,
-  selection: ClientSelectionData
-): Promise<Gallery | undefined> {
-  const isSubmitted = selection.status === 'submitted';
+export async function togglePhotoVoteAsync(
+  gallery: Gallery,
+  photoId: string,
+  voter: GalleryVoter
+): Promise<Gallery> {
   const now = new Date().toISOString();
+  const currentVotes: Record<string, PhotoVote[]> = { ...(gallery.clientSelection.votes || {}) };
+  const photoVotes: PhotoVote[] = [...(currentVotes[photoId] || [])];
 
-  // Update client_selections table
-  const { error: selErr } = await supabase
-    .from('client_selections')
-    .upsert(
+  const existingIdx = photoVotes.findIndex((v) => v.voterId === voter.id);
+  if (existingIdx >= 0) {
+    photoVotes.splice(existingIdx, 1);
+  } else {
+    photoVotes.push({
+      voterId: voter.id,
+      voterName: voter.name,
+      createdAt: now
+    });
+  }
+
+  currentVotes[photoId] = photoVotes;
+
+  const selectedPhotoIds = Object.keys(currentVotes).filter(
+    (pId) => (currentVotes[pId] || []).length > 0
+  );
+
+  const activeVoters: GalleryVoter[] = [...(gallery.voters || gallery.clientSelection.voters || [])];
+  if (!activeVoters.some((v) => v.id === voter.id)) {
+    activeVoters.push(voter);
+  }
+
+  const updatedSelection: ClientSelectionData = {
+    ...gallery.clientSelection,
+    selectedPhotoIds,
+    votes: currentVotes,
+    voters: activeVoters
+  };
+
+  const updatedGallery: Gallery = {
+    ...gallery,
+    voters: activeVoters,
+    clientSelection: updatedSelection,
+    photos: gallery.photos.map((p) =>
+      p.id === photoId ? { ...p, votes: photoVotes } : p
+    ),
+    updatedAt: now
+  };
+
+  // 1. Immediately update local cache
+  const idx = cachedGalleries.findIndex((g) => g.id === gallery.id);
+  if (idx >= 0) {
+    cachedGalleries[idx] = updatedGallery;
+    updateLocalCache(cachedGalleries);
+  }
+
+  // 2. Try Supabase
+  try {
+    await supabase
+      .from('client_selections')
+      .upsert(
+        {
+          gallery_id: gallery.id,
+          selected_photo_ids: selectedPhotoIds,
+          votes: currentVotes,
+          comments_map: gallery.clientSelection.commentsMap || {},
+          voters: activeVoters,
+          updated_at: now
+        },
+        { onConflict: 'gallery_id' }
+      );
+  } catch (e) {
+    console.warn('[Supabase Fallback] Error syncing vote to Supabase:', e);
+  }
+
+  return updatedGallery;
+}
+
+/**
+ * Add a comment to a photo from a specific voter with local fallback
+ */
+export async function addPhotoCommentAsync(
+  gallery: Gallery,
+  photoId: string,
+  voter: GalleryVoter,
+  text: string
+): Promise<Gallery> {
+  const now = new Date().toISOString();
+  const commentsMap: Record<string, PhotoCommentItem[]> = { ...(gallery.clientSelection.commentsMap || {}) };
+  const photoComments: PhotoCommentItem[] = [...(commentsMap[photoId] || [])];
+
+  const newComment: PhotoCommentItem = {
+    id: `cmt-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    voterId: voter.id,
+    voterName: voter.name,
+    text: text.trim(),
+    createdAt: now
+  };
+
+  photoComments.push(newComment);
+  commentsMap[photoId] = photoComments;
+
+  const legacyComments = { ...(gallery.clientSelection.comments || {}) };
+  legacyComments[photoId] = text.trim();
+
+  const updatedSelection: ClientSelectionData = {
+    ...gallery.clientSelection,
+    commentsMap,
+    comments: legacyComments
+  };
+
+  const updatedGallery: Gallery = {
+    ...gallery,
+    clientSelection: updatedSelection,
+    photos: gallery.photos.map((p) =>
+      p.id === photoId ? { ...p, commentsList: photoComments } : p
+    ),
+    updatedAt: now
+  };
+
+  // Update local cache
+  const idx = cachedGalleries.findIndex((g) => g.id === gallery.id);
+  if (idx >= 0) {
+    cachedGalleries[idx] = updatedGallery;
+    updateLocalCache(cachedGalleries);
+  }
+
+  // Try Supabase
+  try {
+    await supabase
+      .from('client_selections')
+      .upsert(
+        {
+          gallery_id: gallery.id,
+          comments: legacyComments,
+          comments_map: commentsMap,
+          updated_at: now
+        },
+        { onConflict: 'gallery_id' }
+      );
+  } catch (e) {
+    console.warn('[Supabase Fallback] Error syncing comment to Supabase:', e);
+  }
+
+  return updatedGallery;
+}
+
+/**
+ * Delete a comment from a photo with local fallback
+ */
+export async function deletePhotoCommentAsync(
+  gallery: Gallery,
+  photoId: string,
+  commentId: string
+): Promise<Gallery> {
+  const now = new Date().toISOString();
+  const commentsMap: Record<string, PhotoCommentItem[]> = { ...(gallery.clientSelection.commentsMap || {}) };
+  const photoComments = (commentsMap[photoId] || []).filter((c) => c.id !== commentId);
+
+  commentsMap[photoId] = photoComments;
+
+  const legacyComments = { ...(gallery.clientSelection.comments || {}) };
+  if (photoComments.length === 0) {
+    delete legacyComments[photoId];
+  } else {
+    legacyComments[photoId] = photoComments[photoComments.length - 1].text;
+  }
+
+  const updatedGallery: Gallery = {
+    ...gallery,
+    clientSelection: {
+      ...gallery.clientSelection,
+      commentsMap,
+      comments: legacyComments
+    },
+    photos: gallery.photos.map((p) =>
+      p.id === photoId ? { ...p, commentsList: photoComments } : p
+    ),
+    updatedAt: now
+  };
+
+  // Update local cache
+  const idx = cachedGalleries.findIndex((g) => g.id === gallery.id);
+  if (idx >= 0) {
+    cachedGalleries[idx] = updatedGallery;
+    updateLocalCache(cachedGalleries);
+  }
+
+  // Try Supabase
+  try {
+    await supabase
+      .from('client_selections')
+      .upsert(
+        {
+          gallery_id: gallery.id,
+          comments: legacyComments,
+          comments_map: commentsMap,
+          updated_at: now
+        },
+        { onConflict: 'gallery_id' }
+      );
+  } catch (e) {
+    console.warn('[Supabase Fallback] Error deleting comment from Supabase:', e);
+  }
+
+  return updatedGallery;
+}
+
+/**
+ * Finalize selection for a specific voter with local fallback
+ */
+export async function finalizeVoterSelectionAsync(
+  gallery: Gallery,
+  voterId: string
+): Promise<Gallery> {
+  const now = new Date().toISOString();
+  const activeVoters = [...(gallery.voters || gallery.clientSelection.voters || [])];
+
+  const voterIdx = activeVoters.findIndex((v) => v.id === voterId);
+  if (voterIdx >= 0) {
+    activeVoters[voterIdx] = {
+      ...activeVoters[voterIdx],
+      hasFinalized: true,
+      finalizedAt: now
+    };
+  }
+
+  const updatedGallery: Gallery = {
+    ...gallery,
+    voters: activeVoters,
+    clientSelection: {
+      ...gallery.clientSelection,
+      voters: activeVoters
+    },
+    updatedAt: now
+  };
+
+  const idx = cachedGalleries.findIndex((g) => g.id === gallery.id);
+  if (idx >= 0) {
+    cachedGalleries[idx] = updatedGallery;
+    updateLocalCache(cachedGalleries);
+  }
+
+  try {
+    await supabase.from('client_selections').upsert(
       {
-        gallery_id: galleryId,
-        selected_photo_ids: selection.selectedPhotoIds,
-        comments: selection.comments,
-        approved_at: isSubmitted ? now : null,
+        gallery_id: gallery.id,
+        voters: activeVoters,
         updated_at: now
       },
       { onConflict: 'gallery_id' }
     );
-
-  if (selErr) console.error('Error updating client_selection:', selErr);
-
-  // If submitted, update gallery status to 'completed'
-  if (isSubmitted) {
-    await supabase
-      .from('galleries')
-      .update({ status: 'completed', updated_at: now })
-      .eq('id', galleryId);
+    await supabase.from('galleries').update({ voters: activeVoters }).eq('id', gallery.id);
+  } catch (e) {
+    console.warn('[Supabase Fallback] Error finalizing selection in Supabase:', e);
   }
 
-  const gallery = cachedGalleries.find((g) => g.id === galleryId);
-  if (gallery) {
-    const updatedGallery: Gallery = {
-      ...gallery,
-      clientSelection: selection,
-      status: isSubmitted ? 'completed' : gallery.status,
-      updatedAt: now
-    };
-    const idx = cachedGalleries.findIndex((g) => g.id === galleryId);
-    if (idx >= 0) {
-      cachedGalleries[idx] = updatedGallery;
-      updateLocalCache(cachedGalleries);
-    }
-    return updatedGallery;
-  }
-
-  return undefined;
-}
-
-export function updateClientSelection(
-  galleryId: string,
-  selection: ClientSelectionData
-): Gallery | undefined {
-  updateClientSelectionAsync(galleryId, selection);
-  const gallery = cachedGalleries.find((g) => g.id === galleryId);
-  if (gallery) {
-    const isSubmitted = selection.status === 'submitted';
-    return {
-      ...gallery,
-      clientSelection: selection,
-      status: isSubmitted ? 'completed' : gallery.status
-    };
-  }
-  return undefined;
+  return updatedGallery;
 }
 
 /**
@@ -470,7 +701,6 @@ export async function savePhotographerProfileAsync(
   return profile;
 }
 
-// Generate Lightroom selection string
 export function generateLightroomSelectionString(photos: Photo[], stripExtension = false): string {
   return photos
     .map((p) => {
@@ -482,81 +712,78 @@ export function generateLightroomSelectionString(photos: Photo[], stripExtension
     .join(', ');
 }
 
-// Download .txt file with complete approval manifest
-export function downloadApprovalManifest(gallery: Gallery): void {
-  const selectedMap = new Set(gallery.clientSelection.selectedPhotoIds);
-  const selectedPhotos = gallery.photos.filter((p) => selectedMap.has(p.id));
-  
-  const quota = gallery.quotaIncluded;
-  const packagePhotos = selectedPhotos.slice(0, quota);
-  const extraPhotos = selectedPhotos.slice(quota);
+export function downloadApprovalManifest(
+  gallery: Gallery,
+  filterType: 'consensus' | 'all_voted' | 'voter' = 'consensus',
+  selectedVoterId?: string
+): void {
+  const votesMap = gallery.clientSelection.votes || {};
+  const threshold = gallery.consensusThreshold || 2;
 
-  let extraFinancialDetails = '';
-  if (gallery.excessPolicy === 'charge' && extraPhotos.length > 0) {
-    const totalExtra = extraPhotos.length * gallery.extraPhotoPrice;
-    extraFinancialDetails = `
-=== RESUMO FINANCEIRO DE FOTOS EXCEDENTES ===
-Fotos Inclusas no Pacote: ${quota}
-Fotos Selecionadas: ${selectedPhotos.length}
-Fotos Extras: ${extraPhotos.length}
-Valor Unitário por Extra: R$ ${gallery.extraPhotoPrice.toFixed(2)}
-Total Adicional a Receber: R$ ${totalExtra.toFixed(2)}
-`;
-  } else if (gallery.excessPolicy === 'free_approval') {
-    extraFinancialDetails = `
-=== POLÍTICA DE EXCEDENTES: APROVAÇÃO PURA (SEM CUSTO ADICIONAL) ===
-Fotos Contratadas na Cota: ${quota}
-Fotos Selecionadas: ${selectedPhotos.length}
-Fotos Adicionais Aprovadas para Tratamento: ${Math.max(0, selectedPhotos.length - quota)}
-`;
+  let exportPhotos: Photo[] = [];
+  let filterTitle = '';
+
+  if (filterType === 'consensus') {
+    exportPhotos = gallery.photos.filter((p) => (votesMap[p.id] || []).length >= threshold);
+    filterTitle = `FOTOS EM CONSENSO (Mínimo de ${threshold} Votos)`;
+  } else if (filterType === 'voter' && selectedVoterId) {
+    const voterName = gallery.voters?.find((v) => v.id === selectedVoterId)?.name || 'Votante';
+    exportPhotos = gallery.photos.filter((p) =>
+      (votesMap[p.id] || []).some((v) => v.voterId === selectedVoterId)
+    );
+    filterTitle = `SELEÇÃO ISOLADA - ${voterName.toUpperCase()}`;
   } else {
-    extraFinancialDetails = `
-=== POLÍTICA DE EXCEDENTES: BLOQUEIO RÍGIDO ===
-Fotos Inclusas / Limite Máximo: ${quota}
-Fotos Selecionadas: ${selectedPhotos.length}
-`;
+    exportPhotos = gallery.photos.filter((p) => (votesMap[p.id] || []).length > 0);
+    filterTitle = `TODAS AS FOTOS COM PELO MENOS 1 VOTO (${exportPhotos.length} fotos)`;
   }
 
-  let commentsSection = '\n=== OBSERVAÇÕES E COMENTÁRIOS POR FOTO ===\n';
-  const commentEntries = Object.entries(gallery.clientSelection.comments || {});
-  if (commentEntries.length === 0) {
-    commentsSection += 'Nenhum comentário específico adicionado nas fotos.\n';
-  } else {
-    commentEntries.forEach(([pId, text]) => {
-      const ph = gallery.photos.find((p) => p.id === pId);
-      if (ph) {
-        commentsSection += `• ${ph.originalFileName}: "${text}"\n`;
-      }
-    });
+  let commentsSection = '\n=== OBSERVAÇÕES E COMENTÁRIOS DA EQUIPE/CLIENTES ===\n';
+  const commentsMap = gallery.clientSelection.commentsMap || {};
+  let totalCommentsCount = 0;
+
+  gallery.photos.forEach((p) => {
+    const cList = commentsMap[p.id] || [];
+    if (cList.length > 0) {
+      commentsSection += `\n📷 ${p.originalFileName}:\n`;
+      cList.forEach((c) => {
+        totalCommentsCount++;
+        commentsSection += `   - [${c.voterName}] ("${c.text}") às ${new Date(c.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}\n`;
+      });
+    }
+  });
+
+  if (totalCommentsCount === 0) {
+    commentsSection += 'Nenhum comentário específico foi adicionado nas fotos.\n';
   }
 
   const fileContent = `=====================================================
-RELATÓRIO DE APROVAÇÃO DE FOTOS - ${gallery.title.toUpperCase()}
-Cliente: ${gallery.clientName}
+RELATÓRIO DE CONSENSO E APROVAÇÃO - ${gallery.title.toUpperCase()}
+Cliente Principal: ${gallery.clientName}
 Data do Evento: ${gallery.eventDate}
-Data da Seleção: ${gallery.clientSelection.completedAt ? new Date(gallery.clientSelection.completedAt).toLocaleString('pt-BR') : 'Em andamento'}
-Status: ${gallery.status.toUpperCase()}
+Regra de Consenso: Mínimo ${threshold} votos por foto
+Filtro de Exportação: ${filterTitle}
 =====================================================
 
 --- FILTRO RÁPIDO PARA ADOBE LIGHTROOM (Com extensão) ---
-${generateLightroomSelectionString(selectedPhotos, false)}
+${generateLightroomSelectionString(exportPhotos, false)}
 
 --- FILTRO RÁPIDO PARA ADOBE LIGHTROOM (Sem extensão) ---
-${generateLightroomSelectionString(selectedPhotos, true)}
+${generateLightroomSelectionString(exportPhotos, true)}
 
-${extraFinancialDetails}
-=== LISTAGEM DETALHADA DOS ARQUIVOS SELECIONADOS (${selectedPhotos.length} fotos) ===
-[1. Dentro do Pacote Contratado - ${packagePhotos.length} fotos]:
-${packagePhotos.map((p, idx) => `  ${idx + 1}. ${p.originalFileName} ${gallery.clientSelection.comments[p.id] ? `[Comentário: ${gallery.clientSelection.comments[p.id]}]` : ''}`).join('\n')}
+=== PARTICIPANTES DA VOTAÇÃO ===
+${(gallery.voters || []).map((v) => `• ${v.name} ${v.isDecisionMaker ? '[Tomador Principal]' : ''} - Status: ${v.hasFinalized ? '✅ Finalizou Seleção' : '⏳ Em Votação'}`).join('\n') || 'Nenhum participante registrado ainda.'}
 
-${extraPhotos.length > 0 ? `[2. Fotos Excedentes / Extras - ${extraPhotos.length} fotos]:\n${extraPhotos.map((p, idx) => `  +${idx + 1}. ${p.originalFileName} ${gallery.clientSelection.comments[p.id] ? `[Comentário: ${gallery.clientSelection.comments[p.id]}]` : ''}`).join('\n')}` : '[Nenhuma foto excedente]'}
+=== LISTAGEM DAS FOTOS DA EXPORTAÇÃO (${exportPhotos.length} fotos) ===
+${exportPhotos.map((p, idx) => {
+  const vList = votesMap[p.id] || [];
+  const votersWhoVoted = vList.map((v) => v.voterName).join(', ');
+  return `${idx + 1}. ${p.originalFileName} (❤️ ${vList.length} votos ${votersWhoVoted ? `por ${votersWhoVoted}` : ''})`;
+}).join('\n')}
 
 ${commentsSection}
-=== MENSAGEM FINAL DO CLIENTE ===
-${gallery.clientSelection.clientNotes || 'Nenhuma mensagem adicional informada.'}
 
 =====================================================
-Gerado via Photo Proofing Studio • Sistema de Seleção Fotográfica
+Gerado via IzyLumna • Sistema Colaborativo de Prova Fotográfica
 =====================================================
 `;
 
@@ -564,7 +791,7 @@ Gerado via Photo Proofing Studio • Sistema de Seleção Fotográfica
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `aprovacao-${gallery.title.toLowerCase().replace(/[^a-z0-9]/g, '-')}.txt`;
+  link.download = `consenso-${gallery.title.toLowerCase().replace(/[^a-z0-9]/g, '-')}.txt`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);

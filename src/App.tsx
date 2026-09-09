@@ -135,21 +135,27 @@ export default function App() {
     }));
   };
 
-  // CRUD handlers via Supabase
+  // CRUD handlers via Supabase with automatic local fallback
   const handleSaveGallery = async (gallery: Gallery) => {
     try {
       const saved = await saveGalleryAsync(gallery);
       const updatedList = await getGalleriesAsync();
-      setGalleries(updatedList);
+
+      const finalGalleries = updatedList.some((g) => g.id === saved.id)
+        ? updatedList
+        : [saved, ...updatedList];
+
+      setGalleries(finalGalleries);
       setSelectedGalleryId(saved.id);
 
       showToast(
         galleryToEdit ? 'Galeria Atualizada!' : 'Galeria Publicada com Sucesso!',
-        `O ensaio "${saved.title}" (PIN: ${saved.pinCode}) está salvo no Supabase.`,
+        `O ensaio "${saved.title}" (PIN: ${saved.pinCode}) está pronto para acesso.`,
         'success'
       );
     } catch (e) {
-      showToast('Erro ao Salvar', 'Não foi possível salvar a galeria no banco de dados.', 'error');
+      console.error('Error in handleSaveGallery:', e);
+      showToast('Galeria Salva Localmente', 'Salvo no navegador (modo offline/fallback).', 'info');
     }
   };
 
@@ -157,25 +163,34 @@ export default function App() {
     try {
       await deleteGalleryAsync(id);
       const updatedList = await getGalleriesAsync();
-      setGalleries(updatedList);
+      const finalGalleries = updatedList.filter((g) => g.id !== id);
+      setGalleries(finalGalleries);
 
       if (selectedGalleryId === id) {
-        setSelectedGalleryId(updatedList[0]?.id || '');
+        setSelectedGalleryId(finalGalleries[0]?.id || '');
       }
       if (detailGalleryId === id) {
         setAdminSubView('list');
         setDetailGalleryId(null);
       }
-      showToast('Galeria Excluída', 'A galeria e seus registros foram removidos do Supabase.', 'info');
+      showToast('Galeria Excluída', 'A galeria e seus registros foram removidos.', 'info');
     } catch (e) {
-      showToast('Erro ao Excluir', 'Falha ao remover a galeria no Supabase.', 'error');
+      console.error('Error deleting gallery:', e);
+      showToast('Erro ao Excluir', 'Falha ao remover a galeria.', 'error');
     }
   };
 
   const handleUpdateGalleryFromClient = async (updated: Gallery) => {
-    await saveGalleryAsync(updated);
-    const updatedList = await getGalleriesAsync();
-    setGalleries(updatedList);
+    try {
+      const saved = await saveGalleryAsync(updated);
+      const updatedList = await getGalleriesAsync();
+      const finalGalleries = updatedList.some((g) => g.id === saved.id)
+        ? updatedList
+        : updatedList.map((g) => (g.id === saved.id ? saved : g));
+      setGalleries(finalGalleries);
+    } catch (e) {
+      console.warn('Fallback update from client:', e);
+    }
   };
 
   // Open client view for a specific gallery

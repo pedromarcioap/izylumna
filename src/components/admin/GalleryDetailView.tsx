@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Gallery, Photo } from '../../types';
 import { generateLightroomSelectionString, downloadApprovalManifest } from '../../lib/storage';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/Card';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 import {
@@ -11,15 +11,15 @@ import {
   Download,
   MessageSquare,
   Sparkles,
-  DollarSign,
   Calendar,
   User,
   Eye,
   SlidersHorizontal,
-  ExternalLink,
-  ShieldCheck,
-  Ban,
-  Clock
+  Clock,
+  Users,
+  CheckCircle2,
+  AlertCircle,
+  Filter
 } from 'lucide-react';
 
 export interface GalleryDetailViewProps {
@@ -39,23 +39,53 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
 }) => {
   const [copiedWithExt, setCopiedWithExt] = useState(false);
   const [copiedNoExt, setCopiedNoExt] = useState(false);
-  const [activeFilter, setActiveFilter] = useState<'all' | 'package' | 'extra' | 'commented'>('all');
+  const [activeFilter, setActiveFilter] = useState<'consensus' | 'all_voted' | 'voter' | 'package' | 'extra' | 'commented'>('consensus');
+  const [selectedVoterIdFilter, setSelectedVoterIdFilter] = useState<string>('');
 
-  const selectedMap = new Set(gallery.clientSelection.selectedPhotoIds || []);
-  const selectedPhotos = gallery.photos.filter((p) => selectedMap.has(p.id));
+  const threshold = gallery.consensusThreshold || 2;
+  const votesMap = gallery.clientSelection.votes || {};
+  const commentsMap = gallery.clientSelection.commentsMap || {};
+  const voters = gallery.voters || gallery.predefinedVoters || [];
 
+  // Consensus photos (photos with votes >= threshold)
+  const consensusPhotos = gallery.photos.filter(
+    (p) => (votesMap[p.id] || []).length >= threshold
+  );
+
+  // All voted photos (photos with at least 1 vote)
+  const allVotedPhotos = gallery.photos.filter(
+    (p) => (votesMap[p.id] || []).length > 0
+  );
+
+  // Photos voted by selected voter
+  const voterPhotos = gallery.photos.filter((p) =>
+    (votesMap[p.id] || []).some((v) => v.voterId === selectedVoterIdFilter)
+  );
+
+  // Package / extra photos based on consensus
   const quota = gallery.quotaIncluded;
-  const packagePhotos = selectedPhotos.slice(0, quota);
-  const extraPhotos = selectedPhotos.slice(quota);
+  const packagePhotos = consensusPhotos.slice(0, quota);
+  const extraPhotos = consensusPhotos.slice(quota);
 
-  const commentsCount = Object.keys(gallery.clientSelection.comments || {}).length;
+  const commentsCount = gallery.photos.filter((p) => (commentsMap[p.id] || []).length > 0).length;
+
+  // Determine current working export list based on active filter
+  const getExportPhotos = (): Photo[] => {
+    if (activeFilter === 'consensus') return consensusPhotos;
+    if (activeFilter === 'all_voted') return allVotedPhotos;
+    if (activeFilter === 'voter') return voterPhotos;
+    if (activeFilter === 'package') return packagePhotos;
+    if (activeFilter === 'extra') return extraPhotos;
+    return consensusPhotos;
+  };
 
   const handleCopyLightroom = (stripExt: boolean) => {
-    if (selectedPhotos.length === 0) {
-      onShowToast('Nenhuma foto selecionada', 'O cliente ainda não selecionou nenhuma foto.', 'warning');
+    const exportList = getExportPhotos();
+    if (exportList.length === 0) {
+      onShowToast('Nenhuma foto encontrada', 'Não há fotos nesta categoria para exportar.', 'warning');
       return;
     }
-    const filterString = generateLightroomSelectionString(selectedPhotos, stripExt);
+    const filterString = generateLightroomSelectionString(exportList, stripExt);
     navigator.clipboard.writeText(filterString);
 
     if (stripExt) {
@@ -68,31 +98,33 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
 
     onShowToast(
       'Copiado para o Lightroom!',
-      `${selectedPhotos.length} nomes de arquivos copiados para o filtro do Lightroom.`,
+      `${exportList.length} nomes de arquivos copiados para o filtro do Lightroom.`,
       'success'
     );
   };
 
   const handleDownloadTxt = () => {
-    if (selectedPhotos.length === 0) {
-      onShowToast('Nenhuma foto selecionada', 'Não há fotos para exportar no momento.', 'warning');
-      return;
-    }
-    downloadApprovalManifest(gallery);
-    onShowToast('Download iniciado', 'Arquivo .txt gerado com o relatório completo da seleção.', 'success');
+    const exportType = activeFilter === 'voter' ? 'voter' : activeFilter === 'consensus' ? 'consensus' : 'all';
+    downloadApprovalManifest(gallery, exportType as any, selectedVoterIdFilter || undefined);
+    onShowToast('Download iniciado', 'Relatório completo de aprovação gerado em arquivo .txt', 'success');
   };
 
-  // Filtered photos to display
-  const displayedPhotos = selectedPhotos.filter((p, index) => {
-    if (activeFilter === 'package') return index < quota;
-    if (activeFilter === 'extra') return index >= quota;
-    if (activeFilter === 'commented') return !!gallery.clientSelection.comments[p.id];
-    return true;
-  });
+  // Display photos grid
+  const getDisplayedPhotos = () => {
+    if (activeFilter === 'consensus') return consensusPhotos;
+    if (activeFilter === 'all_voted') return allVotedPhotos;
+    if (activeFilter === 'voter') return voterPhotos;
+    if (activeFilter === 'package') return packagePhotos;
+    if (activeFilter === 'extra') return extraPhotos;
+    if (activeFilter === 'commented') return gallery.photos.filter((p) => (commentsMap[p.id] || []).length > 0);
+    return consensusPhotos;
+  };
+
+  const displayedPhotos = getDisplayedPhotos();
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-16">
-      {/* Top Bar with back button and quick actions */}
+      {/* Top Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-800 pb-4">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" onClick={onBack}>
@@ -110,9 +142,9 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
             }
           >
             {gallery.status === 'completed'
-              ? 'Seleção Concluída pelo Cliente'
+              ? 'Consenso Finalizado'
               : gallery.status === 'awaiting_client'
-              ? 'Aguardando Cliente'
+              ? 'Votação Colaborativa em Andamento'
               : 'Rascunho'}
           </Badge>
         </div>
@@ -120,26 +152,32 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => onEditGallery(gallery)}>
             <SlidersHorizontal className="w-3.5 h-3.5" />
-            <span>Editar Configurações</span>
+            <span>Configurações & Regras</span>
           </Button>
           <Button variant="amber" size="sm" onClick={() => onOpenClientView(gallery.id)}>
             <Eye className="w-3.5 h-3.5" />
-            <span>Ver Visão do Cliente</span>
+            <span>Visão do Cliente (Votante)</span>
           </Button>
         </div>
       </div>
 
-      {/* Gallery Header Info Banner */}
+      {/* Header Banner */}
       <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6 backdrop-blur-md relative overflow-hidden">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="space-y-2">
-            <h1 className="font-serif text-2xl sm:text-3xl font-bold text-zinc-100 tracking-tight">
-              {gallery.title}
-            </h1>
+            <div className="flex items-center gap-2">
+              <h1 className="font-serif text-2xl sm:text-3xl font-bold text-zinc-100 tracking-tight">
+                {gallery.title}
+              </h1>
+              <span className="px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-mono font-semibold">
+                Consenso ≥ {threshold} Votos
+              </span>
+            </div>
+
             <div className="flex flex-wrap items-center gap-4 text-xs text-zinc-400">
               <span className="flex items-center gap-1.5 text-zinc-300">
                 <User className="w-4 h-4 text-amber-400" />
-                <span>{gallery.clientName}</span>
+                <span>Cliente: {gallery.clientName}</span>
               </span>
               <span className="flex items-center gap-1.5">
                 <Calendar className="w-4 h-4 text-zinc-500" />
@@ -147,32 +185,22 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
               </span>
               <span className="flex items-center gap-1.5">
                 <Clock className="w-4 h-4 text-zinc-500" />
-                <span>{gallery.photos.length} fotos carregadas</span>
+                <span>{gallery.photos.length} fotos no acervo</span>
               </span>
               <span className="flex items-center gap-1.5">
-                {gallery.privacy === 'private' ? (
-                  <span className="text-amber-400/90 font-mono">PIN: {gallery.pinCode}</span>
-                ) : (
-                  <span className="text-zinc-400">Pública</span>
-                )}
+                <span className="text-amber-400/90 font-mono">PIN: {gallery.pinCode || 'Sem PIN'}</span>
               </span>
             </div>
-            {gallery.clientSelection.completedAt && (
-              <p className="text-xs text-emerald-400 flex items-center gap-1 mt-2">
-                <Check className="w-3.5 h-3.5" />
-                <span>Submetida pelo cliente em {new Date(gallery.clientSelection.completedAt).toLocaleString('pt-BR')}</span>
-              </p>
-            )}
           </div>
 
-          {/* Core Export Actions: Lightroom & TXT */}
+          {/* Export Controls for Lightroom */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 bg-zinc-950/80 p-3 rounded-xl border border-zinc-800 shrink-0">
             <div className="text-left sm:text-right pr-2 hidden sm:block">
               <span className="block text-[11px] uppercase font-mono tracking-wider text-zinc-400">
                 Filtro Lightroom
               </span>
-              <span className="text-xs font-semibold text-zinc-200">
-                {selectedPhotos.length} fotos prontas
+              <span className="text-xs font-semibold text-amber-400">
+                {getExportPhotos().length} fotos no filtro
               </span>
             </div>
 
@@ -181,7 +209,7 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
               size="sm"
               onClick={() => handleCopyLightroom(false)}
               className="font-mono text-xs"
-              title="Copiar lista de arquivos com extensão para o catálogo do Lightroom"
+              title="Copiar lista de fotos para colar na busca do Lightroom"
             >
               {copiedWithExt ? (
                 <>
@@ -201,144 +229,165 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
               size="sm"
               onClick={() => handleCopyLightroom(true)}
               className="font-mono text-xs hidden md:inline-flex"
-              title="Copiar apenas nomes dos arquivos sem extensão"
             >
-              {copiedNoExt ? (
-                <Check className="w-3.5 h-3.5 text-emerald-400" />
-              ) : (
-                <Copy className="w-3.5 h-3.5 text-zinc-400" />
-              )}
+              {copiedNoExt ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-zinc-400" />}
               <span>Sem .ext</span>
             </Button>
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleDownloadTxt}
-              title="Baixar relatório de aprovação em texto (.txt)"
-            >
+            <Button variant="outline" size="sm" onClick={handleDownloadTxt}>
               <Download className="w-3.5 h-3.5" />
-              <span>Exportar .TXT</span>
+              <span>Relatório .TXT</span>
             </Button>
           </div>
         </div>
       </div>
 
-      {/* Numerical Stats & Quota Breakdown */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="bg-zinc-900/40">
-          <CardContent className="p-5">
-            <span className="text-xs font-medium text-zinc-400">Total Selecionadas</span>
-            <div className="mt-2 flex items-baseline gap-2">
-              <span className="text-3xl font-bold font-mono text-zinc-100">
-                {selectedPhotos.length}
+      {/* Participants & Consensus Status Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Participants Cards */}
+        <Card className="lg:col-span-2 bg-zinc-900/40">
+          <CardHeader className="pb-3 border-b border-zinc-850">
+            <CardTitle className="text-sm font-semibold flex items-center justify-between text-zinc-200">
+              <div className="flex items-center gap-2">
+                <Users className="w-4 h-4 text-amber-400" />
+                <span>Painel de Participantes & Votantes</span>
+              </div>
+              <span className="text-xs text-zinc-500 font-normal">
+                {voters.filter((v) => v.hasFinalized).length}/{voters.length || 1} finalizados
               </span>
-              <span className="text-xs text-zinc-500">de {gallery.photos.length} fotos</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {voters.map((voter) => {
+                const votesCount = gallery.photos.filter((p) =>
+                  (votesMap[p.id] || []).some((v) => v.voterId === voter.id)
+                ).length;
+
+                return (
+                  <div
+                    key={voter.id}
+                    className={`p-3 rounded-xl border transition-all ${
+                      voter.hasFinalized
+                        ? 'bg-emerald-500/5 border-emerald-500/30'
+                        : 'bg-zinc-950/60 border-zinc-800'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
+                            voter.hasFinalized
+                              ? 'bg-emerald-500/20 text-emerald-300'
+                              : 'bg-amber-500/20 text-amber-300'
+                          }`}
+                        >
+                          {voter.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <span className="text-xs font-semibold text-zinc-200 block">{voter.name}</span>
+                          {voter.isDecisionMaker && (
+                            <span className="text-[9px] text-amber-400 font-mono uppercase">
+                              Tomador Principal
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <Badge variant={voter.hasFinalized ? 'success' : 'warning'} size="sm">
+                        {voter.hasFinalized ? 'Finalizou' : 'Votando'}
+                      </Badge>
+                    </div>
+
+                    <div className="mt-3 flex items-center justify-between text-xs text-zinc-400 pt-2 border-t border-zinc-850">
+                      <span>{votesCount} fotos votadas</span>
+                      <button
+                        onClick={() => {
+                          setSelectedVoterIdFilter(voter.id);
+                          setActiveFilter('voter');
+                        }}
+                        className="text-amber-400 hover:underline text-[11px] font-medium flex items-center gap-1"
+                      >
+                        <Filter className="w-3 h-3" /> Ver votos
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-            <p className="text-xs text-zinc-400 mt-2">
-              {Math.round((selectedPhotos.length / (gallery.photos.length || 1)) * 100)}% do acervo
-            </p>
           </CardContent>
         </Card>
 
+        {/* Quick Consensus Metrics */}
         <Card className="bg-zinc-900/40">
-          <CardContent className="p-5">
-            <span className="text-xs font-medium text-zinc-400">Dentro da Cota Contratada</span>
-            <div className="mt-2 flex items-baseline gap-2">
-              <span className="text-3xl font-bold font-mono text-emerald-400">
-                {packagePhotos.length}
-              </span>
-              <span className="text-xs text-zinc-500">/ {quota} no pacote</span>
+          <CardHeader className="pb-3 border-b border-zinc-850">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2 text-amber-300">
+              <Sparkles className="w-4 h-4 text-amber-400" />
+              <span>Resumo do Consenso</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 space-y-4">
+            <div>
+              <span className="text-xs font-medium text-zinc-400 block">Fotos com Consenso (≥ {threshold} Votos)</span>
+              <div className="mt-1 flex items-baseline gap-2">
+                <span className="text-3xl font-bold font-mono text-amber-400">
+                  {consensusPhotos.length}
+                </span>
+                <span className="text-xs text-zinc-500">de {quota} contratadas</span>
+              </div>
             </div>
-            <p className="text-xs text-zinc-400 mt-2">
-              {packagePhotos.length >= quota ? 'Cota 100% preenchida' : `Restam ${quota - packagePhotos.length} fotos`}
-            </p>
-          </CardContent>
-        </Card>
 
-        <Card className="bg-zinc-900/40">
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-zinc-400">Fotos Excedentes</span>
-              <Badge
-                variant={
-                  gallery.excessPolicy === 'charge'
-                    ? 'warning'
-                    : gallery.excessPolicy === 'free_approval'
-                    ? 'info'
-                    : 'default'
-                }
-                size="sm"
-              >
-                {gallery.excessPolicy === 'charge'
-                  ? 'Com Cobrança'
-                  : gallery.excessPolicy === 'free_approval'
-                  ? 'Aprovação Pura'
-                  : 'Bloqueio'}
-              </Badge>
+            <div className="pt-3 border-t border-zinc-850">
+              <span className="text-xs font-medium text-zinc-400 block">Status da Cota</span>
+              <p className="text-xs text-zinc-300 mt-1">
+                {consensusPhotos.length > quota ? (
+                  <span className="text-amber-400 font-semibold">
+                    +{consensusPhotos.length - quota} foto(s) excedente(s) em consenso
+                  </span>
+                ) : (
+                  <span className="text-emerald-400 font-semibold">
+                    Dentro da cota contratada ({quota - consensusPhotos.length} vagas restantes)
+                  </span>
+                )}
+              </p>
             </div>
-            <div className="mt-2 flex items-baseline gap-2">
-              <span className="text-3xl font-bold font-mono text-amber-400">
-                {extraPhotos.length}
-              </span>
-              <span className="text-xs text-zinc-500">além da cota</span>
-            </div>
-            <p className="text-xs text-zinc-400 mt-2">
-              {gallery.excessPolicy === 'charge'
-                ? `R$ ${gallery.extraPhotoPrice.toFixed(2)} por foto extra`
-                : gallery.excessPolicy === 'free_approval'
-                ? 'Extras autorizadas sem custo'
-                : 'Bloqueio de novas adições'}
-            </p>
-          </CardContent>
-        </Card>
 
-        <Card className="bg-zinc-900/40">
-          <CardContent className="p-5">
-            <span className="text-xs font-medium text-zinc-400">Subtotal a Receber (Extras)</span>
-            <div className="mt-2 flex items-baseline gap-1">
-              <span className="text-3xl font-bold font-mono text-emerald-300">
-                {gallery.excessPolicy === 'charge'
-                  ? `R$ ${(extraPhotos.length * gallery.extraPhotoPrice).toFixed(2)}`
-                  : 'R$ 0,00'}
-              </span>
+            <div className="pt-3 border-t border-zinc-850 text-xs text-zinc-400 space-y-1">
+              <div className="flex justify-between">
+                <span>Fotos com pelo menos 1 voto:</span>
+                <span className="font-mono text-zinc-200 font-semibold">{allVotedPhotos.length}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Fotos com comentários:</span>
+                <span className="font-mono text-sky-400 font-semibold">{commentsCount}</span>
+              </div>
             </div>
-            <p className="text-xs text-zinc-400 mt-2">
-              {commentsCount} comentários deixados
-            </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Client Message / Observation Box */}
-      {gallery.clientSelection.clientNotes && (
-        <Card className="border-amber-500/30 bg-amber-500/5">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2 text-amber-300">
-              <MessageSquare className="w-4 h-4" />
-              <span>Mensagem Final do Cliente:</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-zinc-200 italic leading-relaxed">
-              &ldquo;{gallery.clientSelection.clientNotes}&rdquo;
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Filter Tabs for Selected Photos */}
+      {/* Filter Tabs for Photos */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-zinc-800">
-        <div className="flex items-center gap-1.5 p-1 bg-zinc-900 rounded-xl border border-zinc-800">
+        <div className="flex flex-wrap items-center gap-1.5 p-1 bg-zinc-900 rounded-xl border border-zinc-800">
           <button
-            onClick={() => setActiveFilter('all')}
+            onClick={() => setActiveFilter('consensus')}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-              activeFilter === 'all'
+              activeFilter === 'consensus'
+                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30 font-semibold'
+                : 'text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            ⭐ Consenso ({consensusPhotos.length})
+          </button>
+          <button
+            onClick={() => setActiveFilter('all_voted')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              activeFilter === 'all_voted'
                 ? 'bg-zinc-800 text-zinc-100 font-semibold'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
-            Todas Selecionadas ({selectedPhotos.length})
+            Todas Votadas ({allVotedPhotos.length})
           </button>
           <button
             onClick={() => setActiveFilter('package')}
@@ -359,7 +408,7 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
                   : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
-              Excedentes / Extras (+{extraPhotos.length})
+              Excedentes ({extraPhotos.length})
             </button>
           )}
           {commentsCount > 0 && (
@@ -371,33 +420,51 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
                   : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
-              Com Comentários ({commentsCount})
+              Comentadas ({commentsCount})
             </button>
           )}
         </div>
 
-        <div className="text-xs text-zinc-400">
-          Mostrando <span className="text-zinc-200 font-semibold">{displayedPhotos.length}</span> fotos
-        </div>
+        {/* Voter Select Filter dropdown if activeFilter === 'voter' */}
+        {voters.length > 0 && (
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-zinc-400">Filtrar por Votante:</span>
+            <select
+              value={selectedVoterIdFilter}
+              onChange={(e) => {
+                setSelectedVoterIdFilter(e.target.value);
+                if (e.target.value) setActiveFilter('voter');
+              }}
+              className="py-1 px-2.5 rounded-lg bg-zinc-900 border border-zinc-750 text-xs text-zinc-200"
+            >
+              <option value="">Selecione um votante...</option>
+              {voters.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
-      {/* Selected Photos Grid */}
+      {/* Photos Grid */}
       {displayedPhotos.length === 0 ? (
         <div className="text-center py-16 px-4 rounded-2xl border border-zinc-850 bg-zinc-900/30">
-          <p className="text-sm text-zinc-400">Nenhuma foto encontrada para o filtro selecionado.</p>
+          <p className="text-sm text-zinc-400">Nenhuma foto encontrada para este filtro.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {displayedPhotos.map((photo) => {
-            const overallIndex = selectedPhotos.findIndex((p) => p.id === photo.id);
-            const isExtra = overallIndex >= quota;
-            const comment = gallery.clientSelection.comments[photo.id];
+            const votesList = votesMap[photo.id] || [];
+            const commentsList = commentsMap[photo.id] || [];
+            const isConsensus = votesList.length >= threshold;
 
             return (
               <Card
                 key={photo.id}
                 className={`transition-all hover:border-zinc-700 overflow-hidden ${
-                  isExtra ? 'border-amber-500/40 bg-zinc-900/70' : 'border-zinc-800/80 bg-zinc-900/50'
+                  isConsensus ? 'border-amber-500/40 bg-zinc-900/70' : 'border-zinc-800/80 bg-zinc-900/50'
                 }`}
               >
                 <div className="relative aspect-3/2 bg-zinc-950 overflow-hidden">
@@ -407,17 +474,19 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
                     className="w-full h-full object-cover protected-photo"
                   />
 
-                  {/* Order badge */}
-                  <div className="absolute top-2.5 left-2.5">
-                    <Badge variant={isExtra ? 'amber' : 'default'} size="sm" className="font-mono font-bold">
-                      {isExtra ? `+ EXTRA #${overallIndex + 1}` : `#${overallIndex + 1}`}
-                    </Badge>
-                  </div>
+                  {/* Consensus Badge */}
+                  {isConsensus && (
+                    <div className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded-full bg-amber-500 text-zinc-950 font-bold text-[10px] flex items-center gap-1 shadow-lg">
+                      <Sparkles className="w-3 h-3 fill-current" />
+                      <span>CONSENSO ({votesList.length})</span>
+                    </div>
+                  )}
 
                   {/* Comment indicator badge */}
-                  {comment && (
-                    <div className="absolute top-2.5 right-2.5 p-1 rounded-full bg-sky-500 text-zinc-950 shadow">
-                      <MessageSquare className="w-3.5 h-3.5 fill-current" />
+                  {commentsList.length > 0 && (
+                    <div className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-full bg-sky-500 text-zinc-950 font-bold text-[10px] flex items-center gap-1">
+                      <MessageSquare className="w-3 h-3 fill-current" />
+                      <span>{commentsList.length}</span>
                     </div>
                   )}
                 </div>
@@ -427,24 +496,35 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
                     <span className="font-mono text-xs font-semibold text-zinc-200 truncate">
                       {photo.originalFileName}
                     </span>
-                    {isExtra && gallery.excessPolicy === 'charge' && (
-                      <span className="text-[11px] font-mono text-amber-400 font-semibold">
-                        +R$ {gallery.extraPhotoPrice.toFixed(2)}
-                      </span>
-                    )}
                   </div>
 
-                  {photo.caption && (
-                    <p className="text-xs text-zinc-400 truncate">{photo.caption}</p>
+                  {/* Voter Chips */}
+                  {votesList.length > 0 ? (
+                    <div className="flex flex-wrap gap-1 pt-1">
+                      {votesList.map((v) => (
+                        <span
+                          key={v.voterId}
+                          className="px-1.5 py-0.5 rounded bg-zinc-800 text-[10px] text-zinc-300 font-medium"
+                        >
+                          ✓ {v.voterName}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-[10px] text-zinc-500 block">Nenhum voto registrado</span>
                   )}
 
-                  {/* Comment box if customer left notes for this photo */}
-                  {comment && (
-                    <div className="mt-2 p-2 rounded-lg bg-zinc-950/80 border border-sky-500/30 text-xs text-sky-200">
-                      <span className="font-semibold text-sky-400 block text-[10px] uppercase tracking-wider mb-0.5">
-                        Observação do Cliente:
+                  {/* Comments Timeline snippet */}
+                  {commentsList.length > 0 && (
+                    <div className="mt-2 p-2 rounded-lg bg-zinc-950/80 border border-sky-500/30 text-xs text-sky-200 space-y-1">
+                      <span className="font-semibold text-sky-400 block text-[10px] uppercase tracking-wider">
+                        Comentários ({commentsList.length}):
                       </span>
-                      &ldquo;{comment}&rdquo;
+                      {commentsList.map((c) => (
+                        <div key={c.id} className="text-[11px]">
+                          <span className="font-semibold text-zinc-300">{c.voterName}:</span> &ldquo;{c.text}&rdquo;
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
