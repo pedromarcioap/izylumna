@@ -1,16 +1,27 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-const meta = import.meta as any;
-const supabaseUrl = meta.env?.VITE_SUPABASE_URL;
-const supabaseAnonKey = meta.env?.VITE_SUPABASE_ANON_KEY;
+const rawUrl = import.meta.env.VITE_SUPABASE_URL;
+const rawKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseAnonKey) {
+const isValidUrl =
+  typeof rawUrl === 'string' &&
+  rawUrl.trim().length > 0 &&
+  (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) &&
+  !rawUrl.toLowerCase().includes('placeholder');
+
+const isValidKey =
+  typeof rawKey === 'string' &&
+  rawKey.trim().length > 0 &&
+  !rawKey.toLowerCase().includes('placeholder');
+
+export const isSupabaseConfigured: boolean = Boolean(isValidUrl && isValidKey);
+
+if (!isSupabaseConfigured) {
   console.warn(
-    '[Supabase Warning] As variáveis VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY não foram encontradas nas variáveis de ambiente do Vite. A aplicação funcionará em modo autônomo (localStorage).'
+    '[Supabase Warning] VITE_SUPABASE_URL ou VITE_SUPABASE_ANON_KEY não estão configuradas ou contêm valores "placeholder". O cliente Supabase foi desativado e a aplicação funcionará 100% via armazenamento local (localStorage) sem disparar NENHUMA chamada de rede.'
   );
 }
 
-const safeUrl = supabaseUrl || 'https://kiotqcqbctdacjsxpixr.supabase.co';
-const safeKey = supabaseAnonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtpb3RxY3FiY3RkYWNqc3hwaXhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg5ODcxMTQsImV4cCI6MjEwNDU2MzExNH0.pxL0n0FozX0jpxRFpbKUj3e6JNEMSj3hzIkWay1R2B8';
-
-export const supabase = createClient(safeUrl, safeKey);
+export const supabase: SupabaseClient | null = isSupabaseConfigured
+  ? createClient(rawUrl!, rawKey!)
+  : null;

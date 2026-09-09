@@ -7,7 +7,7 @@ import {
   PhotoVote,
   PhotoCommentItem
 } from '../types';
-import { supabase } from './supabase';
+import { supabase, isSupabaseConfigured } from './supabase';
 
 const LOCAL_CACHE_KEY = 'izylumna_supabase_galleries_cache_v2';
 const PROFILE_CACHE_KEY = 'izylumna_supabase_profile_cache_v2';
@@ -127,6 +127,9 @@ function mapRowToGallery(row: any, photosRows: any[] = [], selectionRow: any = n
  * Fetch all galleries with resilient Supabase -> localStorage fallback
  */
 export async function getGalleriesAsync(): Promise<Gallery[]> {
+  if (!isSupabaseConfigured || !supabase) {
+    return getGalleries();
+  }
   try {
     const { data: dbGalleries, error: galErr } = await supabase
       .from('galleries')
@@ -199,6 +202,10 @@ export async function getGalleryByPinAsync(pinCode: string): Promise<Gallery | n
   const cleanPin = pinCode.trim();
   if (!cleanPin) return null;
 
+  if (!isSupabaseConfigured || !supabase) {
+    return cachedGalleries.find((g) => g.pinCode === cleanPin) || null;
+  }
+
   try {
     const { data: dbGallery, error } = await supabase
       .from('galleries')
@@ -260,7 +267,11 @@ export async function saveGalleryAsync(gallery: Gallery): Promise<Gallery> {
   }
   updateLocalCache(newGalleries);
 
-  // 2. Safely attempt Supabase synchronization
+  // 2. Safely attempt Supabase synchronization if configured
+  if (!isSupabaseConfigured || !supabase) {
+    return updatedGallery;
+  }
+
   try {
     const galleryPayload = {
       title: gallery.title,
@@ -361,14 +372,19 @@ export function saveGallery(gallery: Gallery): void {
 }
 
 export async function deleteGalleryAsync(id: string): Promise<void> {
+  const filtered = cachedGalleries.filter((g) => g.id !== id);
+  updateLocalCache(filtered);
+
+  if (!isSupabaseConfigured || !supabase) {
+    return;
+  }
+
   try {
     const { error } = await supabase.from('galleries').delete().eq('id', id);
     if (error) console.warn('[Supabase Sync Warning] Failed to delete gallery from DB:', error.message);
   } catch (e) {
     console.warn('[Supabase Fallback] Failed deleting gallery from Supabase, removing locally:', e);
   }
-  const filtered = cachedGalleries.filter((g) => g.id !== id);
-  updateLocalCache(filtered);
 }
 
 export function deleteGallery(id: string): void {
@@ -433,7 +449,11 @@ export async function togglePhotoVoteAsync(
     updateLocalCache(cachedGalleries);
   }
 
-  // 2. Try Supabase
+  // 2. Try Supabase if configured
+  if (!isSupabaseConfigured || !supabase) {
+    return updatedGallery;
+  }
+
   try {
     await supabase
       .from('client_selections')
@@ -504,7 +524,11 @@ export async function addPhotoCommentAsync(
     updateLocalCache(cachedGalleries);
   }
 
-  // Try Supabase
+  // Try Supabase if configured
+  if (!isSupabaseConfigured || !supabase) {
+    return updatedGallery;
+  }
+
   try {
     await supabase
       .from('client_selections')
@@ -565,7 +589,11 @@ export async function deletePhotoCommentAsync(
     updateLocalCache(cachedGalleries);
   }
 
-  // Try Supabase
+  // Try Supabase if configured
+  if (!isSupabaseConfigured || !supabase) {
+    return updatedGallery;
+  }
+
   try {
     await supabase
       .from('client_selections')
@@ -620,6 +648,10 @@ export async function finalizeVoterSelectionAsync(
     updateLocalCache(cachedGalleries);
   }
 
+  if (!isSupabaseConfigured || !supabase) {
+    return updatedGallery;
+  }
+
   try {
     await supabase.from('client_selections').upsert(
       {
@@ -650,6 +682,10 @@ export async function getPhotographerProfileAsync(): Promise<PhotographerProfile
     defaultWatermarkText: 'PROVA • LUMINA STUDIO • PROVA',
     defaultExtraPrice: 30
   };
+
+  if (!isSupabaseConfigured || !supabase) {
+    return cachedProfile || defaultProfile;
+  }
 
   try {
     const { data, error } = await supabase
@@ -682,19 +718,29 @@ export async function getPhotographerProfileAsync(): Promise<PhotographerProfile
 export async function savePhotographerProfileAsync(
   profile: PhotographerProfile
 ): Promise<PhotographerProfile> {
-  const payload = {
-    name: profile.name,
-    studio_name: profile.studioName,
-    email: profile.email,
-    phone: profile.phone || '',
-    updated_at: new Date().toISOString()
-  };
+  updateProfileCache(profile);
 
-  if (profile.id && profile.id !== 'default-profile') {
-    await supabase.from('photographer_profiles').update(payload).eq('id', profile.id);
-  } else {
-    const { data } = await supabase.from('photographer_profiles').insert([payload]).select('id').single();
-    if (data?.id) profile.id = data.id;
+  if (!isSupabaseConfigured || !supabase) {
+    return profile;
+  }
+
+  try {
+    const payload = {
+      name: profile.name,
+      studio_name: profile.studioName,
+      email: profile.email,
+      phone: profile.phone || '',
+      updated_at: new Date().toISOString()
+    };
+
+    if (profile.id && profile.id !== 'default-profile') {
+      await supabase.from('photographer_profiles').update(payload).eq('id', profile.id);
+    } else {
+      const { data } = await supabase.from('photographer_profiles').insert([payload]).select('id').single();
+      if (data?.id) profile.id = data.id;
+    }
+  } catch (e) {
+    console.warn('[Supabase Fallback] Failed to save profile to DB:', e);
   }
 
   updateProfileCache(profile);
