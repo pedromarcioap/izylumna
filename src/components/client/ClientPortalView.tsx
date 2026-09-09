@@ -11,6 +11,8 @@ import { updateClientSelection } from '../../lib/storage';
 
 export interface ClientPortalViewProps {
   gallery: Gallery;
+  allGalleries?: Gallery[];
+  onSelectGallery?: (galleryId: string) => void;
   onUpdateGallery: (updated: Gallery) => void;
   onShowToast: (title: string, description?: string, type?: 'success' | 'info' | 'warning' | 'error') => void;
   onSwitchToAdmin: () => void;
@@ -18,6 +20,8 @@ export interface ClientPortalViewProps {
 
 export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
   gallery,
+  allGalleries = [],
+  onSelectGallery,
   onUpdateGallery,
   onShowToast,
   onSwitchToAdmin

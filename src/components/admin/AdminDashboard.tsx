@@ -5,6 +5,7 @@ import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 import { Input } from '../ui/Input';
 import { PhotographerSettingsModal } from './PhotographerSettingsModal';
+import { DeleteConfirmModal } from '../common/DeleteConfirmModal';
 import {
   Plus,
   Search,
@@ -64,6 +65,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'awaiting_client' | 'completed' | 'draft'>('all');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [galleryToDelete, setGalleryToDelete] = useState<Gallery | null>(null);
 
   // Metrics computation
   const totalGalleries = galleries.length;
@@ -91,19 +93,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     return matchesQuery && matchesStatus;
   });
 
+  const getClientGalleryUrl = (galleryId: string) => {
+    const origin = typeof window !== 'undefined' && window.location.origin ? window.location.origin : 'https://izylumna.ai.studio';
+    const base = origin.includes('localhost') || origin.includes('127.0.0.1') ? 'https://izylumna.ai.studio' : origin;
+    const pathname = typeof window !== 'undefined' ? window.location.pathname : '/';
+    return `${base}${pathname}?gallery=${galleryId}&role=client`;
+  };
+
   const handleCopyClientLink = (gallery: Gallery) => {
-    const url = `${window.location.origin}${window.location.pathname}?gallery=${gallery.id}&role=client`;
+    const url = getClientGalleryUrl(gallery.id);
     navigator.clipboard.writeText(url);
     onShowToast(
-      'Link do Cliente Copiado!',
-      `Link direto para "${gallery.title}" enviado para a área de transferência.${gallery.privacy === 'private' ? ` PIN: ${gallery.pinCode}` : ''}`,
+      'Link de Acesso Copiado!',
+      `Link direto com PIN para "${gallery.title}". Acesso exclusivo por PIN (sem necessidade de conta Google).`,
       'success'
     );
   };
 
   const handleWhatsAppShare = (gallery: Gallery) => {
-    const url = `${window.location.origin}${window.location.pathname}?gallery=${gallery.id}&role=client`;
-    const message = `Olá, ${gallery.clientName}! Sua galeria de fotos "${gallery.title}" já está pronta para sua seleção e aprovação no link: ${url}${gallery.privacy === 'private' ? ` (Seu código PIN de acesso: ${gallery.pinCode})` : ''}`;
+    const url = getClientGalleryUrl(gallery.id);
+    const pinInfo = gallery.privacy === 'private' ? `\n🔑 PIN de acesso exclusivo: ${gallery.pinCode}` : '';
+    const message = `Olá, ${gallery.clientName}! Sua galeria de fotos "${gallery.title}" está disponível para seleção!\n\n🔗 Acesse o link: ${url}${pinInfo}\n\n(Acesso direto por PIN. Não é necessário criar conta nem fazer login no Google).`;
     const encoded = encodeURIComponent(message);
     window.open(`https://wa.me/${gallery.clientPhone ? gallery.clientPhone.replace(/\D/g, '') : ''}?text=${encoded}`, '_blank');
   };
@@ -540,11 +550,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                               <SlidersHorizontal className="w-3.5 h-3.5" />
                             </button>
                             <button
-                              onClick={() => {
-                                if (window.confirm(`Tem certeza que deseja excluir a galeria "${gallery.title}"?`)) {
-                                  onDeleteGallery(gallery.id);
-                                }
-                              }}
+                              onClick={() => setGalleryToDelete(gallery)}
                               className="p-1.5 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
                               title="Excluir galeria"
                             >
@@ -750,6 +756,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         profile={photographerProfile}
         onProfileUpdated={onUpdateProfile}
         onShowToast={onShowToast}
+      />
+
+      {/* Delete Gallery Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={!!galleryToDelete}
+        onClose={() => setGalleryToDelete(null)}
+        onConfirm={() => {
+          if (galleryToDelete) {
+            onDeleteGallery(galleryToDelete.id);
+            setGalleryToDelete(null);
+          }
+        }}
+        galleryTitle={galleryToDelete?.title || ''}
       />
     </div>
   );

@@ -2,25 +2,62 @@ import React, { useState } from 'react';
 import { Gallery } from '../../types';
 import { Card, CardContent } from '../ui/Card';
 import { Button } from '../ui/Button';
-import { Lock, KeyRound, ArrowRight, ShieldCheck, Camera } from 'lucide-react';
+import { Lock, ArrowRight, Sparkles, CheckCircle2 } from 'lucide-react';
+import { getGalleryByPinAsync } from '../../lib/storage';
 
 export interface ClientAuthPinProps {
   gallery: Gallery;
-  onUnlock: () => void;
+  allGalleries?: Gallery[];
+  onUnlock: (matchedGallery?: Gallery) => void;
 }
 
-export const ClientAuthPin: React.FC<ClientAuthPinProps> = ({ gallery, onUnlock }) => {
+export const ClientAuthPin: React.FC<ClientAuthPinProps> = ({ gallery, allGalleries = [], onUnlock }) => {
   const [pinInput, setPinInput] = useState('');
   const [error, setError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [isVerifying, setIsVerifying] = useState(false);
 
-  const handleVerify = (e: React.FormEvent) => {
+  const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (pinInput === gallery.pinCode) {
-      setError(false);
-      onUnlock();
-    } else {
+    const cleanPin = pinInput.trim();
+    if (!cleanPin) return;
+
+    setIsVerifying(true);
+    setError(false);
+
+    try {
+      // 1. Direct match with currently focused gallery
+      if (cleanPin === gallery.pinCode) {
+        setIsVerifying(false);
+        onUnlock(gallery);
+        return;
+      }
+
+      // 2. Check local memory array of galleries
+      const localMatch = allGalleries.find((g) => g.pinCode === cleanPin);
+      if (localMatch) {
+        setIsVerifying(false);
+        onUnlock(localMatch);
+        return;
+      }
+
+      // 3. Query Supabase database by unique PIN
+      const dbMatch = await getGalleryByPinAsync(cleanPin);
+      if (dbMatch) {
+        setIsVerifying(false);
+        onUnlock(dbMatch);
+        return;
+      }
+
+      // PIN not found
       setError(true);
+      setErrorMessage(`Nenhuma galeria encontrada com o PIN "${cleanPin}". Verifique com seu fotógrafo.`);
       setPinInput('');
+    } catch (err) {
+      setError(true);
+      setErrorMessage('Erro ao validar o PIN. Tente novamente.');
+    } finally {
+      setIsVerifying(false);
     }
   };
 
@@ -42,13 +79,13 @@ export const ClientAuthPin: React.FC<ClientAuthPinProps> = ({ gallery, onUnlock 
 
           <div className="space-y-2">
             <span className="text-[11px] uppercase tracking-widest font-mono text-amber-400/90 font-semibold">
-              Galeria Protegida
+              Acesso Exclusivo Por PIN
             </span>
             <h2 className="font-serif text-2xl font-bold text-zinc-100">
               {gallery.title}
             </h2>
-            <p className="text-xs text-zinc-400">
-              Olá, <strong className="text-zinc-200">{gallery.clientName}</strong>! Insira o PIN fornecido pelo seu fotógrafo para destravar as fotos da sua sessão.
+            <p className="text-xs text-zinc-400 leading-relaxed">
+              Olá, <strong className="text-zinc-200">{gallery.clientName}</strong>! Insira seu código PIN exclusivo de 4 dígitos para acessar e selecionar suas fotos.
             </p>
           </div>
 
@@ -76,8 +113,8 @@ export const ClientAuthPin: React.FC<ClientAuthPinProps> = ({ gallery, onUnlock 
             </div>
 
             {error && (
-              <p className="text-xs text-red-400 font-medium animate-shake">
-                PIN incorreto. Verifique o código e tente novamente.
+              <p className="text-xs text-red-400 font-medium animate-shake px-2">
+                {errorMessage || 'PIN incorreto. Verifique o código e tente novamente.'}
               </p>
             )}
 
@@ -85,25 +122,58 @@ export const ClientAuthPin: React.FC<ClientAuthPinProps> = ({ gallery, onUnlock 
               type="submit"
               variant="amber"
               size="lg"
-              className="w-full text-sm font-semibold"
-              disabled={pinInput.length < 4}
+              className="w-full text-sm font-semibold shadow-lg shadow-amber-500/20"
+              disabled={pinInput.length < 4 || isVerifying}
             >
-              <span>Acessar Meu Ensaio</span>
+              <span>{isVerifying ? 'Verificando...' : 'Acessar Meu Ensaio'}</span>
               <ArrowRight className="w-4 h-4 ml-1" />
             </Button>
           </form>
 
-          {/* Quick Demo Assist */}
+          {/* PIN Info & Quick Fill */}
           {gallery.pinCode && (
-            <div className="pt-4 border-t border-zinc-800/80 flex items-center justify-between text-xs text-zinc-400">
-              <span>Modo Demonstração:</span>
-              <button
-                type="button"
-                onClick={handleAutoFill}
-                className="text-amber-400 hover:text-amber-300 underline font-mono text-[11px]"
-              >
-                Preencher PIN ({gallery.pinCode})
-              </button>
+            <div className="pt-4 border-t border-zinc-800/80 space-y-3">
+              <div className="flex items-center justify-between text-xs text-zinc-400">
+                <span className="flex items-center text-zinc-400 text-[11px]">
+                  <CheckCircle2 className="w-3.5 h-3.5 mr-1 text-emerald-400" />
+                  PIN Exclusivo desta Galeria:
+                </span>
+                <button
+                  type="button"
+                  onClick={handleAutoFill}
+                  className="text-amber-400 hover:text-amber-300 underline font-mono font-bold text-[12px]"
+                >
+                  Usar PIN ({gallery.pinCode})
+                </button>
+              </div>
+
+              {allGalleries.length > 1 && (
+                <div className="text-[11px] text-zinc-400 bg-zinc-950/60 p-2.5 rounded-lg border border-zinc-800/60 text-left space-y-1">
+                  <span className="font-semibold text-zinc-300 block">Outros PINs disponíveis no sistema:</span>
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {allGalleries.map((g) => (
+                      <button
+                        key={g.id}
+                        type="button"
+                        onClick={() => {
+                          if (g.pinCode) {
+                            setPinInput(g.pinCode);
+                            setError(false);
+                          }
+                        }}
+                        className={`text-[11px] font-mono px-2 py-0.5 rounded border transition-colors ${
+                          g.id === gallery.id
+                            ? 'bg-amber-500/10 border-amber-500/40 text-amber-300 font-bold'
+                            : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
+                        }`}
+                        title={`Galeria: ${g.title}`}
+                      >
+                        {g.pinCode || 'Sem PIN'} ({g.clientName.split(' ')[0]})
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </CardContent>

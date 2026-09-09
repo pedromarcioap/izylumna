@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Gallery, ToastMessage, PhotographerSession, PhotographerProfile } from './types';
-import { getGalleries, saveGallery, deleteGallery, resetToDefaultData } from './lib/storage';
+import {
+  getGalleries,
+  getGalleriesAsync,
+  saveGalleryAsync,
+  deleteGalleryAsync,
+  getGalleryByPinAsync
+} from './lib/storage';
 import { getPhotographerSession, logoutPhotographer, savePhotographerProfile } from './lib/auth';
 import { TopNavigation } from './components/common/TopNavigation';
 import { ToastContainer } from './components/ui/Toast';
@@ -18,6 +24,7 @@ export default function App() {
     const list = getGalleries();
     return list[0]?.id || '';
   });
+  const [isLoadingSupabase, setIsLoadingSupabase] = useState(true);
 
   // Admin view sub-navigation: 'list' or 'detail'
   const [adminSubView, setAdminSubView] = useState<'list' | 'detail'>('list');
@@ -30,23 +37,60 @@ export default function App() {
   // Toasts
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
-  // Check URL params on initial load (for copied direct links)
+  // Fetch initial data from Supabase
+  useEffect(() => {
+    let isMounted = true;
+    async function loadData() {
+      setIsLoadingSupabase(true);
+      try {
+        const fetched = await getGalleriesAsync();
+        if (isMounted) {
+          setGalleries(fetched);
+          if (fetched.length > 0 && !selectedGalleryId) {
+            setSelectedGalleryId(fetched[0].id);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to sync with Supabase:', err);
+      } finally {
+        if (isMounted) setIsLoadingSupabase(false);
+      }
+    }
+    loadData();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Check URL params on load (support ?pin=1234 or ?gallery=id or ?role=client)
   useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search);
+      const pinParam = params.get('pin');
       const galleryParam = params.get('gallery');
       const roleParam = params.get('role');
 
-      if (galleryParam && galleries.some((g) => g.id === galleryParam)) {
-        setSelectedGalleryId(galleryParam);
+      if (pinParam) {
+        // Direct PIN lookup from URL
+        getGalleryByPinAsync(pinParam).then((g) => {
+          if (g) {
+            setSelectedGalleryId(g.id);
+            setCurrentRole('client');
+          }
+        });
+      } else if (galleryParam) {
+        if (galleries.some((g) => g.id === galleryParam)) {
+          setSelectedGalleryId(galleryParam);
+        }
       }
+
       if (roleParam === 'client') {
         setCurrentRole('client');
       } else if (roleParam === 'admin') {
         setCurrentRole('admin');
       }
     } catch (e) {
-      // URL parsing fallback
+      console.warn('Error parsing URL params:', e);
     }
   }, [galleries]);
 
@@ -91,49 +135,47 @@ export default function App() {
     }));
   };
 
-  // CRUD handlers
-  const handleSaveGallery = (gallery: Gallery) => {
-    saveGallery(gallery);
-    const updated = getGalleries();
-    setGalleries(updated);
-    if (!selectedGalleryId) {
-      setSelectedGalleryId(gallery.id);
-    }
-    showToast(
-      galleryToEdit ? 'Galeria Atualizada!' : 'Galeria Publicada com Sucesso!',
-      `O ensaio "${gallery.title}" está pronto para seleção com cota de ${gallery.quotaIncluded} fotos.`,
-      'success'
-    );
-  };
+  // CRUD handlers via Supabase
+  const handleSaveGallery = async (gallery: Gallery) => {
+    try {
+      const saved = await saveGalleryAsync(gallery);
+      const updatedList = await getGalleriesAsync();
+      setGalleries(updatedList);
+      setSelectedGalleryId(saved.id);
 
-  const handleDeleteGallery = (id: string) => {
-    deleteGallery(id);
-    const updated = getGalleries();
-    setGalleries(updated);
-    if (selectedGalleryId === id) {
-      setSelectedGalleryId(updated[0]?.id || '');
-    }
-    if (detailGalleryId === id) {
-      setAdminSubView('list');
-      setDetailGalleryId(null);
-    }
-    showToast('Galeria Excluída', 'A galeria e seus registros foram removidos.', 'info');
-  };
-
-  const handleResetData = () => {
-    if (window.confirm('Deseja restaurar as galerias de demonstração com as fotos de teste?')) {
-      const initial = resetToDefaultData();
-      setGalleries(initial);
-      setSelectedGalleryId(initial[0]?.id || '');
-      setAdminSubView('list');
-      setDetailGalleryId(null);
-      showToast('Dados Restaurados', 'As galerias de exemplo foram recarregadas.', 'success');
+      showToast(
+        galleryToEdit ? 'Galeria Atualizada!' : 'Galeria Publicada com Sucesso!',
+        `O ensaio "${saved.title}" (PIN: ${saved.pinCode}) está salvo no Supabase.`,
+        'success'
+      );
+    } catch (e) {
+      showToast('Erro ao Salvar', 'Não foi possível salvar a galeria no banco de dados.', 'error');
     }
   };
 
-  const handleUpdateGalleryFromClient = (updated: Gallery) => {
-    saveGallery(updated);
-    setGalleries(getGalleries());
+  const handleDeleteGallery = async (id: string) => {
+    try {
+      await deleteGalleryAsync(id);
+      const updatedList = await getGalleriesAsync();
+      setGalleries(updatedList);
+
+      if (selectedGalleryId === id) {
+        setSelectedGalleryId(updatedList[0]?.id || '');
+      }
+      if (detailGalleryId === id) {
+        setAdminSubView('list');
+        setDetailGalleryId(null);
+      }
+      showToast('Galeria Excluída', 'A galeria e seus registros foram removidos do Supabase.', 'info');
+    } catch (e) {
+      showToast('Erro ao Excluir', 'Falha ao remover a galeria no Supabase.', 'error');
+    }
+  };
+
+  const handleUpdateGalleryFromClient = async (updated: Gallery) => {
+    await saveGalleryAsync(updated);
+    const updatedList = await getGalleriesAsync();
+    setGalleries(updatedList);
   };
 
   // Open client view for a specific gallery
@@ -165,7 +207,9 @@ export default function App() {
         activeGalleryId={selectedGalleryId}
         galleries={galleries}
         onSelectGallery={(id) => setSelectedGalleryId(id)}
-        onResetData={handleResetData}
+        onResetData={() => {
+          showToast('Banco de Dados Supabase Ativo', 'Todas as alterações são sincronizadas ao vivo com o Supabase.', 'info');
+        }}
         isPhotographerAuthenticated={photographerSession.isAuthenticated}
         photographerProfile={photographerSession.profile}
         onLogout={handleLogout}
@@ -219,13 +263,17 @@ export default function App() {
           <ClientPortalView
             key={activeGallery.id}
             gallery={activeGallery}
+            allGalleries={galleries}
+            onSelectGallery={(id) => setSelectedGalleryId(id)}
             onUpdateGallery={handleUpdateGalleryFromClient}
             onShowToast={showToast}
             onSwitchToAdmin={() => setCurrentRole('admin')}
           />
         ) : (
           <div className="text-center py-24">
-            <h3 className="text-lg font-semibold text-zinc-300">Nenhuma galeria selecionada</h3>
+            <h3 className="text-lg font-semibold text-zinc-300">
+              {isLoadingSupabase ? 'Carregando dados do Supabase...' : 'Nenhuma galeria encontrada'}
+            </h3>
             <button
               onClick={() => setCurrentRole('admin')}
               className="text-amber-400 underline text-sm mt-2 inline-block"
@@ -252,4 +300,3 @@ export default function App() {
     </div>
   );
 }
-

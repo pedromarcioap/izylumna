@@ -18,6 +18,7 @@ export interface Photo {
   height?: number;
   orientation?: 'landscape' | 'portrait' | 'square';
   caption?: string;
+  isStarred?: boolean;
 }
 
 export interface ClientSelectionData {
