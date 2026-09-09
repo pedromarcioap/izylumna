@@ -1,0 +1,7 @@
+{
+  "name": "Photo Proofing Studio - Seleção de Fotos",
+  "description": "Plataforma profissional para fotógrafos criarem galerias, configurarem cotas e políticas de excedentes, e receberem seleções de clientes com exportação para Lightroom.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
