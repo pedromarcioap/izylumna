@@ -71,10 +71,10 @@ function mapRowToGallery(row: any, photosRows: any[] = [], selectionRow: any = n
   const rawCommentsMap: Record<string, PhotoCommentItem[]> = selectionRow?.comments_map || {};
 
   const photos: Photo[] = (photosRows || []).map((p: any) => ({
-    id: p.id,
-    url: p.url,
-    originalFileName: p.original_filename,
-    isStarred: p.is_starred || false,
+    id: p.id || crypto.randomUUID(),
+    url: p.url || '',
+    originalFileName: p.original_filename || p.originalFileName || '',
+    isStarred: Boolean(p.is_starred ?? p.isStarred),
     votes: rawVotes[p.id] || [],
     commentsList: rawCommentsMap[p.id] || []
   }));
@@ -82,7 +82,12 @@ function mapRowToGallery(row: any, photosRows: any[] = [], selectionRow: any = n
   const selectedPhotoIds: string[] = selectionRow?.selected_photo_ids || [];
   const legacyComments: Record<string, string> = selectionRow?.comments || {};
   const isCompleted = row.status === 'completed';
-  const votersList: GalleryVoter[] = selectionRow?.voters || row.voters || [];
+  const votersList: GalleryVoter[] = Array.isArray(selectionRow?.voters)
+    ? selectionRow.voters
+    : Array.isArray(row.voters)
+    ? row.voters
+    : [];
+  const approvedAt = selectionRow?.approved_at || selectionRow?.finalized_at || undefined;
 
   return {
     id: row.id,
@@ -98,15 +103,15 @@ function mapRowToGallery(row: any, photosRows: any[] = [], selectionRow: any = n
     pinCode: row.pin_code || '1001',
 
     // Collaborative Consensus Configuration
-    predefinedVoters: row.predefined_voters || [],
+    predefinedVoters: Array.isArray(row.predefined_voters) ? row.predefined_voters : [],
     consensusThreshold: Number(row.consensus_threshold) || 2,
-    allowFreeVoterRegistration: row.allow_free_voter_registration ?? true,
+    allowFreeVoterRegistration: Boolean(row.allow_free_voter_registration ?? true),
     voters: votersList,
 
     quotaIncluded: Number(row.quota_included) || 20,
     excessPolicy: row.excess_policy || 'charge',
     extraPhotoPrice: Number(row.extra_photo_price) || 30,
-    watermarkEnabled: row.watermark_enabled ?? true,
+    watermarkEnabled: Boolean(row.watermark_enabled ?? true),
     watermarkText: row.watermark_text || 'PROVA • LUMINA STUDIO • PROVA',
     photos,
     clientSelection: {
@@ -115,12 +120,110 @@ function mapRowToGallery(row: any, photosRows: any[] = [], selectionRow: any = n
       votes: rawVotes,
       commentsMap: rawCommentsMap,
       voters: votersList,
-      completedAt: selectionRow?.approved_at || undefined,
+      completedAt: approvedAt,
       status: isCompleted ? 'submitted' : 'pending'
     },
     createdAt: row.created_at || new Date().toISOString(),
     updatedAt: row.updated_at || new Date().toISOString()
   };
+}
+
+/**
+ * Sync photos array to Supabase with explicit photo ID generation
+ */
+export async function syncPhotos(galleryId: string, photos: Photo[]): Promise<void> {
+  if (!isSupabaseConfigured || !supabase || !photos || photos.length === 0) return;
+
+  try {
+    await supabase.from('photos').delete().eq('gallery_id', galleryId);
+
+    const photoPayload = photos.map((p) => ({
+      id: (p.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(p.id))
+        ? p.id
+        : crypto.randomUUID(),
+      gallery_id: galleryId,
+      url: p.url,
+      original_filename: p.originalFileName || (p as any).original_filename || '',
+      is_starred: Boolean(p.isStarred ?? (p as any).is_starred)
+    }));
+
+    const { error } = await supabase.from('photos').insert(photoPayload);
+    if (error) {
+      console.warn('[Supabase Sync Warning] Failed to sync photos:', error.message || error);
+    }
+  } catch (e) {
+    console.warn('[Supabase Sync Warning] Exception syncing photos:', e);
+  }
+}
+
+/**
+ * Save or update client selections in Supabase (populating both approved_at and finalized_at)
+ * Includes graceful fallback if schema cache lacks optional columns like comments_map
+ */
+export async function saveClientSelection(
+  galleryId: string,
+  clientSelection: ClientSelectionData,
+  status?: string,
+  voters?: GalleryVoter[]
+): Promise<void> {
+  if (!isSupabaseConfigured || !supabase) return;
+
+  const now = new Date().toISOString();
+  const isFinalized =
+    status === 'completed' ||
+    clientSelection?.status === 'submitted' ||
+    !!clientSelection?.completedAt;
+  const timestamp = clientSelection?.completedAt || (isFinalized ? now : null);
+
+  const fullPayload: any = {
+    gallery_id: galleryId,
+    selected_photo_ids: Array.isArray(clientSelection?.selectedPhotoIds)
+      ? clientSelection.selectedPhotoIds
+      : [],
+    comments: clientSelection?.comments || {},
+    votes: clientSelection?.votes || {},
+    comments_map: clientSelection?.commentsMap || {},
+    voters: Array.isArray(voters || clientSelection?.voters)
+      ? (voters || clientSelection?.voters)
+      : [],
+    approved_at: timestamp,
+    finalized_at: timestamp,
+    updated_at: now
+  };
+
+  try {
+    const { error } = await supabase
+      .from('client_selections')
+      .upsert(fullPayload, { onConflict: 'gallery_id' });
+
+    if (error) {
+      console.warn('[Supabase Sync Warning] Failed to save client selection with full payload:', error.message || error);
+      // Fallback if comments_map or finalized_at column does not exist in schema cache
+      if (
+        error.message?.includes('comments_map') ||
+        error.message?.includes('finalized_at') ||
+        error.code === 'PGRST204'
+      ) {
+        const fallbackPayload: any = {
+          gallery_id: galleryId,
+          selected_photo_ids: fullPayload.selected_photo_ids,
+          comments: fullPayload.comments,
+          votes: fullPayload.votes,
+          voters: fullPayload.voters,
+          approved_at: timestamp,
+          updated_at: now
+        };
+        const { error: fbErr } = await supabase
+          .from('client_selections')
+          .upsert(fallbackPayload, { onConflict: 'gallery_id' });
+        if (fbErr) {
+          console.warn('[Supabase Sync Warning] Fallback client selection save failed:', fbErr.message || fbErr);
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('[Supabase Sync Warning] Exception saving client selection:', e);
+  }
 }
 
 /**
@@ -237,18 +340,22 @@ export async function getGalleryByPinAsync(pinCode: string): Promise<Gallery | n
 }
 
 /**
- * Save or update a Gallery in Supabase with automatic local fallback
+ * Save or update a Gallery in Supabase with automatic local fallback.
+ * Strictly guarantees gallery ID generation and creation order before photos.
  */
 export async function saveGalleryAsync(gallery: Gallery): Promise<Gallery> {
   const now = new Date().toISOString();
 
-  const existingPins = cachedGalleries.filter((g) => g.id !== gallery.id).map((g) => g.pinCode || '');
+  // Ensure gallery ID is a valid UUID
+  const isUUID = gallery.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(gallery.id);
+  const galleryId = isUUID ? gallery.id : crypto.randomUUID();
+
+  const existingPins = cachedGalleries.filter((g) => g.id !== gallery.id && g.id !== galleryId).map((g) => g.pinCode || '');
   let pinCode = gallery.pinCode?.trim();
   if (!pinCode || existingPins.includes(pinCode)) {
     pinCode = generateUniquePin(existingPins);
   }
 
-  let galleryId = gallery.id;
   const updatedGallery: Gallery = {
     ...gallery,
     id: galleryId,
@@ -274,8 +381,9 @@ export async function saveGalleryAsync(gallery: Gallery): Promise<Gallery> {
 
   try {
     const galleryPayload = {
-      title: gallery.title,
-      client_name: gallery.clientName,
+      id: galleryId,
+      title: gallery.title || 'Galeria sem título',
+      client_name: gallery.clientName || 'Cliente',
       client_email: gallery.clientEmail || '',
       client_phone: gallery.clientPhone || '',
       event_date: gallery.eventDate || now.split('T')[0],
@@ -283,83 +391,34 @@ export async function saveGalleryAsync(gallery: Gallery): Promise<Gallery> {
       status: gallery.status || 'awaiting_client',
       privacy: gallery.privacy || 'private',
       pin_code: pinCode,
-      predefined_voters: gallery.predefinedVoters || [],
-      consensus_threshold: gallery.consensusThreshold || 2,
-      allow_free_voter_registration: gallery.allowFreeVoterRegistration ?? true,
-      voters: gallery.voters || [],
-      quota_included: gallery.quotaIncluded,
-      excess_policy: gallery.excessPolicy,
-      extra_photo_price: gallery.extraPhotoPrice,
-      watermark_enabled: gallery.watermarkEnabled,
+      predefined_voters: Array.isArray(gallery.predefinedVoters) ? gallery.predefinedVoters : [],
+      consensus_threshold: Number(gallery.consensusThreshold) || 2,
+      allow_free_voter_registration: Boolean(gallery.allowFreeVoterRegistration ?? true),
+      voters: Array.isArray(gallery.voters) ? gallery.voters : [],
+      quota_included: Number(gallery.quotaIncluded) || 20,
+      excess_policy: gallery.excessPolicy || 'charge',
+      extra_photo_price: Number(gallery.extraPhotoPrice) || 30,
+      watermark_enabled: Boolean(gallery.watermarkEnabled ?? true),
       watermark_text: gallery.watermarkText || 'PROVA • LUMINA STUDIO • PROVA',
       cover_photo_url: gallery.coverPhotoUrl || (gallery.photos[0]?.url || ''),
       updated_at: now
     };
 
-    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(galleryId);
-
-    if (isUUID) {
-      const { error } = await supabase.from('galleries').upsert({ id: galleryId, ...galleryPayload });
-      if (error) {
-        console.warn('[Supabase Sync Warning] Failed to upsert gallery (operating in local fallback):', error.message || error);
-      }
-    } else {
-      const { data, error } = await supabase
-        .from('galleries')
-        .insert([galleryPayload])
-        .select('id')
-        .single();
-      if (error) {
-        console.warn('[Supabase Sync Warning] Failed to insert gallery (operating in local fallback):', error.message || error);
-      } else if (data?.id) {
-        galleryId = data.id;
-        updatedGallery.id = galleryId;
-        // update local cache with database UUID
-        const finalIdx = cachedGalleries.findIndex((g) => g.id === gallery.id || g.id === galleryId);
-        if (finalIdx >= 0) {
-          cachedGalleries[finalIdx] = updatedGallery;
-        } else {
-          cachedGalleries = [updatedGallery, ...cachedGalleries];
-        }
-        updateLocalCache(cachedGalleries);
-      }
+    // Upsert gallery row first
+    const { error: galErr } = await supabase.from('galleries').upsert(galleryPayload, { onConflict: 'id' });
+    if (galErr) {
+      console.warn('[Supabase Sync Warning] Failed to upsert gallery (operating in local fallback):', galErr.message || galErr);
+      return updatedGallery;
     }
 
-    // Sync photos
+    // Sync photos only after successful gallery upsert
     if (gallery.photos && gallery.photos.length > 0) {
-      await supabase.from('photos').delete().eq('gallery_id', galleryId);
-
-      const photosPayload = gallery.photos.map((p) => ({
-        id: p.id || crypto.randomUUID(),
-        gallery_id: galleryId,
-        url: p.url,
-        original_filename: p.originalFileName,
-        is_starred: p.isStarred || false
-      }));
-
-      const { error: photoErr } = await supabase.from('photos').insert(photosPayload);
-      if (photoErr) {
-        console.warn('[Supabase Sync Warning] Failed to sync photos:', photoErr.message || photoErr);
-      }
+      await syncPhotos(galleryId, gallery.photos);
     }
 
-    // Sync client selections & voting state
-    const selectionPayload = {
-      gallery_id: galleryId,
-      selected_photo_ids: gallery.clientSelection?.selectedPhotoIds || [],
-      comments: gallery.clientSelection?.comments || {},
-      votes: gallery.clientSelection?.votes || {},
-      comments_map: gallery.clientSelection?.commentsMap || {},
-      voters: gallery.voters || gallery.clientSelection?.voters || [],
-      approved_at: gallery.clientSelection?.completedAt || null,
-      updated_at: now
-    };
-
-    const { error: selErr } = await supabase
-      .from('client_selections')
-      .upsert(selectionPayload, { onConflict: 'gallery_id' });
-    if (selErr) {
-      console.warn('[Supabase Sync Warning] Failed to sync selections:', selErr.message || selErr);
+    // Sync client selections only after successful gallery upsert
+    if (gallery.clientSelection) {
+      await saveClientSelection(galleryId, gallery.clientSelection, gallery.status, gallery.voters);
     }
   } catch (e) {
     console.warn('[Supabase Fallback] Network or RLS error saving gallery, saved locally:', e);
@@ -443,35 +502,15 @@ export async function togglePhotoVoteAsync(
     updatedAt: now
   };
 
-  // 1. Immediately update local cache
+  // 1. Update local cache
   const idx = cachedGalleries.findIndex((g) => g.id === gallery.id);
   if (idx >= 0) {
     cachedGalleries[idx] = updatedGallery;
     updateLocalCache(cachedGalleries);
   }
 
-  // 2. Try Supabase if configured
-  if (!isSupabaseConfigured || !supabase) {
-    return updatedGallery;
-  }
-
-  try {
-    await supabase
-      .from('client_selections')
-      .upsert(
-        {
-          gallery_id: gallery.id,
-          selected_photo_ids: selectedPhotoIds,
-          votes: currentVotes,
-          comments_map: gallery.clientSelection.commentsMap || {},
-          voters: activeVoters,
-          updated_at: now
-        },
-        { onConflict: 'gallery_id' }
-      );
-  } catch (e) {
-    console.warn('[Supabase Fallback] Error syncing vote to Supabase:', e);
-  }
+  // 2. Save client selection to Supabase
+  await saveClientSelection(gallery.id, updatedSelection, gallery.status, activeVoters);
 
   return updatedGallery;
 }
@@ -525,26 +564,8 @@ export async function addPhotoCommentAsync(
     updateLocalCache(cachedGalleries);
   }
 
-  // Try Supabase if configured
-  if (!isSupabaseConfigured || !supabase) {
-    return updatedGallery;
-  }
-
-  try {
-    await supabase
-      .from('client_selections')
-      .upsert(
-        {
-          gallery_id: gallery.id,
-          comments: legacyComments,
-          comments_map: commentsMap,
-          updated_at: now
-        },
-        { onConflict: 'gallery_id' }
-      );
-  } catch (e) {
-    console.warn('[Supabase Fallback] Error syncing comment to Supabase:', e);
-  }
+  // Save client selection to Supabase
+  await saveClientSelection(gallery.id, updatedSelection, gallery.status, gallery.voters);
 
   return updatedGallery;
 }
@@ -570,13 +591,15 @@ export async function deletePhotoCommentAsync(
     legacyComments[photoId] = photoComments[photoComments.length - 1].text;
   }
 
+  const updatedSelection: ClientSelectionData = {
+    ...gallery.clientSelection,
+    commentsMap,
+    comments: legacyComments
+  };
+
   const updatedGallery: Gallery = {
     ...gallery,
-    clientSelection: {
-      ...gallery.clientSelection,
-      commentsMap,
-      comments: legacyComments
-    },
+    clientSelection: updatedSelection,
     photos: gallery.photos.map((p) =>
       p.id === photoId ? { ...p, commentsList: photoComments } : p
     ),
@@ -590,26 +613,8 @@ export async function deletePhotoCommentAsync(
     updateLocalCache(cachedGalleries);
   }
 
-  // Try Supabase if configured
-  if (!isSupabaseConfigured || !supabase) {
-    return updatedGallery;
-  }
-
-  try {
-    await supabase
-      .from('client_selections')
-      .upsert(
-        {
-          gallery_id: gallery.id,
-          comments: legacyComments,
-          comments_map: commentsMap,
-          updated_at: now
-        },
-        { onConflict: 'gallery_id' }
-      );
-  } catch (e) {
-    console.warn('[Supabase Fallback] Error deleting comment from Supabase:', e);
-  }
+  // Save client selection to Supabase
+  await saveClientSelection(gallery.id, updatedSelection, gallery.status, gallery.voters);
 
   return updatedGallery;
 }
@@ -633,13 +638,17 @@ export async function finalizeVoterSelectionAsync(
     };
   }
 
+  const updatedSelection: ClientSelectionData = {
+    ...gallery.clientSelection,
+    voters: activeVoters,
+    completedAt: gallery.clientSelection.completedAt || now,
+    status: 'submitted'
+  };
+
   const updatedGallery: Gallery = {
     ...gallery,
     voters: activeVoters,
-    clientSelection: {
-      ...gallery.clientSelection,
-      voters: activeVoters
-    },
+    clientSelection: updatedSelection,
     updatedAt: now
   };
 
@@ -649,23 +658,15 @@ export async function finalizeVoterSelectionAsync(
     updateLocalCache(cachedGalleries);
   }
 
-  if (!isSupabaseConfigured || !supabase) {
-    return updatedGallery;
-  }
+  // Save client selection to Supabase with approved_at and finalized_at
+  await saveClientSelection(gallery.id, updatedSelection, 'completed', activeVoters);
 
-  try {
-    await supabase.from('client_selections').upsert(
-      {
-        gallery_id: gallery.id,
-        voters: activeVoters,
-        approved_at: gallery.clientSelection?.completedAt || now,
-        updated_at: now
-      },
-      { onConflict: 'gallery_id' }
-    );
-    await supabase.from('galleries').update({ voters: activeVoters }).eq('id', gallery.id);
-  } catch (e) {
-    console.warn('[Supabase Fallback] Error finalizing selection in Supabase:', e);
+  if (isSupabaseConfigured && supabase) {
+    try {
+      await supabase.from('galleries').update({ voters: activeVoters }).eq('id', gallery.id);
+    } catch (e) {
+      console.warn('[Supabase Fallback] Error updating gallery voters in Supabase:', e);
+    }
   }
 
   return updatedGallery;

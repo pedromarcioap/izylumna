@@ -91,6 +91,7 @@ ALTER TABLE public.client_selections ADD COLUMN IF NOT EXISTS votes JSONB DEFAUL
 ALTER TABLE public.client_selections ADD COLUMN IF NOT EXISTS comments_map JSONB DEFAULT '{}'::jsonb;
 ALTER TABLE public.client_selections ADD COLUMN IF NOT EXISTS voters JSONB DEFAULT '[]'::jsonb;
 ALTER TABLE public.client_selections ADD COLUMN IF NOT EXISTS approved_at TIMESTAMPTZ;
+ALTER TABLE public.client_selections ADD COLUMN IF NOT EXISTS finalized_at TIMESTAMPTZ;
 
 
 -- =====================================================================
