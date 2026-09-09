@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Gallery, GalleryStatus, PrivacyType, ExcessPolicy, Photo, GalleryVoter } from '../../types';
 import { Dialog } from '../ui/Dialog';
 import { Input, Textarea, Select } from '../ui/Input';
@@ -166,6 +166,9 @@ export const GalleryFormModal: React.FC<GalleryFormModalProps> = ({
     setPredefinedVoters((prev) => prev.filter((v) => v.id !== id));
   };
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -174,7 +177,7 @@ export const GalleryFormModal: React.FC<GalleryFormModalProps> = ({
     Array.from(files).forEach((file: File, idx: number) => {
       const url = URL.createObjectURL(file);
       newPhotosList.push({
-        id: `upload-${Date.now()}-${idx}`,
+        id: `upload-${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${idx}`,
         originalFileName: file.name,
         url,
         caption: file.name.replace(/\.[^/.]+$/, '')
@@ -184,6 +187,47 @@ export const GalleryFormModal: React.FC<GalleryFormModalProps> = ({
     setPhotos((prev) => [...prev, ...newPhotosList]);
     if (!coverPhotoUrl && newPhotosList.length > 0) {
       setCoverPhotoUrl(newPhotosList[0].url);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const files = e.dataTransfer.files;
+    if (!files || files.length === 0) return;
+
+    const newPhotosList: Photo[] = [];
+    Array.from(files).forEach((file: File, idx: number) => {
+      if (file.type.startsWith('image/')) {
+        const url = URL.createObjectURL(file);
+        newPhotosList.push({
+          id: `upload-${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${idx}`,
+          originalFileName: file.name,
+          url,
+          caption: file.name.replace(/\.[^/.]+$/, '')
+        });
+      }
+    });
+
+    if (newPhotosList.length > 0) {
+      setPhotos((prev) => [...prev, ...newPhotosList]);
+      if (!coverPhotoUrl) {
+        setCoverPhotoUrl(newPhotosList[0].url);
+      }
     }
   };
 
@@ -465,45 +509,123 @@ export const GalleryFormModal: React.FC<GalleryFormModalProps> = ({
 
         {/* SECTION 4: Upload das Fotos */}
         <div className="space-y-4">
-          <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-zinc-800 pb-2 gap-2">
             <h3 className="text-sm font-semibold uppercase tracking-wider text-zinc-400 flex items-center gap-2">
               <ImageIcon className="w-4 h-4 text-amber-400" />
-              <span>4. Fotografias da Galeria ({photos.length})</span>
+              <span>4. Fotografias da Galeria ({photos.length} {photos.length === 1 ? 'foto' : 'fotos'})</span>
             </h3>
 
-            <Button type="button" variant="outline" size="sm" onClick={handleAddSamplePhotos}>
-              <Plus className="w-3.5 h-3.5 mr-1" />
-              Adicionar Fotos Exemplo
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept="image/*"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+              <Button
+                type="button"
+                variant="amber"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                className="shadow-md shadow-amber-500/10"
+              >
+                <Upload className="w-3.5 h-3.5 mr-1.5" />
+                <span>Upload de Fotos (Múltiplas)</span>
+              </Button>
+              <Button type="button" variant="outline" size="sm" onClick={handleAddSamplePhotos}>
+                <Plus className="w-3.5 h-3.5 mr-1" />
+                <span>Exemplo</span>
+              </Button>
+              {photos.length > 0 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setPhotos([]);
+                    setCoverPhotoUrl('');
+                  }}
+                  className="text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                >
+                  <Trash2 className="w-3.5 h-3.5 mr-1" />
+                  <span>Limpar</span>
+                </Button>
+              )}
+            </div>
           </div>
 
           {formErrors.photos && <p className="text-xs text-red-400 font-medium">{formErrors.photos}</p>}
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 max-h-56 overflow-y-auto p-2 bg-zinc-950/60 rounded-xl border border-zinc-850">
-            {photos.map((photo) => (
-              <div key={photo.id} className="relative group rounded-lg overflow-hidden border border-zinc-800 bg-zinc-900 aspect-3/2">
-                <img src={photo.url} alt={photo.originalFileName} className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setCoverPhotoUrl(photo.url)}
-                    className={`p-1.5 rounded-full text-xs font-bold ${coverPhotoUrl === photo.url ? 'bg-amber-500 text-black' : 'bg-black/80 text-white hover:bg-amber-500/80'}`}
-                    title="Definir como Capa"
-                  >
-                    <Check className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleRemovePhoto(photo.id)}
-                    className="p-1.5 rounded-full bg-red-500/80 hover:bg-red-600 text-white"
-                    title="Excluir Foto"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
+          {/* Drag & Drop Dropzone */}
+          <div
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            onClick={() => fileInputRef.current?.click()}
+            className={`border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-all ${
+              isDragging
+                ? 'border-amber-400 bg-amber-500/10 scale-[1.01]'
+                : 'border-zinc-800 bg-zinc-950/40 hover:border-zinc-700 hover:bg-zinc-900/40'
+            }`}
+          >
+            <div className="flex flex-col items-center justify-center gap-2">
+              <div className="w-10 h-10 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+                <Upload className="w-5 h-5" />
               </div>
-            ))}
+              <div>
+                <p className="text-xs font-semibold text-zinc-200">
+                  Clique para escolher ou arraste e solte fotos aqui (sem limite de quantidade)
+                </p>
+                <p className="text-[11px] text-zinc-500 mt-0.5">
+                  Suporta upload múltiplo simultâneo (JPG, PNG, WEBP, HEIC e RAW)
+                </p>
+              </div>
+            </div>
           </div>
+
+          {/* Photo Grid */}
+          {photos.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 max-h-56 overflow-y-auto p-2 bg-zinc-950/60 rounded-xl border border-zinc-850">
+              {photos.map((photo) => (
+                <div key={photo.id} className="relative group rounded-lg overflow-hidden border border-zinc-800 bg-zinc-900 aspect-3/2">
+                  <img src={photo.url} alt={photo.originalFileName} className="w-full h-full object-cover" />
+                  
+                  {coverPhotoUrl === photo.url && (
+                    <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded bg-amber-500 text-zinc-950 font-bold text-[9px] uppercase tracking-wider">
+                      Capa
+                    </div>
+                  )}
+
+                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCoverPhotoUrl(photo.url);
+                      }}
+                      className={`p-1.5 rounded-full text-xs font-bold ${coverPhotoUrl === photo.url ? 'bg-amber-500 text-black' : 'bg-black/80 text-white hover:bg-amber-500/80'}`}
+                      title="Definir como Capa"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRemovePhoto(photo.id);
+                      }}
+                      className="p-1.5 rounded-full bg-red-500/80 hover:bg-red-600 text-white"
+                      title="Excluir Foto"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Form Actions */}

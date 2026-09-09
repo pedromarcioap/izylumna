@@ -19,7 +19,8 @@ import {
   Users,
   CheckCircle2,
   AlertCircle,
-  Filter
+  Filter,
+  Upload
 } from 'lucide-react';
 
 export interface GalleryDetailViewProps {
@@ -37,10 +38,36 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
   onEditGallery,
   onShowToast
 }) => {
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [copiedWithExt, setCopiedWithExt] = useState(false);
   const [copiedNoExt, setCopiedNoExt] = useState(false);
   const [activeFilter, setActiveFilter] = useState<'consensus' | 'all_voted' | 'voter' | 'package' | 'extra' | 'commented'>('consensus');
   const [selectedVoterIdFilter, setSelectedVoterIdFilter] = useState<string>('');
+
+  const handleDetailFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const newPhotos: Photo[] = Array.from(files).map((file: File, idx: number) => ({
+      id: `upload-${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${idx}`,
+      originalFileName: file.name,
+      url: URL.createObjectURL(file),
+      caption: file.name.replace(/\.[^/.]+$/, '')
+    }));
+
+    const updatedGallery: Gallery = {
+      ...gallery,
+      photos: [...gallery.photos, ...newPhotos],
+      updatedAt: new Date().toISOString()
+    };
+
+    onEditGallery(updatedGallery);
+    onShowToast(
+      'Fotos Adicionadas!',
+      `${newPhotos.length} ${newPhotos.length === 1 ? 'foto adicionada' : 'fotos adicionadas'} à galeria com sucesso.`,
+      'success'
+    );
+  };
 
   const threshold = gallery.consensusThreshold || 2;
   const votesMap = gallery.clientSelection.votes || {};
@@ -149,7 +176,24 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
           </Badge>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept="image/*"
+            onChange={handleDetailFileUpload}
+            className="hidden"
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => fileInputRef.current?.click()}
+            title="Upload de fotos adicionais para este ensaio (sem limite)"
+          >
+            <Upload className="w-3.5 h-3.5 text-amber-400" />
+            <span>Adicionar Fotos</span>
+          </Button>
           <Button variant="outline" size="sm" onClick={() => onEditGallery(gallery)}>
             <SlidersHorizontal className="w-3.5 h-3.5" />
             <span>Configurações & Regras</span>
