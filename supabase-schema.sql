@@ -65,6 +65,35 @@ CREATE TABLE IF NOT EXISTS public.photographer_profiles (
 );
 
 -- =====================================================================
+-- MIGRAÇÃO E ATUALIZAÇÃO CONSOLIDADA DE ESQUEMA (BANCOS EXISTENTES)
+-- Garante a inclusão de novas colunas em tabelas previamente criadas
+-- =====================================================================
+
+-- Colunas da tabela 'galleries'
+ALTER TABLE public.galleries ADD COLUMN IF NOT EXISTS predefined_voters JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.galleries ADD COLUMN IF NOT EXISTS consensus_threshold INT DEFAULT 2;
+ALTER TABLE public.galleries ADD COLUMN IF NOT EXISTS allow_free_voter_registration BOOLEAN DEFAULT true;
+ALTER TABLE public.galleries ADD COLUMN IF NOT EXISTS voters JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.galleries ADD COLUMN IF NOT EXISTS quota_included INT DEFAULT 20;
+ALTER TABLE public.galleries ADD COLUMN IF NOT EXISTS excess_policy TEXT DEFAULT 'charge';
+ALTER TABLE public.galleries ADD COLUMN IF NOT EXISTS extra_photo_price NUMERIC(10, 2) DEFAULT 30.00;
+ALTER TABLE public.galleries ADD COLUMN IF NOT EXISTS watermark_enabled BOOLEAN DEFAULT true;
+ALTER TABLE public.galleries ADD COLUMN IF NOT EXISTS watermark_text TEXT DEFAULT 'PROVA • LUMINA STUDIO • PROVA';
+
+-- Colunas e ajustes da tabela 'photos'
+ALTER TABLE public.photos ADD COLUMN IF NOT EXISTS is_starred BOOLEAN DEFAULT false;
+ALTER TABLE public.photos ALTER COLUMN id SET DEFAULT gen_random_uuid();
+
+-- Colunas da tabela 'client_selections'
+ALTER TABLE public.client_selections ADD COLUMN IF NOT EXISTS selected_photo_ids JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.client_selections ADD COLUMN IF NOT EXISTS comments JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE public.client_selections ADD COLUMN IF NOT EXISTS votes JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE public.client_selections ADD COLUMN IF NOT EXISTS comments_map JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE public.client_selections ADD COLUMN IF NOT EXISTS voters JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.client_selections ADD COLUMN IF NOT EXISTS approved_at TIMESTAMPTZ;
+
+
+-- =====================================================================
 -- CONFIGURAÇÃO DE SEGURANÇA E RLS (ROW LEVEL SECURITY)
 -- Libera acesso livre para anon e authenticated para o modelo PIN/Mock
 -- =====================================================================

@@ -330,6 +330,7 @@ export async function saveGalleryAsync(gallery: Gallery): Promise<Gallery> {
       await supabase.from('photos').delete().eq('gallery_id', galleryId);
 
       const photosPayload = gallery.photos.map((p) => ({
+        id: p.id || crypto.randomUUID(),
         gallery_id: galleryId,
         url: p.url,
         original_filename: p.originalFileName,
@@ -657,6 +658,7 @@ export async function finalizeVoterSelectionAsync(
       {
         gallery_id: gallery.id,
         voters: activeVoters,
+        approved_at: gallery.clientSelection?.completedAt || now,
         updated_at: now
       },
       { onConflict: 'gallery_id' }
