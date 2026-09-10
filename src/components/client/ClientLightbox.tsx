@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { Gallery, Photo, GalleryVoter, PhotoVote, PhotoCommentItem } from '../../types';
 import { Watermark } from '../common/Watermark';
 import { SafeImage } from '../common/SafeImage';
 import { PhotoTechnicalDetails } from '../common/PhotoTechnicalDetails';
-import { X, ChevronLeft, ChevronRight, Heart, MessageSquare, Sparkles, Users, Send } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Heart, MessageSquare, Sparkles, Users } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 
@@ -68,20 +68,20 @@ export const ClientLightbox: React.FC<ClientLightboxProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/95 backdrop-blur-xl flex flex-col justify-between select-none animate-in fade-in"
+      className="fixed inset-0 z-50 bg-walnut-950/95 backdrop-blur-xl flex flex-col justify-between select-none animate-in fade-in"
       onContextMenu={(e) => e.preventDefault()}
     >
       {/* Top Header Controls */}
-      <div className="flex items-center justify-between p-4 sm:p-6 z-30 bg-gradient-to-b from-black/90 to-transparent">
+      <div className="flex items-center justify-between p-4 sm:p-6 z-30 bg-gradient-to-b from-walnut-950 to-transparent">
         <div className="flex items-center gap-3">
-          <span className="font-mono text-xs sm:text-sm text-zinc-300 bg-white/10 px-3 py-1 rounded-full border border-white/10">
+          <span className="font-mono text-xs sm:text-sm text-walnut-200 bg-walnut-800/80 px-3 py-1 rounded-full border border-brand-dark/40">
             Foto {currentIndex + 1} de {photos.length}
           </span>
-          <span className="font-mono text-xs text-zinc-400 hidden sm:inline-block">
+          <span className="font-mono text-xs text-walnut-400 hidden sm:inline-block">
             {currentPhoto.originalFileName}
           </span>
           {isConsensus && (
-            <Badge variant="amber" size="sm" className="gap-1 animate-pulse">
+            <Badge variant="amber" size="sm" className="gap-1 animate-pulse font-extrabold bg-brand-accent text-brand-dark">
               <Sparkles className="w-3.5 h-3.5 fill-current" />
               <span>Consenso ({photoVotes.length} Votos)</span>
             </Badge>
@@ -94,7 +94,7 @@ export const ClientLightbox: React.FC<ClientLightboxProps> = ({
 
           {/* Add comment button */}
           <Button
-            variant={photoComments.length > 0 ? 'primary' : 'outline'}
+            variant={photoComments.length > 0 ? 'ochre' : 'outline'}
             size="sm"
             onClick={() => onOpenCommentModal(currentPhoto)}
             className="text-xs"
@@ -106,7 +106,7 @@ export const ClientLightbox: React.FC<ClientLightboxProps> = ({
           {/* Close Lightbox */}
           <button
             onClick={onClose}
-            className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+            className="p-2 rounded-full bg-walnut-800 hover:bg-walnut-700 text-walnut-100 transition-colors"
             aria-label="Fechar visualização"
           >
             <X className="w-5 h-5" />
@@ -119,7 +119,7 @@ export const ClientLightbox: React.FC<ClientLightboxProps> = ({
         {/* Previous button */}
         <button
           onClick={() => onNavigate((currentIndex - 1 + photos.length) % photos.length)}
-          className="absolute left-4 z-30 p-3 rounded-full bg-black/50 hover:bg-black/80 text-white/80 hover:text-white border border-white/10 transition-all active:scale-95"
+          className="absolute left-4 z-30 p-3 rounded-full bg-walnut-900/80 hover:bg-walnut-800 text-walnut-100 border border-brand-dark/50 transition-all active:scale-95 shadow-lg"
           aria-label="Foto anterior"
         >
           <ChevronLeft className="w-6 h-6" />
@@ -138,7 +138,7 @@ export const ClientLightbox: React.FC<ClientLightboxProps> = ({
           {/* Watermark overlay */}
           <Watermark
             enabled={gallery.watermarkEnabled}
-            text={gallery.watermarkText || 'PROVA • LUMINA STUDIO'}
+            text={gallery.watermarkText || 'PROVA • IZY LUMNA STUDIO'}
             position={gallery.watermarkPosition}
             opacity={gallery.watermarkOpacity}
           />
@@ -147,7 +147,7 @@ export const ClientLightbox: React.FC<ClientLightboxProps> = ({
         {/* Next button */}
         <button
           onClick={() => onNavigate((currentIndex + 1) % photos.length)}
-          className="absolute right-4 z-30 p-3 rounded-full bg-black/50 hover:bg-black/80 text-white/80 hover:text-white border border-white/10 transition-all active:scale-95"
+          className="absolute right-4 z-30 p-3 rounded-full bg-walnut-900/80 hover:bg-walnut-800 text-walnut-100 border border-brand-dark/50 transition-all active:scale-95 shadow-lg"
           aria-label="Próxima foto"
         >
           <ChevronRight className="w-6 h-6" />
@@ -155,24 +155,24 @@ export const ClientLightbox: React.FC<ClientLightboxProps> = ({
       </div>
 
       {/* Bottom Control Bar */}
-      <div className="p-4 sm:p-6 bg-gradient-to-t from-black/95 via-black/80 to-transparent flex flex-col sm:flex-row items-center justify-between gap-4 z-30 border-t border-zinc-900/60">
+      <div className="p-4 sm:p-6 bg-gradient-to-t from-walnut-950 via-walnut-900 to-transparent flex flex-col sm:flex-row items-center justify-between gap-4 z-30 border-t border-brand-dark/50">
         <div className="text-center sm:text-left space-y-1">
           {photoVotes.length > 0 ? (
-            <div className="flex items-center gap-2 text-xs text-amber-300 font-medium justify-center sm:justify-start">
-              <Users className="w-4 h-4 text-amber-400" />
+            <div className="flex items-center gap-2 text-xs text-brand-emerald font-medium justify-center sm:justify-start">
+              <Users className="w-4 h-4 text-brand-emerald" />
               <span>
                 Votado por:{' '}
-                <strong className="text-white font-semibold">
+                <strong className="text-walnut-100 font-semibold">
                   {photoVotes.map((v) => v.voterName).join(', ')}
                 </strong>
               </span>
             </div>
           ) : (
-            <p className="text-xs text-zinc-400">Nenhum voto registrado nesta foto ainda.</p>
+            <p className="text-xs text-walnut-400">Nenhum voto registrado nesta foto ainda.</p>
           )}
 
           {photoComments.length > 0 && (
-            <p className="text-xs text-sky-300 italic">
+            <p className="text-xs text-brand-ochre italic">
               Última observação: &ldquo;{photoComments[photoComments.length - 1].text}&rdquo; ({photoComments[photoComments.length - 1].voterName})
             </p>
           )}
@@ -181,7 +181,7 @@ export const ClientLightbox: React.FC<ClientLightboxProps> = ({
         {/* Favorite / Vote Toggle in Lightbox */}
         <div className="flex items-center gap-3">
           <Button
-            variant={hasVoted ? 'amber' : 'outline'}
+            variant={hasVoted ? 'emerald' : 'outline'}
             size="lg"
             disabled={isSubmitted}
             onClick={() => onToggleSelect(currentPhoto)}

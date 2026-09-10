@@ -15,22 +15,22 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
     return (
       <div className="w-full space-y-1.5">
         {label && (
-          <label htmlFor={inputId} className="block text-xs font-medium text-zinc-300">
+          <label htmlFor={inputId} className="block text-xs font-medium text-walnut-300">
             {label}
           </label>
         )}
         <div className="relative flex items-center">
           {leftIcon && (
-            <div className="absolute left-3 text-zinc-400 pointer-events-none flex items-center">
+            <div className="absolute left-3 text-walnut-400 pointer-events-none flex items-center">
               {leftIcon}
             </div>
           )}
           <input
             id={inputId}
             ref={ref}
-            className={`w-full rounded-lg bg-zinc-950/70 border ${
-              error ? 'border-red-500/80 focus:ring-red-500/30' : 'border-zinc-800 focus:border-zinc-600 focus:ring-zinc-700/50'
-            } text-zinc-100 placeholder-zinc-500 text-sm px-3.5 py-2.5 transition-all duration-150 focus:outline-none focus:ring-2 disabled:opacity-50 disabled:bg-zinc-900 ${
+            className={`w-full rounded-lg bg-walnut-950/70 border ${
+              error ? 'border-red-500/80 focus:ring-red-500/30' : 'border-brand-dark/50 focus:border-brand-primary focus:ring-brand-primary/30'
+            } text-walnut-100 placeholder-walnut-500 text-sm px-3.5 py-2.5 transition-all duration-150 focus:outline-none focus:ring-2 disabled:opacity-50 disabled:bg-walnut-900 ${
               leftIcon ? 'pl-10' : ''
             } ${rightElement ? 'pr-11' : ''} ${className}`}
             {...props}
@@ -44,7 +44,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
         {error ? (
           <p className="text-xs text-red-400 font-medium">{error}</p>
         ) : helperText ? (
-          <p className="text-xs text-zinc-400">{helperText}</p>
+          <p className="text-xs text-walnut-400">{helperText}</p>
         ) : null}
       </div>
     );
@@ -65,22 +65,22 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
     return (
       <div className="w-full space-y-1.5">
         {label && (
-          <label htmlFor={inputId} className="block text-xs font-medium text-zinc-300">
+          <label htmlFor={inputId} className="block text-xs font-medium text-walnut-300">
             {label}
           </label>
         )}
         <textarea
           id={inputId}
           ref={ref}
-          className={`w-full rounded-lg bg-zinc-950/70 border ${
-            error ? 'border-red-500/80 focus:ring-red-500/30' : 'border-zinc-800 focus:border-zinc-600 focus:ring-zinc-700/50'
-          } text-zinc-100 placeholder-zinc-500 text-sm px-3.5 py-2.5 transition-all duration-150 focus:outline-none focus:ring-2 disabled:opacity-50 min-h-[90px] ${className}`}
+          className={`w-full rounded-lg bg-walnut-950/70 border ${
+            error ? 'border-red-500/80 focus:ring-red-500/30' : 'border-brand-dark/50 focus:border-brand-primary focus:ring-brand-primary/30'
+          } text-walnut-100 placeholder-walnut-500 text-sm px-3.5 py-2.5 transition-all duration-150 focus:outline-none focus:ring-2 disabled:opacity-50 min-h-[90px] ${className}`}
           {...props}
         />
         {error ? (
           <p className="text-xs text-red-400 font-medium">{error}</p>
         ) : helperText ? (
-          <p className="text-xs text-zinc-400">{helperText}</p>
+          <p className="text-xs text-walnut-400">{helperText}</p>
         ) : null}
       </div>
     );
@@ -102,20 +102,20 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
     return (
       <div className="w-full space-y-1.5">
         {label && (
-          <label htmlFor={inputId} className="block text-xs font-medium text-zinc-300">
+          <label htmlFor={inputId} className="block text-xs font-medium text-walnut-300">
             {label}
           </label>
         )}
         <select
           id={inputId}
           ref={ref}
-          className={`w-full rounded-lg bg-zinc-950/70 border ${
-            error ? 'border-red-500/80 focus:ring-red-500/30' : 'border-zinc-800 focus:border-zinc-600 focus:ring-zinc-700/50'
-          } text-zinc-100 text-sm px-3.5 py-2.5 transition-all duration-150 focus:outline-none focus:ring-2 disabled:opacity-50 ${className}`}
+          className={`w-full rounded-lg bg-walnut-950/70 border ${
+            error ? 'border-red-500/80 focus:ring-red-500/30' : 'border-brand-dark/50 focus:border-brand-primary focus:ring-brand-primary/30'
+          } text-walnut-100 text-sm px-3.5 py-2.5 transition-all duration-150 focus:outline-none focus:ring-2 disabled:opacity-50 ${className}`}
           {...props}
         >
           {options.map((opt) => (
-            <option key={opt.value} value={opt.value} className="bg-zinc-900 text-zinc-100">
+            <option key={opt.value} value={opt.value} className="bg-walnut-900 text-walnut-100">
               {opt.label}
             </option>
           ))}
@@ -123,7 +123,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
         {error ? (
           <p className="text-xs text-red-400 font-medium">{error}</p>
         ) : helperText ? (
-          <p className="text-xs text-zinc-400">{helperText}</p>
+          <p className="text-xs text-walnut-400">{helperText}</p>
         ) : null}
       </div>
     );

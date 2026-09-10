@@ -3,7 +3,7 @@ import React from 'react';
 export interface ProgressProps {
   value: number; // e.g. current selected count
   max: number; // quota limit
-  color?: 'default' | 'amber' | 'emerald' | 'rose';
+  color?: 'default' | 'amber' | 'emerald' | 'rose' | 'primary';
   className?: string;
   showExcessIndicator?: boolean;
 }
@@ -19,20 +19,20 @@ export const Progress: React.FC<ProgressProps> = ({
 
   return (
     <div className={`w-full ${className}`}>
-      <div className="h-2 w-full bg-zinc-850 rounded-full overflow-hidden flex bg-zinc-800/80 border border-zinc-700/50">
+      <div className="h-2 w-full rounded-full overflow-hidden flex bg-walnut-800/80 border border-brand-dark/40">
         <div
           className={`h-full transition-all duration-300 rounded-full ${
             isExcess
-              ? 'bg-gradient-to-r from-amber-500 to-amber-400'
+              ? 'bg-gradient-to-r from-brand-ochre to-brand-accent'
               : percentage === 100
-              ? 'bg-emerald-500'
-              : 'bg-gradient-to-r from-zinc-300 to-amber-400'
+              ? 'bg-brand-emerald shadow-sm shadow-[#4CB963]/30'
+              : 'bg-gradient-to-r from-brand-primary to-brand-emerald'
           }`}
           style={{ width: `${percentage}%` }}
         />
         {showExcessIndicator && isExcess && (
           <div
-            className="h-full bg-amber-400/90 animate-pulse transition-all duration-300"
+            className="h-full bg-brand-accent animate-pulse transition-all duration-300"
             style={{ width: `${Math.min(100, ((value - max) / max) * 100)}%` }}
           />
         )}

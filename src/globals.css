@@ -1,0 +1,163 @@
+@import "tailwindcss";
+
+/* 
+  Institutional Design System - Izy Lumna
+  Institutional Color Palette:
+  - Turf Green (Primary): #01743F
+  - Emerald (Support & Accents): #4CB963
+  - Bright Lemon (Highlight & Attention): #FEF600 (Text MUST be #4F3926 for WCAG AAA contrast)
+  - Ochre (Warm Secondary): #D57720
+  - Deep Walnut (Neutral Dark & Base Typography): #4F3926
+*/
+
+@theme {
+  --color-brand-primary: #01743F;
+  --color-brand-primary-hover: #015c32;
+  --color-brand-primary-light: #e6f4ed;
+  
+  --color-brand-emerald: #4CB963;
+  --color-brand-emerald-hover: #3ea054;
+  --color-brand-emerald-light: #edf8ef;
+
+  --color-brand-accent: #FEF600;
+  --color-brand-accent-hover: #e6dd00;
+
+  --color-brand-ochre: #D57720;
+  --color-brand-ochre-hover: #b86218;
+  --color-brand-ochre-light: #fdf3e9;
+
+  --color-brand-dark: #4F3926;
+  --color-brand-dark-hover: #3b2a1c;
+  --color-brand-dark-card: #281C13;
+  --color-brand-dark-surface: #1C130D;
+  --color-brand-dark-border: #4F3926;
+}
+
+:root {
+  --brand-primary: #01743F;
+  --brand-primary-hsl: 152 98% 23%;
+  
+  --brand-emerald: #4CB963;
+  --brand-emerald-hsl: 133 44% 51%;
+  
+  --brand-accent: #FEF600;
+  --brand-accent-hsl: 58 100% 50%;
+  
+  --brand-ochre: #D57720;
+  --brand-ochre-hsl: 29 74% 48%;
+  
+  --brand-dark: #4F3926;
+  --brand-dark-hsl: 27 35% 23%;
+  
+  /* Light Theme variables - grounded in Deep Walnut for typography */
+  --bg-main: #FAF7F2;
+  --bg-card: #FFFFFF;
+  --bg-elevated: #F3ECE2;
+  --text-main: #4F3926;
+  --text-muted: #7A5F4A;
+  --border-color: #E5DCD3;
+  
+  color-scheme: light dark;
+}
+
+.dark {
+  --brand-primary: #01743F;
+  --brand-emerald: #4CB963;
+  --brand-accent: #FEF600;
+  --brand-ochre: #D57720;
+  --brand-dark: #4F3926;
+  
+  /* Dark Theme variables - warm deep walnut tones replacing absolute black #000000 */
+  --bg-main: #1C130D;
+  --bg-card: #281C13;
+  --bg-elevated: #3A291E;
+  --text-main: #FAF5EF;
+  --text-muted: #C2B2A3;
+  --border-color: #4F3926;
+}
+
+@layer base {
+  body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: var(--text-main);
+    background-color: var(--bg-main);
+  }
+
+  /* Typography rule: Ensure titles and body text never use pure black #000000 */
+  h1, h2, h3, h4, h5, h6 {
+    color: var(--text-main);
+  }
+
+  .font-serif {
+    font-family: 'Playfair Display', Georgia, serif;
+  }
+}
+
+/* Institutional Custom Utility Classes */
+.bg-brand-primary { background-color: #01743F; }
+.text-brand-primary { color: #01743F; }
+.border-brand-primary { border-color: #01743F; }
+
+.bg-brand-emerald { background-color: #4CB963; }
+.text-brand-emerald { color: #4CB963; }
+.border-brand-emerald { border-color: #4CB963; }
+
+/* 
+  Accessibility Enforcement:
+  Any element with .bg-brand-accent ALWAYS uses #4F3926 (Deep Walnut) text
+  for WCAG AAA contrast ratio compliance.
+*/
+.bg-brand-accent { 
+  background-color: #FEF600 !important; 
+  color: #4F3926 !important; 
+}
+.text-brand-accent { color: #FEF600; }
+.border-brand-accent { border-color: #FEF600; }
+
+.bg-brand-ochre { background-color: #D57720; }
+.text-brand-ochre { color: #D57720; }
+.border-brand-ochre { border-color: #D57720; }
+
+.bg-brand-dark { background-color: #4F3926; }
+.text-brand-dark { color: #4F3926; }
+.border-brand-dark { border-color: #4F3926; }
+
+/* Surface & background utilities */
+.bg-walnut-950 { background-color: #160E09; }
+.bg-walnut-900 { background-color: #1C130D; }
+.bg-walnut-850 { background-color: #241A12; }
+.bg-walnut-800 { background-color: #281C13; }
+.bg-walnut-750 { background-color: #332318; }
+.bg-walnut-700 { background-color: #3A291E; }
+.border-walnut-800 { border-color: #3A291E; }
+.border-walnut-700 { border-color: #4F3926; }
+.text-walnut-100 { color: #FAF5EF; }
+.text-walnut-200 { color: #F3EBE3; }
+.text-walnut-300 { color: #E5D7C9; }
+.text-walnut-400 { color: #C2B2A3; }
+.text-walnut-500 { color: #9E8B7A; }
+.text-walnut-600 { color: #7A5F4A; }
+.text-walnut-900 { color: #4F3926; }
+
+/* Image protection against dragging and right clicks */
+.protected-photo {
+  -webkit-user-drag: none;
+  -khtml-user-drag: none;
+  -moz-user-drag: none;
+  -o-user-drag: none;
+  user-drag: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Watermark overlay */
+.watermark-overlay {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(255, 255, 255, 0.04),
+    rgba(255, 255, 255, 0.04) 1px,
+    transparent 1px,
+    transparent 50px
+  );
+  pointer-events: none;
+}

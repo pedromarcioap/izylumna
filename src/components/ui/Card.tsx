@@ -6,7 +6,7 @@ export const Card: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
   ...props
 }) => (
   <div
-    className={`rounded-xl border border-zinc-800/80 bg-zinc-900/60 backdrop-blur-md text-zinc-100 shadow-xl shadow-black/40 overflow-hidden ${className}`}
+    className={`rounded-xl border border-brand-dark/40 bg-walnut-800/70 backdrop-blur-md text-walnut-100 shadow-xl shadow-black/30 overflow-hidden ${className}`}
     {...props}
   >
     {children}
@@ -28,7 +28,7 @@ export const CardTitle: React.FC<React.HTMLAttributes<HTMLHeadingElement>> = ({
   children,
   ...props
 }) => (
-  <h3 className={`text-lg font-semibold leading-none tracking-tight text-zinc-100 ${className}`} {...props}>
+  <h3 className={`text-lg font-semibold leading-none tracking-tight text-walnut-100 dark:text-walnut-100 ${className}`} {...props}>
     {children}
   </h3>
 );
@@ -38,7 +38,7 @@ export const CardDescription: React.FC<React.HTMLAttributes<HTMLParagraphElement
   children,
   ...props
 }) => (
-  <p className={`text-sm text-zinc-400 mt-1 leading-relaxed ${className}`} {...props}>
+  <p className={`text-sm text-walnut-400 mt-1 leading-relaxed ${className}`} {...props}>
     {children}
   </p>
 );
@@ -58,7 +58,7 @@ export const CardFooter: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
   children,
   ...props
 }) => (
-  <div className={`flex items-center p-5 sm:p-6 pt-0 border-t border-zinc-800/60 mt-4 ${className}`} {...props}>
+  <div className={`flex items-center p-5 sm:p-6 pt-0 border-t border-brand-dark/40 mt-4 ${className}`} {...props}>
     {children}
   </div>
 );

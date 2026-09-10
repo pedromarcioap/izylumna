@@ -5,7 +5,7 @@ import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 import { Textarea } from '../ui/Input';
 import { SafeImage } from '../common/SafeImage';
-import { CheckCheck, Sparkles, Lock, MessageSquare, Users, Heart } from 'lucide-react';
+import { CheckCheck, Lock } from 'lucide-react';
 
 export interface ClientFinalizeModalProps {
   isOpen: boolean;
@@ -43,7 +43,7 @@ export const ClientFinalizeModal: React.FC<ClientFinalizeModalProps> = ({
       onClose={onClose}
       title={
         <div className="flex items-center gap-2">
-          <CheckCheck className="w-5 h-5 text-amber-400" />
+          <CheckCheck className="w-5 h-5 text-brand-emerald" />
           <span>
             {isFinalized
               ? `Seleção de ${currentVoter?.name || 'Votante'} Concluída`
@@ -61,53 +61,53 @@ export const ClientFinalizeModal: React.FC<ClientFinalizeModalProps> = ({
       <div className="space-y-6">
         {/* Summary Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="p-3.5 rounded-xl bg-zinc-950/60 border border-zinc-800">
-            <span className="text-[11px] uppercase tracking-wider text-amber-400 font-mono">
+          <div className="p-3.5 rounded-xl bg-walnut-950/60 border border-brand-dark/50">
+            <span className="text-[11px] uppercase tracking-wider text-brand-primary font-mono font-bold">
               Seus Votos Pessoais
             </span>
             <div className="mt-1 flex items-baseline gap-1.5">
-              <span className="text-2xl font-bold font-mono text-zinc-100">
+              <span className="text-2xl font-bold font-mono text-walnut-100">
                 {myVotedPhotos.length}
               </span>
-              <span className="text-xs text-zinc-500">fotos</span>
+              <span className="text-xs text-walnut-400">fotos</span>
             </div>
           </div>
 
-          <div className="p-3.5 rounded-xl bg-zinc-950/60 border border-zinc-800">
-            <span className="text-[11px] uppercase tracking-wider text-emerald-400 font-mono">
+          <div className="p-3.5 rounded-xl bg-walnut-950/60 border border-brand-dark/50">
+            <span className="text-[11px] uppercase tracking-wider text-brand-emerald font-mono font-bold">
               Fotos em Consenso
             </span>
             <div className="mt-1 flex items-baseline gap-1.5">
-              <span className="text-2xl font-bold font-mono text-emerald-400">
+              <span className="text-2xl font-bold font-mono text-brand-emerald">
                 {consensusCount}
               </span>
-              <span className="text-xs text-zinc-500">/ {threshold}+ votos</span>
+              <span className="text-xs text-walnut-400">/ {threshold}+ votos</span>
             </div>
           </div>
 
-          <div className="p-3.5 rounded-xl bg-zinc-950/60 border border-zinc-800">
-            <span className="text-[11px] uppercase tracking-wider text-sky-400 font-mono">
+          <div className="p-3.5 rounded-xl bg-walnut-950/60 border border-brand-dark/50">
+            <span className="text-[11px] uppercase tracking-wider text-brand-ochre font-mono font-bold">
               Participantes Ativos
             </span>
             <div className="mt-1 flex items-baseline gap-1.5">
-              <span className="text-2xl font-bold font-mono text-sky-300">
+              <span className="text-2xl font-bold font-mono text-brand-ochre">
                 {(gallery.voters || []).length || 1}
               </span>
-              <span className="text-xs text-zinc-500">pessoas</span>
+              <span className="text-xs text-walnut-400">pessoas</span>
             </div>
           </div>
         </div>
 
         {/* Quota Policy Banner */}
-        <div className="p-3 rounded-xl bg-zinc-950/80 border border-zinc-800 flex items-center justify-between text-xs">
-          <span className="text-zinc-400 font-medium">Regra de Seleção da Galeria:</span>
+        <div className="p-3 rounded-xl bg-walnut-950/80 border border-brand-dark/50 flex items-center justify-between text-xs">
+          <span className="text-walnut-400 font-medium">Regra de Seleção da Galeria:</span>
           {gallery.excessPolicy === 'block' && (
             <Badge variant="warning" className="font-semibold">
               Cota Fixa ({gallery.quotaIncluded} fotos max - Bloqueado)
             </Badge>
           )}
           {gallery.excessPolicy === 'charge' && (
-            <Badge variant="amber" className="font-semibold">
+            <Badge variant="amber" className="font-bold">
               Cota Inclusa ({gallery.quotaIncluded} fotos + R$ {gallery.extraPhotoPrice}/extra)
             </Badge>
           )}
@@ -120,14 +120,14 @@ export const ClientFinalizeModal: React.FC<ClientFinalizeModalProps> = ({
 
         {/* Selected Photos Thumbnails Strip */}
         <div className="space-y-2">
-          <span className="text-xs font-semibold text-zinc-300 block">
+          <span className="text-xs font-semibold text-walnut-300 block">
             Fotos Votadas por {currentVoter?.name} ({myVotedPhotos.length} fotos):
           </span>
-          <div className="flex gap-2 overflow-x-auto p-2 bg-zinc-950/60 rounded-xl border border-zinc-850">
+          <div className="flex gap-2 overflow-x-auto p-2 bg-walnut-950/60 rounded-xl border border-brand-dark/40">
             {myVotedPhotos.map((photo, index) => (
               <div
                 key={photo.id}
-                className="relative shrink-0 w-16 h-16 rounded-lg overflow-hidden border border-amber-500/50"
+                className="relative shrink-0 w-16 h-16 rounded-lg overflow-hidden border border-brand-emerald/50"
               >
                 <SafeImage
                   src={photo.url}
@@ -135,7 +135,7 @@ export const ClientFinalizeModal: React.FC<ClientFinalizeModalProps> = ({
                   fallbackText={photo.originalFileName}
                   className="w-full h-full object-cover protected-photo"
                 />
-                <div className="absolute bottom-0 inset-x-0 bg-black/80 text-[9px] font-mono text-center text-amber-300 truncate px-0.5">
+                <div className="absolute bottom-0 inset-x-0 bg-walnut-950/90 text-[9px] font-mono text-center text-brand-emerald truncate px-0.5 font-bold">
                   #{index + 1}
                 </div>
               </div>
@@ -154,43 +154,43 @@ export const ClientFinalizeModal: React.FC<ClientFinalizeModalProps> = ({
               rows={2}
             />
 
-            <label className="flex items-start gap-2.5 p-3 rounded-xl bg-zinc-950/40 border border-zinc-800/80 cursor-pointer select-none">
+            <label className="flex items-start gap-2.5 p-3 rounded-xl bg-walnut-950/40 border border-brand-dark/50 cursor-pointer select-none">
               <input
                 type="checkbox"
                 checked={agreeTerms}
                 onChange={(e) => setAgreeTerms(e.target.checked)}
-                className="mt-1 text-amber-500 rounded border-zinc-700 focus:ring-amber-500"
+                className="mt-1 text-brand-primary rounded border-brand-dark focus:ring-brand-primary"
               />
-              <span className="text-xs text-zinc-300 leading-snug">
+              <span className="text-xs text-walnut-300 leading-snug">
                 Estou ciente de que ao confirmar, minha votação como <strong>{currentVoter?.name}</strong> será finalizada e enviada para apuração no relatório de consenso.
               </span>
             </label>
           </div>
         ) : (
-          <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-300 space-y-1">
+          <div className="p-4 rounded-xl bg-brand-emerald/15 border border-brand-emerald/40 text-xs text-brand-emerald space-y-1">
             <div className="flex items-center gap-2 font-semibold">
               <Lock className="w-4 h-4" />
               <span>Votação de {currentVoter?.name} Finalizada</span>
             </div>
-            <p className="text-zinc-300">
+            <p className="text-walnut-300">
               Sua lista de preferências já foi enviada com sucesso!
             </p>
           </div>
         )}
 
         {/* Actions */}
-        <div className="flex items-center justify-end gap-3 pt-4 border-t border-zinc-800">
+        <div className="flex items-center justify-end gap-3 pt-4 border-t border-brand-dark/50">
           <Button variant="ghost" size="md" onClick={onClose}>
             {isFinalized ? 'Fechar' : 'Voltar e Revisar'}
           </Button>
 
           {!isFinalized && (
             <Button
-              variant="amber"
+              variant="primary"
               size="md"
               disabled={!agreeTerms}
               onClick={handleConfirm}
-              className="font-semibold shadow-lg shadow-amber-500/20"
+              className="font-semibold shadow-lg shadow-[#01743F]/25"
             >
               <CheckCheck className="w-4 h-4 mr-1.5" />
               <span>Finalizar Votação de {currentVoter?.name}</span>

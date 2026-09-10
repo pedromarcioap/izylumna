@@ -24,12 +24,12 @@ export const Switch: React.FC<SwitchProps> = ({
       {(label || description) && (
         <div className="flex flex-col cursor-pointer select-none" onClick={() => !disabled && onChange(!checked)}>
           {label && (
-            <label htmlFor={switchId} className="text-sm font-medium text-zinc-200 cursor-pointer">
+            <label htmlFor={switchId} className="text-sm font-medium text-walnut-200 cursor-pointer">
               {label}
             </label>
           )}
           {description && (
-            <span className="text-xs text-zinc-400 mt-0.5 leading-relaxed">
+            <span className="text-xs text-walnut-400 mt-0.5 leading-relaxed">
               {description}
             </span>
           )}
@@ -42,8 +42,8 @@ export const Switch: React.FC<SwitchProps> = ({
         aria-checked={checked}
         disabled={disabled}
         onClick={() => onChange(!checked)}
-        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:ring-offset-2 focus:ring-offset-zinc-950 disabled:cursor-not-allowed disabled:opacity-40 ${
-          checked ? 'bg-amber-500' : 'bg-zinc-800'
+        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-brand-emerald/40 focus:ring-offset-2 focus:ring-offset-walnut-950 disabled:cursor-not-allowed disabled:opacity-40 ${
+          checked ? 'bg-brand-primary' : 'bg-walnut-800'
         }`}
       >
         <span

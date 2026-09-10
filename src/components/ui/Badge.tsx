@@ -1,7 +1,7 @@
 import React from 'react';
 
 export interface BadgeProps extends React.HTMLAttributes<HTMLDivElement> {
-  variant?: 'default' | 'secondary' | 'outline' | 'success' | 'warning' | 'info' | 'amber';
+  variant?: 'default' | 'primary' | 'secondary' | 'outline' | 'success' | 'warning' | 'info' | 'amber' | 'accent' | 'ochre' | 'dark';
   size?: 'sm' | 'md';
 }
 
@@ -15,13 +15,22 @@ export const Badge: React.FC<BadgeProps> = ({
   const baseClasses = 'inline-flex items-center font-medium rounded-full tracking-wide transition-colors whitespace-nowrap';
 
   const variantClasses = {
-    default: 'bg-zinc-800 text-zinc-300 border border-zinc-700',
-    secondary: 'bg-zinc-900/80 text-zinc-400 border border-zinc-800',
-    outline: 'border border-zinc-700 text-zinc-300',
-    success: 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30',
-    warning: 'bg-amber-500/15 text-amber-300 border border-amber-500/30',
-    info: 'bg-sky-500/15 text-sky-300 border border-sky-500/30',
-    amber: 'bg-amber-400/20 text-amber-200 border border-amber-400/40'
+    // Default & Institutional Turf Green (#01743F)
+    default: 'bg-brand-primary/15 text-brand-primary dark:text-emerald-300 border border-brand-primary/30',
+    primary: 'bg-brand-primary text-white border border-brand-primary/40 shadow-xs',
+    secondary: 'bg-walnut-800 text-walnut-300 border border-walnut-700',
+    outline: 'border border-brand-primary/40 text-brand-primary dark:text-walnut-200',
+    // Emerald Positive Status (#4CB963)
+    success: 'bg-brand-emerald/15 text-brand-emerald border border-brand-emerald/30',
+    // Bright Lemon Highlight / Warning / Favorite (#FEF600) -> STRICT WCAG AAA: ALWAYS #4F3926 Deep Walnut text
+    warning: 'bg-brand-accent text-brand-dark font-bold border border-[#4F3926]/30 shadow-xs',
+    amber: 'bg-brand-accent text-brand-dark font-bold border border-[#4F3926]/30 shadow-xs',
+    accent: 'bg-brand-accent text-brand-dark font-bold border border-[#4F3926]/30 shadow-xs',
+    // Warm Ochre (#D57720)
+    info: 'bg-brand-ochre/15 text-brand-ochre border border-brand-ochre/30',
+    ochre: 'bg-brand-ochre text-white border border-brand-ochre/30',
+    // Deep Walnut (#4F3926)
+    dark: 'bg-brand-dark text-walnut-100 border border-brand-dark/50'
   };
 
   const sizeClasses = {
