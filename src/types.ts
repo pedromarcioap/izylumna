@@ -103,6 +103,8 @@ export interface Gallery {
   // Protection & Display
   watermarkEnabled: boolean;
   watermarkText?: string;
+  watermarkPosition?: 'grid' | 'center' | 'both' | 'bottom-right';
+  watermarkOpacity?: number;
 
   // Photos
   photos: Photo[];

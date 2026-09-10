@@ -82,6 +82,8 @@ export const ClientPhotoGrid: React.FC<ClientPhotoGridProps> = ({
               <Watermark
                 enabled={gallery.watermarkEnabled}
                 text={gallery.watermarkText || 'PROVA • LUMINA STUDIO'}
+                position={gallery.watermarkPosition}
+                opacity={gallery.watermarkOpacity}
               />
 
               {/* Anti-download Transparent Click Guard Shield */}

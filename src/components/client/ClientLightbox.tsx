@@ -135,6 +135,8 @@ export const ClientLightbox: React.FC<ClientLightboxProps> = ({
           <Watermark
             enabled={gallery.watermarkEnabled}
             text={gallery.watermarkText || 'PROVA • LUMINA STUDIO'}
+            position={gallery.watermarkPosition}
+            opacity={gallery.watermarkOpacity}
           />
         </div>
 

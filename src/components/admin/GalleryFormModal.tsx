@@ -5,15 +5,19 @@ import { Input, Textarea, Select } from '../ui/Input';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 import { SafeImage } from '../common/SafeImage';
+import { Watermark } from '../common/Watermark';
 import { uploadPhotoFile, uploadPhotosInBatches } from '../../lib/photoUpload';
+import { getPhotographerSession } from '../../lib/auth';
 import {
   Upload,
   Plus,
   Trash2,
   Lock,
   Eye,
+  EyeOff,
   Key,
   ShieldAlert,
+  ShieldCheck,
   Sparkles,
   DollarSign,
   HelpCircle,
@@ -21,7 +25,8 @@ import {
   Check,
   Users,
   UserPlus,
-  RefreshCw
+  RefreshCw,
+  Layers
 } from 'lucide-react';
 
 export interface GalleryFormModalProps {
@@ -77,8 +82,14 @@ export const GalleryFormModal: React.FC<GalleryFormModalProps> = ({
   const [quotaIncluded, setQuotaIncluded] = useState(20);
   const [excessPolicy, setExcessPolicy] = useState<ExcessPolicy>('charge');
   const [extraPhotoPrice, setExtraPhotoPrice] = useState(30);
+
+  // Watermark protection settings
   const [watermarkEnabled, setWatermarkEnabled] = useState(true);
   const [watermarkText, setWatermarkText] = useState('PROVA • LUMINA STUDIO • PROVA');
+  const [watermarkPosition, setWatermarkPosition] = useState<'grid' | 'center' | 'both' | 'bottom-right'>('both');
+  const [watermarkOpacity, setWatermarkOpacity] = useState<number>(0.25);
+  const [previewWatermarkInModal, setPreviewWatermarkInModal] = useState(true);
+  const [previewPhotoIdx, setPreviewPhotoIdx] = useState<number>(0);
   
   // Collaborative Voting Configuration
   const [predefinedVoters, setPredefinedVoters] = useState<GalleryVoter[]>([]);
@@ -91,6 +102,9 @@ export const GalleryFormModal: React.FC<GalleryFormModalProps> = ({
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
+    const session = getPhotographerSession();
+    const defaultText = session?.profile?.defaultWatermarkText || 'PROVA • SEU ESTÚDIO • PROVA';
+
     if (galleryToEdit) {
       setTitle(galleryToEdit.title);
       setClientName(galleryToEdit.clientName);
@@ -105,7 +119,9 @@ export const GalleryFormModal: React.FC<GalleryFormModalProps> = ({
       setExcessPolicy(galleryToEdit.excessPolicy);
       setExtraPhotoPrice(galleryToEdit.extraPhotoPrice || 30);
       setWatermarkEnabled(galleryToEdit.watermarkEnabled);
-      setWatermarkText(galleryToEdit.watermarkText || 'PROVA • LUMINA STUDIO • PROVA');
+      setWatermarkText(galleryToEdit.watermarkText || defaultText);
+      setWatermarkPosition(galleryToEdit.watermarkPosition || 'both');
+      setWatermarkOpacity(galleryToEdit.watermarkOpacity ?? 0.25);
 
       setPredefinedVoters(galleryToEdit.predefinedVoters || [
         { id: 'v1', name: 'Noiva', isDecisionMaker: true },
@@ -130,7 +146,9 @@ export const GalleryFormModal: React.FC<GalleryFormModalProps> = ({
       setExcessPolicy('charge');
       setExtraPhotoPrice(30);
       setWatermarkEnabled(true);
-      setWatermarkText('PROVA • FOTÓGRAFO • PROVA');
+      setWatermarkText(defaultText);
+      setWatermarkPosition('both');
+      setWatermarkOpacity(0.25);
 
       setPredefinedVoters([
         { id: 'v1', name: 'Noiva', isDecisionMaker: true },
@@ -149,6 +167,7 @@ export const GalleryFormModal: React.FC<GalleryFormModalProps> = ({
       setCoverPhotoUrl(initialPhotos[0]?.url || '');
     }
     setFormErrors({});
+    setPreviewPhotoIdx(0);
   }, [galleryToEdit, isOpen]);
 
   const handleAddPredefinedVoter = () => {
@@ -337,6 +356,8 @@ export const GalleryFormModal: React.FC<GalleryFormModalProps> = ({
         extraPhotoPrice: excessPolicy === 'charge' ? Number(extraPhotoPrice) : 0,
         watermarkEnabled,
         watermarkText: watermarkEnabled ? watermarkText : undefined,
+        watermarkPosition: watermarkEnabled ? watermarkPosition : undefined,
+        watermarkOpacity: watermarkEnabled ? watermarkOpacity : undefined,
         coverPhotoUrl: cleanCoverUrl,
         photos: cleanPhotos,
         clientSelection: galleryToEdit?.clientSelection || {
@@ -546,15 +567,209 @@ export const GalleryFormModal: React.FC<GalleryFormModalProps> = ({
           )}
         </div>
 
-        {/* SECTION 4: Upload das Fotos */}
+        {/* SECTION 4: Proteção por Marca d'Água */}
+        <div className="space-y-4 rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 sm:p-5">
+          <div className="flex items-center justify-between border-b border-amber-500/20 pb-3">
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-amber-400 flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-amber-400" />
+              <span>4. Configuração da Marca d'Água & Proteção das Fotos</span>
+            </h3>
+            <Badge variant={watermarkEnabled ? 'amber' : 'default'} size="sm">
+              {watermarkEnabled ? "Marca d'Água Ativada" : "Sem Marca d'Água"}
+            </Badge>
+          </div>
+
+          {/* Active Watermark Toggle Card */}
+          <div className="flex items-center justify-between p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800">
+            <div className="space-y-0.5">
+              <span className="text-xs font-semibold text-zinc-200 block">
+                Ativar Proteção com Marca d'Água nas Fotos
+              </span>
+              <p className="text-[11px] text-zinc-400">
+                Aplica uma camada sobre as fotos para evitar cópias e capturas de tela durante a seleção do cliente.
+              </p>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={watermarkEnabled}
+                onChange={(e) => setWatermarkEnabled(e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+            </label>
+          </div>
+
+          {watermarkEnabled && (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 pt-2">
+              {/* Controls Column */}
+              <div className="lg:col-span-7 space-y-4">
+                {/* Custom Watermark Text */}
+                <div className="space-y-2">
+                  <Input
+                    label="Texto Personalizado da Marca d'Água *"
+                    placeholder="ex: PROVA • SEU ESTÚDIO • PROVA"
+                    value={watermarkText}
+                    onChange={(e) => setWatermarkText(e.target.value)}
+                  />
+
+                  {/* Quick Presets */}
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-semibold uppercase text-zinc-400">Sugestões Rápidas:</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setWatermarkText('PROVA • LUMINA STUDIO • PROVA')}
+                        className="px-2 py-1 rounded bg-zinc-900 border border-zinc-800 text-[10px] text-zinc-300 hover:border-amber-500/50 hover:text-amber-300 transition-colors"
+                      >
+                        Lumina Studio
+                      </button>
+                      {clientName.trim() && (
+                        <button
+                          type="button"
+                          onClick={() => setWatermarkText(`PROVA • ${clientName.trim().toUpperCase()} • PROVA`)}
+                          className="px-2 py-1 rounded bg-zinc-900 border border-zinc-800 text-[10px] text-zinc-300 hover:border-amber-500/50 hover:text-amber-300 transition-colors"
+                        >
+                          {clientName.trim()}
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setWatermarkText('SELEÇÃO DE FOTOS • PROVA')}
+                        className="px-2 py-1 rounded bg-zinc-900 border border-zinc-800 text-[10px] text-zinc-300 hover:border-amber-500/50 hover:text-amber-300 transition-colors"
+                      >
+                        Seleção de Fotos
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setWatermarkText('CONFIDENCIAL • NÃO COPIAR')}
+                        className="px-2 py-1 rounded bg-zinc-900 border border-zinc-800 text-[10px] text-zinc-300 hover:border-amber-500/50 hover:text-amber-300 transition-colors"
+                      >
+                        Confidencial
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Layout & Style options */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-medium text-zinc-300">Posicionamento & Estilo:</label>
+                    <select
+                      value={watermarkPosition}
+                      onChange={(e) => setWatermarkPosition(e.target.value as any)}
+                      className="w-full py-2 px-3 rounded-lg bg-zinc-950 border border-zinc-800 text-xs text-zinc-100 focus:outline-none focus:border-amber-500"
+                    >
+                      <option value="both">Grid Diagonal + Selo Central (Máxima Proteção)</option>
+                      <option value="grid">Grid Repetido Diagonal</option>
+                      <option value="center">Selo Central Elegante</option>
+                      <option value="bottom-right">Discreta (Canto Inferior Direito)</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-medium text-zinc-300">
+                      Nível de Opacidade ({Math.round(watermarkOpacity * 100)}%):
+                    </label>
+                    <div className="flex items-center gap-2 pt-1">
+                      <input
+                        type="range"
+                        min="0.10"
+                        max="0.60"
+                        step="0.05"
+                        value={watermarkOpacity}
+                        onChange={(e) => setWatermarkOpacity(parseFloat(e.target.value))}
+                        className="w-full accent-amber-400 cursor-pointer h-1.5 bg-zinc-800 rounded-lg"
+                      />
+                    </div>
+                    <div className="flex justify-between text-[10px] text-zinc-500">
+                      <span>Sutil (10%)</span>
+                      <span>Padrão (25%)</span>
+                      <span>Intenso (60%)</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Live Preview Box */}
+              <div className="lg:col-span-5 flex flex-col justify-between p-3.5 rounded-xl bg-zinc-950 border border-zinc-800">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <Eye className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Pré-visualização da Proteção</span>
+                  </span>
+                  {photos.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setPreviewPhotoIdx((prev) => (prev + 1) % photos.length)}
+                      className="text-[10px] text-amber-400 hover:underline font-mono"
+                    >
+                      Próxima foto ({previewPhotoIdx + 1}/{photos.length})
+                    </button>
+                  )}
+                </div>
+
+                {/* Live Preview Container */}
+                <div className="relative aspect-3/2 rounded-lg overflow-hidden bg-zinc-900 border border-zinc-800 shadow-inner flex items-center justify-center">
+                  <SafeImage
+                    src={
+                      photos[previewPhotoIdx]?.url ||
+                      'https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=1200&auto=format&fit=crop'
+                    }
+                    alt="Preview Marca d'Água"
+                    className="w-full h-full object-cover"
+                  />
+
+                  <Watermark
+                    enabled={watermarkEnabled}
+                    text={watermarkText || 'PROVA • LUMINA STUDIO'}
+                    position={watermarkPosition}
+                    opacity={watermarkOpacity}
+                  />
+                </div>
+
+                <p className="text-[10px] text-zinc-500 mt-2 text-center italic">
+                  Visualização em tempo real de como os clientes verão as imagens.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* SECTION 5: Upload das Fotos */}
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-zinc-800 pb-2 gap-2">
             <h3 className="text-sm font-semibold uppercase tracking-wider text-zinc-400 flex items-center gap-2">
               <ImageIcon className="w-4 h-4 text-amber-400" />
-              <span>4. Fotografias da Galeria ({photos.length} {photos.length === 1 ? 'foto' : 'fotos'})</span>
+              <span>5. Fotografias da Galeria ({photos.length} {photos.length === 1 ? 'foto' : 'fotos'})</span>
             </h3>
 
             <div className="flex flex-wrap items-center gap-2">
+              {watermarkEnabled && photos.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setPreviewWatermarkInModal(!previewWatermarkInModal)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors border ${
+                    previewWatermarkInModal
+                      ? 'bg-amber-500/10 text-amber-300 border-amber-500/30'
+                      : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:text-zinc-200'
+                  }`}
+                  title="Alternar pré-visualização da marca d'água nas miniaturas"
+                >
+                  {previewWatermarkInModal ? (
+                    <>
+                      <Eye className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Ver Marca d'Água nas Miniaturas</span>
+                    </>
+                  ) : (
+                    <>
+                      <EyeOff className="w-3.5 h-3.5 text-zinc-500" />
+                      <span>Ocultar Marca d'Água</span>
+                    </>
+                  )}
+                </button>
+              )}
+
               <input
                 ref={fileInputRef}
                 type="file"
@@ -640,10 +855,10 @@ export const GalleryFormModal: React.FC<GalleryFormModalProps> = ({
             </div>
           </div>
 
-          {/* Photo Grid */}
+          {/* Photo Grid with Optional Watermark Overlay */}
           {photos.length > 0 && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 max-h-56 overflow-y-auto p-2 bg-zinc-950/60 rounded-xl border border-zinc-850">
-              {photos.map((photo) => (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 max-h-64 overflow-y-auto p-2 bg-zinc-950/60 rounded-xl border border-zinc-850">
+              {photos.map((photo, index) => (
                 <div key={photo.id} className="relative group rounded-lg overflow-hidden border border-zinc-800 bg-zinc-900 aspect-3/2">
                   <SafeImage
                     src={photo.url}
@@ -651,14 +866,24 @@ export const GalleryFormModal: React.FC<GalleryFormModalProps> = ({
                     fallbackText={photo.originalFileName}
                     className="w-full h-full object-cover"
                   />
+
+                  {/* Watermark Overlay in Modal Thumbnails */}
+                  {watermarkEnabled && previewWatermarkInModal && (
+                    <Watermark
+                      enabled={true}
+                      text={watermarkText || 'PROVA'}
+                      position={watermarkPosition}
+                      opacity={watermarkOpacity}
+                    />
+                  )}
                   
                   {coverPhotoUrl === photo.url && (
-                    <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded bg-amber-500 text-zinc-950 font-bold text-[9px] uppercase tracking-wider">
+                    <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded bg-amber-500 text-zinc-950 font-bold text-[9px] uppercase tracking-wider z-20 shadow">
                       Capa
                     </div>
                   )}
 
-                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 z-30">
                     <button
                       type="button"
                       onClick={(e) => {
@@ -669,6 +894,17 @@ export const GalleryFormModal: React.FC<GalleryFormModalProps> = ({
                       title="Definir como Capa"
                     >
                       <Check className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setPreviewPhotoIdx(index);
+                      }}
+                      className="p-1.5 rounded-full bg-black/80 hover:bg-amber-500 text-white hover:text-black"
+                      title="Visualizar no painel de marca d'água"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
                     </button>
                     <button
                       type="button"
