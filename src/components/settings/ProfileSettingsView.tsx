@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
+import { sanitizeImageUrl, PLACEHOLDER_IMAGE } from '../../lib/utils';
 import { Card, CardContent } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
@@ -154,8 +155,12 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({ onShow
               <div className="relative group">
                 {avatarUrl ? (
                   <img
-                    src={avatarUrl}
+                    src={sanitizeImageUrl(avatarUrl)}
                     alt={fullName || 'Avatar'}
+                    onError={(e) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = PLACEHOLDER_IMAGE;
+                    }}
                     className="w-20 h-20 rounded-2xl object-cover border-2 border-amber-500/40 shadow-lg"
                   />
                 ) : (

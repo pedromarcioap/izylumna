@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Gallery, PhotographerProfile } from '../../types';
+import { sanitizeImageUrl, PLACEHOLDER_IMAGE } from '../../lib/utils';
 import { Card, CardContent } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
@@ -157,8 +158,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           <div className="relative">
             {photographerProfile.avatarUrl ? (
               <img
-                src={photographerProfile.avatarUrl}
+                src={sanitizeImageUrl(photographerProfile.avatarUrl)}
                 alt={photographerProfile.name}
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = PLACEHOLDER_IMAGE;
+                }}
                 className="w-14 h-14 rounded-2xl object-cover border-2 border-amber-500/40 shadow-md"
               />
             ) : (

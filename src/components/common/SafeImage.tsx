@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { ImageOff } from 'lucide-react';
-
-const DEFAULT_FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=500&auto=format&fit=crop&q=60';
+import { sanitizeImageUrl, PLACEHOLDER_IMAGE } from '../../lib/utils';
 
 export interface SafeImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   fallbackText?: string;
@@ -25,14 +24,13 @@ export const SafeImage: React.FC<SafeImageProps> = ({
 }) => {
   const [hasError, setHasError] = useState<boolean>(false);
 
-  // Validate src: filter empty or stale blob URLs
-  const isInvalidBlob = !src || typeof src !== 'string' || src.trim() === '' || src.startsWith('blob:');
-  const displayUrl = isInvalidBlob ? DEFAULT_FALLBACK_IMAGE : src;
+  // Sanitizes URL preventatively before passing to <img> src attribute
+  const displayUrl = sanitizeImageUrl(src);
 
   const handleError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
     // Replace broken image source with standard placeholder to avoid endless error loops
     e.currentTarget.onerror = null;
-    e.currentTarget.src = DEFAULT_FALLBACK_IMAGE;
+    e.currentTarget.src = PLACEHOLDER_IMAGE;
     setHasError(true);
     if (onError) {
       onError(e);

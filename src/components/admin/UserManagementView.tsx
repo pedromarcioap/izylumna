@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { UserProfile, UserRole } from '../../types';
+import { sanitizeImageUrl, PLACEHOLDER_IMAGE } from '../../lib/utils';
 import { Card, CardContent } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
@@ -250,8 +251,12 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onShowTo
                         <div className="flex items-center gap-3">
                           {userItem.avatar_url ? (
                             <img
-                              src={userItem.avatar_url}
+                              src={sanitizeImageUrl(userItem.avatar_url)}
                               alt={userItem.full_name || userItem.email}
+                              onError={(e) => {
+                                e.currentTarget.onerror = null;
+                                e.currentTarget.src = PLACEHOLDER_IMAGE;
+                              }}
                               className="w-8 h-8 rounded-full object-cover border border-amber-500/30"
                             />
                           ) : (

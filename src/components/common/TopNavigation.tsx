@@ -2,6 +2,7 @@ import React from 'react';
 import { Camera, ShieldCheck, UserCheck, RefreshCw, Lock, LogOut, User as UserIcon } from 'lucide-react';
 import { Gallery, PhotographerProfile } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
+import { sanitizeImageUrl, PLACEHOLDER_IMAGE } from '../../lib/utils';
 
 export interface TopNavigationProps {
   currentRole: 'admin' | 'client';
@@ -124,8 +125,12 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({
               <div className="hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-xl bg-zinc-900 border border-zinc-800">
                 {profile.avatar_url ? (
                   <img
-                    src={profile.avatar_url}
+                    src={sanitizeImageUrl(profile.avatar_url)}
                     alt={profile.full_name || profile.email}
+                    onError={(e) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = PLACEHOLDER_IMAGE;
+                    }}
                     className="w-6 h-6 rounded-full object-cover border border-amber-500/30"
                   />
                 ) : (
