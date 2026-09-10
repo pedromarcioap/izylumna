@@ -15,8 +15,12 @@ import { GalleryDetailView } from './components/admin/GalleryDetailView';
 import { GalleryFormModal } from './components/admin/GalleryFormModal';
 import { PhotographerLogin } from './components/admin/PhotographerLogin';
 import { ClientPortalView } from './components/client/ClientPortalView';
+import { useAuth } from './contexts/AuthContext';
+import { ProtectedRoute } from './components/auth/ProtectedRoute';
+
 
 export default function App() {
+  const { user, profile, signOut } = useAuth();
   const [galleries, setGalleries] = useState<Gallery[]>(() => getGalleries());
   const [photographerSession, setPhotographerSession] = useState<PhotographerSession>(() => getPhotographerSession());
   const [currentRole, setCurrentRole] = useState<'admin' | 'client'>('admin');
@@ -233,13 +237,10 @@ export default function App() {
       {/* Main Content View Container */}
       <main className="flex-1">
         {currentRole === 'admin' ? (
-          !photographerSession.isAuthenticated ? (
-            <PhotographerLogin
-              onLoginSuccess={handleLoginSuccess}
-              onReturnToClient={() => setCurrentRole('client')}
-              onShowToast={showToast}
-            />
-          ) : (
+          <ProtectedRoute
+            onReturnToClient={() => setCurrentRole('client')}
+            onShowToast={showToast}
+          >
             <div className="px-4 sm:px-6 lg:px-8 pt-6">
               {adminSubView === 'detail' && detailGallery ? (
                 <GalleryDetailView
@@ -255,7 +256,13 @@ export default function App() {
               ) : (
                 <AdminDashboard
                   galleries={galleries}
-                  photographerProfile={photographerSession.profile}
+                  photographerProfile={{
+                    name: profile?.full_name || 'Usuário Lumina',
+                    studioName: 'Lumina Proofing Studio',
+                    email: profile?.email || 'admin@lumina.com',
+                    phone: '',
+                    avatarUrl: profile?.avatar_url || ''
+                  }}
                   onUpdateProfile={handleUpdateProfile}
                   onLogout={handleLogout}
                   onCreateGallery={() => {
@@ -273,7 +280,7 @@ export default function App() {
                 />
               )}
             </div>
-          )
+          </ProtectedRoute>
         ) : activeGallery ? (
           <ClientPortalView
             key={activeGallery.id}

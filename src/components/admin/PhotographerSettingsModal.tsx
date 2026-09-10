@@ -2,24 +2,16 @@ import React, { useState } from 'react';
 import { Dialog } from '../ui/Dialog';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
-import { Badge } from '../ui/Badge';
-import {
-  PhotographerProfile
-} from '../../types';
-import {
-  savePhotographerProfile,
-  changePhotographerPassword
-} from '../../lib/auth';
+import { PhotographerProfile } from '../../types';
+import { savePhotographerProfile } from '../../lib/auth';
+import { useAuth } from '../../contexts/AuthContext';
+import { ProfileSettingsView } from '../settings/ProfileSettingsView';
 import {
   ShieldCheck,
-  KeyRound,
   User,
   Camera,
   DollarSign,
-  Lock,
-  Save,
-  CheckCircle2,
-  AlertCircle
+  Save
 } from 'lucide-react';
 
 export interface PhotographerSettingsModalProps {
@@ -37,14 +29,11 @@ export const PhotographerSettingsModal: React.FC<PhotographerSettingsModalProps>
   onProfileUpdated,
   onShowToast
 }) => {
-  const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'defaults'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'studio' | 'defaults'>('profile');
 
-  // Profile fields
-  const [name, setName] = useState(profile.name);
+  // Studio fields
   const [studioName, setStudioName] = useState(profile.studioName);
-  const [email, setEmail] = useState(profile.email);
   const [phone, setPhone] = useState(profile.phone || '');
-  const [avatarUrl, setAvatarUrl] = useState(profile.avatarUrl || '');
 
   // Defaults
   const [defaultWatermark, setDefaultWatermark] = useState(
@@ -54,57 +43,20 @@ export const PhotographerSettingsModal: React.FC<PhotographerSettingsModalProps>
     profile.defaultExtraPrice || 30
   );
 
-  // Security / Password change fields
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [passwordError, setPasswordError] = useState<string | null>(null);
-  const [passwordSuccess, setPasswordSuccess] = useState(false);
-
-  const handleSaveProfile = (e: React.FormEvent) => {
+  const handleSaveStudio = (e: React.FormEvent) => {
     e.preventDefault();
     const updated: PhotographerProfile = {
       ...profile,
-      name: name.trim(),
       studioName: studioName.trim(),
-      email: email.trim().toLowerCase(),
       phone: phone.trim(),
-      avatarUrl: avatarUrl.trim(),
       defaultWatermarkText: defaultWatermark.trim(),
       defaultExtraPrice: Number(defaultExtraPrice)
     };
 
     savePhotographerProfile(updated);
     onProfileUpdated(updated);
-    onShowToast('Perfil Atualizado!', 'As configurações do estúdio foram salvas.', 'success');
+    onShowToast('Perfil do Estúdio Atualizado!', 'As configurações do estúdio foram salvas.', 'success');
     onClose();
-  };
-
-  const handleChangePassword = (e: React.FormEvent) => {
-    e.preventDefault();
-    setPasswordError(null);
-    setPasswordSuccess(false);
-
-    if (newPassword !== confirmPassword) {
-      setPasswordError('A nova senha e a confirmação não coincidem.');
-      return;
-    }
-
-    if (newPassword.length < 6) {
-      setPasswordError('A nova senha deve ter pelo menos 6 caracteres.');
-      return;
-    }
-
-    const res = changePhotographerPassword(currentPassword, newPassword);
-    if (res.success) {
-      setPasswordSuccess(true);
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
-      onShowToast('Senha Alterada com Sucesso!', 'Sua nova senha de acesso já está em vigor.', 'success');
-    } else {
-      setPasswordError(res.error || 'Erro ao alterar a senha.');
-    }
   };
 
   return (
@@ -114,10 +66,10 @@ export const PhotographerSettingsModal: React.FC<PhotographerSettingsModalProps>
       title={
         <div className="flex items-center gap-2">
           <ShieldCheck className="w-5 h-5 text-amber-400" />
-          <span>Configurações do Fotógrafo & Segurança</span>
+          <span>Configurações do Perfil & Estúdio</span>
         </div>
       }
-      description="Gerencie seus dados de estúdio, padrões de galeria e credenciais de acesso."
+      description="Gerencie seus dados pessoais, avatar do Supabase Storage, marca d'água e cotas de impressão."
       maxWidth="2xl"
     >
       <div className="space-y-6">
@@ -133,20 +85,20 @@ export const PhotographerSettingsModal: React.FC<PhotographerSettingsModalProps>
             }`}
           >
             <User className="w-3.5 h-3.5" />
-            <span>Perfil & Estúdio</span>
+            <span>Perfil & Storage Avatar</span>
           </button>
 
           <button
             type="button"
-            onClick={() => setActiveTab('security')}
+            onClick={() => setActiveTab('studio')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-              activeTab === 'security'
+              activeTab === 'studio'
                 ? 'bg-zinc-800 text-amber-400 font-semibold border border-zinc-700'
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
-            <KeyRound className="w-3.5 h-3.5" />
-            <span>Alterar Senha</span>
+            <Camera className="w-3.5 h-3.5" />
+            <span>Dados do Estúdio</span>
           </button>
 
           <button
@@ -158,50 +110,31 @@ export const PhotographerSettingsModal: React.FC<PhotographerSettingsModalProps>
                 : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
-            <Camera className="w-3.5 h-3.5" />
-            <span>Padrões de Prova</span>
+            <DollarSign className="w-3.5 h-3.5" />
+            <span>Padrões & Cotas</span>
           </button>
         </div>
 
-        {/* Tab 1: Profile */}
+        {/* Tab 1: Profile (Supabase Auth & Storage Avatar) */}
         {activeTab === 'profile' && (
-          <form onSubmit={handleSaveProfile} className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Input
-                label="Nome do Fotógrafo *"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-              />
-              <Input
-                label="Nome Fantasia / Estúdio *"
-                value={studioName}
-                onChange={(e) => setStudioName(e.target.value)}
-                required
-              />
-            </div>
+          <ProfileSettingsView onShowToast={onShowToast} onClose={onClose} />
+        )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Input
-                label="E-mail de Login do Fotógrafo *"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-              <Input
-                label="Telefone / WhatsApp"
-                placeholder="(11) 98765-4321"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-              />
-            </div>
+        {/* Tab 2: Studio Information */}
+        {activeTab === 'studio' && (
+          <form onSubmit={handleSaveStudio} className="space-y-4">
+            <Input
+              label="Nome Fantasia / Estúdio *"
+              value={studioName}
+              onChange={(e) => setStudioName(e.target.value)}
+              required
+            />
 
             <Input
-              label="URL da Foto de Perfil / Avatar"
-              value={avatarUrl}
-              onChange={(e) => setAvatarUrl(e.target.value)}
-              placeholder="https://..."
+              label="Telefone / WhatsApp de Contato"
+              placeholder="(11) 98765-4321"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
             />
 
             <div className="flex items-center justify-end gap-3 pt-4 border-t border-zinc-800">
@@ -210,78 +143,7 @@ export const PhotographerSettingsModal: React.FC<PhotographerSettingsModalProps>
               </Button>
               <Button type="submit" variant="amber">
                 <Save className="w-4 h-4 mr-1.5" />
-                <span>Salvar Perfil</span>
-              </Button>
-            </div>
-          </form>
-        )}
-
-        {/* Tab 2: Security & Password */}
-        {activeTab === 'security' && (
-          <form onSubmit={handleChangePassword} className="space-y-4">
-            <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-200/90 leading-relaxed">
-              Mantenha sua conta segura. A nova senha deve ter no mínimo 6 caracteres e será exigida em todos os próximos acessos ao Painel do Fotógrafo.
-            </div>
-
-            <Input
-              label="Senha Atual *"
-              type="password"
-              placeholder="••••••••"
-              value={currentPassword}
-              onChange={(e) => {
-                setCurrentPassword(e.target.value);
-                setPasswordError(null);
-              }}
-              required
-            />
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Input
-                label="Nova Senha *"
-                type="password"
-                placeholder="Mínimo 6 dígitos"
-                value={newPassword}
-                onChange={(e) => {
-                  setNewPassword(e.target.value);
-                  setPasswordError(null);
-                }}
-                required
-              />
-
-              <Input
-                label="Confirmar Nova Senha *"
-                type="password"
-                placeholder="Repita a nova senha"
-                value={confirmPassword}
-                onChange={(e) => {
-                  setConfirmPassword(e.target.value);
-                  setPasswordError(null);
-                }}
-                required
-              />
-            </div>
-
-            {passwordError && (
-              <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-xs text-red-300 flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>{passwordError}</span>
-              </div>
-            )}
-
-            {passwordSuccess && (
-              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-300 flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 shrink-0" />
-                <span>Senha atualizada com sucesso!</span>
-              </div>
-            )}
-
-            <div className="flex items-center justify-end gap-3 pt-4 border-t border-zinc-800">
-              <Button type="button" variant="ghost" onClick={onClose}>
-                Fechar
-              </Button>
-              <Button type="submit" variant="amber">
-                <Lock className="w-4 h-4 mr-1.5" />
-                <span>Atualizar Senha</span>
+                <span>Salvar Estúdio</span>
               </Button>
             </div>
           </form>
@@ -289,7 +151,7 @@ export const PhotographerSettingsModal: React.FC<PhotographerSettingsModalProps>
 
         {/* Tab 3: Defaults */}
         {activeTab === 'defaults' && (
-          <form onSubmit={handleSaveProfile} className="space-y-4">
+          <form onSubmit={handleSaveStudio} className="space-y-4">
             <div className="p-3.5 rounded-xl bg-zinc-950/60 border border-zinc-800 text-xs text-zinc-400">
               Defina os valores padrão que serão sugeridos automaticamente toda vez que você criar uma nova galeria de fotos para um cliente.
             </div>

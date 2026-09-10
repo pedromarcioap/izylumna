@@ -1,8 +1,7 @@
 import React from 'react';
-import { Camera, ShieldCheck, UserCheck, RefreshCw, ExternalLink, SlidersHorizontal, Lock, LogOut } from 'lucide-react';
-import { Button } from '../ui/Button';
-import { Badge } from '../ui/Badge';
+import { Camera, ShieldCheck, UserCheck, RefreshCw, Lock, LogOut, User as UserIcon } from 'lucide-react';
 import { Gallery, PhotographerProfile } from '../../types';
+import { useAuth } from '../../contexts/AuthContext';
 
 export interface TopNavigationProps {
   currentRole: 'admin' | 'client';
@@ -27,7 +26,15 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({
   photographerProfile,
   onLogout
 }) => {
+  const { user, profile, isAdmin, signOut } = useAuth();
   const activeGallery = galleries.find((g) => g.id === activeGalleryId);
+
+  const isAuthenticated = !!user || isPhotographerAuthenticated;
+
+  const handleUserLogout = () => {
+    signOut();
+    if (onLogout) onLogout();
+  };
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-zinc-800 bg-zinc-950/80 backdrop-blur-xl">
@@ -63,13 +70,13 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({
                   : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
-              {isPhotographerAuthenticated ? (
+              {isAuthenticated ? (
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
               ) : (
                 <Lock className="w-3.5 h-3.5 text-amber-400/80" />
               )}
               <span>Painel do Fotógrafo</span>
-              {!isPhotographerAuthenticated && (
+              {!isAuthenticated && (
                 <span className="hidden sm:inline-block text-[10px] text-amber-400/80 font-mono">
                   (Restrito)
                 </span>
@@ -112,22 +119,45 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({
               </select>
             </div>
 
-            {/* If logged in photographer, show logout quick action */}
-            {isPhotographerAuthenticated && onLogout && (
+            {/* Profile Avatar & User Pill */}
+            {profile && (
+              <div className="hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-xl bg-zinc-900 border border-zinc-800">
+                {profile.avatar_url ? (
+                  <img
+                    src={profile.avatar_url}
+                    alt={profile.full_name || profile.email}
+                    className="w-6 h-6 rounded-full object-cover border border-amber-500/30"
+                  />
+                ) : (
+                  <div className="w-6 h-6 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center text-[10px] font-bold">
+                    {(profile.full_name || profile.email).charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <span className="text-xs text-zinc-200 max-w-[120px] truncate font-medium">
+                  {profile.full_name || profile.email.split('@')[0]}
+                </span>
+                <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-400 uppercase font-semibold">
+                  {profile.role}
+                </span>
+              </div>
+            )}
+
+            {/* Logout button */}
+            {isAuthenticated && (
               <button
-                onClick={onLogout}
-                title="Sair do painel do fotógrafo"
-                className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-zinc-400 hover:text-red-400 hover:bg-zinc-900 transition-colors"
+                onClick={handleUserLogout}
+                title="Encerrar sessão"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-zinc-400 hover:text-red-400 hover:bg-zinc-900 transition-colors"
               >
                 <LogOut className="w-3.5 h-3.5" />
-                <span>Sair</span>
+                <span className="hidden sm:inline">Sair</span>
               </button>
             )}
 
             {/* Quick test data reset */}
             <button
               onClick={onResetData}
-              title="Restaurar dados de demonstração iniciais"
+              title="Sincronização com Supabase"
               className="p-2 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900 rounded-lg transition-colors"
             >
               <RefreshCw className="w-4 h-4" />
@@ -138,4 +168,3 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({
     </header>
   );
 };
-

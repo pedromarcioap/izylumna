@@ -4,6 +4,20 @@ export type GalleryStatus = 'draft' | 'awaiting_client' | 'completed';
 
 export type PrivacyType = 'public' | 'private';
 
+export type UserRole = 'admin' | 'photographer' | 'user';
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  full_name?: string | null;
+  avatar_url?: string | null;
+  role: UserRole;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+
 export interface GalleryVoter {
   id: string;
   name: string;

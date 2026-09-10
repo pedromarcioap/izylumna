@@ -7,7 +7,10 @@ import { Input } from '../ui/Input';
 import { SafeImage } from '../common/SafeImage';
 import { PhotographerSettingsModal } from './PhotographerSettingsModal';
 import { DeleteConfirmModal } from '../common/DeleteConfirmModal';
+import { UserManagementView } from './UserManagementView';
+import { useAuth } from '../../contexts/AuthContext';
 import {
+
   Plus,
   Search,
   Calendar,
@@ -62,11 +65,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onOpenClientView,
   onShowToast
 }) => {
-  const [dashboardTab, setDashboardTab] = useState<'galleries' | 'financial' | 'clients'>('galleries');
+  const { profile: userProfile, isAdmin } = useAuth();
+  const [dashboardTab, setDashboardTab] = useState<'galleries' | 'financial' | 'clients' | 'users'>('galleries');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'awaiting_client' | 'completed' | 'draft'>('all');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [galleryToDelete, setGalleryToDelete] = useState<Gallery | null>(null);
+
 
   // Metrics computation
   const totalGalleries = galleries.length;
@@ -251,6 +256,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           <Users className="w-4 h-4" />
           <span>Diretório de Clientes & Links</span>
         </button>
+
+        {isAdmin && (
+          <button
+            onClick={() => setDashboardTab('users')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap ${
+              dashboardTab === 'users'
+                ? 'bg-zinc-800 text-amber-400 border border-zinc-700/80 shadow-sm'
+                : 'text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            <ShieldCheck className="w-4 h-4 text-amber-400" />
+            <span>Gestão de Usuários & RBAC</span>
+          </button>
+        )}
       </div>
 
       {/* Metrics Row */}
@@ -749,6 +768,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
           </Card>
         </div>
+      )}
+
+      {/* Tab 4: User Management (Admin RBAC) */}
+      {dashboardTab === 'users' && (
+        <UserManagementView onShowToast={onShowToast} />
       )}
 
       {/* Settings & Password Modal */}

@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { Card, CardContent } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
-import { loginPhotographer, DEFAULT_PHOTOGRAPHER_PASSWORD, getPhotographerProfile } from '../../lib/auth';
+import { useAuth } from '../../contexts/AuthContext';
+import { UserRole } from '../../types';
 import {
   Lock,
   Mail,
@@ -11,9 +12,12 @@ import {
   EyeOff,
   ArrowRight,
   ShieldCheck,
-  Camera,
+  UserCheck,
+  UserPlus,
+  User,
   Sparkles,
-  UserCheck
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
 
 export interface PhotographerLoginProps {
@@ -27,39 +31,73 @@ export const PhotographerLogin: React.FC<PhotographerLoginProps> = ({
   onReturnToClient,
   onShowToast
 }) => {
-  const profile = getPhotographerProfile();
+  const { signInWithPassword, signUp, isSupabaseConnected } = useAuth();
+
+  const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [selectedRole, setSelectedRole] = useState<UserRole>('photographer');
+
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setSuccessMessage(null);
     setIsLoading(true);
 
-    setTimeout(() => {
-      const result = loginPhotographer(email, password, rememberMe);
+    if (mode === 'login') {
+      const res = await signInWithPassword(email, password);
       setIsLoading(false);
 
-      if (result.success) {
+      if (res.success) {
         onShowToast(
           'Bem-vindo de volta!',
-          `Autenticado como ${result.session?.profile.name || 'Fotógrafo'}. Painel liberado.`,
+          'Autenticado via Supabase Auth com sucesso.',
           'success'
         );
         onLoginSuccess();
       } else {
-        setError(result.error || 'Credenciais inválidas. Tente novamente.');
+        setError(res.error || 'Credenciais inválidas. Verifique seu e-mail e senha.');
       }
-    }, 250);
+    } else {
+      if (!fullName.trim()) {
+        setError('Por favor, informe seu nome completo.');
+        setIsLoading(false);
+        return;
+      }
+      if (password.length < 6) {
+        setError('A senha deve conter no mínimo 6 caracteres.');
+        setIsLoading(false);
+        return;
+      }
+
+      const res = await signUp(email, password, fullName, selectedRole);
+      setIsLoading(false);
+
+      if (res.success) {
+        setSuccessMessage('Conta criada com sucesso! Você já está autenticado.');
+        onShowToast(
+          'Conta Criada com Sucesso!',
+          'Seu perfil foi registrado no banco de dados com provisioning automático de função.',
+          'success'
+        );
+        onLoginSuccess();
+      } else {
+        setError(res.error || 'Erro ao realizar cadastro.');
+      }
+    }
   };
 
   const handleFillDemoCreds = () => {
-    setEmail(profile.email);
-    setPassword(DEFAULT_PHOTOGRAPHER_PASSWORD);
+    setEmail('admin@lumina.com');
+    setPassword('admin123');
+    setFullName('Lucas Silveira');
     setError(null);
   };
 
@@ -67,7 +105,7 @@ export const PhotographerLogin: React.FC<PhotographerLoginProps> = ({
     <div className="min-h-[80vh] flex items-center justify-center p-4">
       <Card className="max-w-md w-full border-zinc-800 bg-zinc-900/90 shadow-2xl shadow-black/80 backdrop-blur-xl">
         <CardContent className="p-8 sm:p-10 space-y-6">
-          {/* Studio Brand & Security Emblem */}
+          {/* Header & Emblem */}
           <div className="text-center space-y-3">
             <div className="mx-auto w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-inner">
               <Lock className="w-8 h-8" />
@@ -76,22 +114,71 @@ export const PhotographerLogin: React.FC<PhotographerLoginProps> = ({
             <div>
               <span className="text-[11px] uppercase tracking-widest font-mono text-amber-400/90 font-semibold flex items-center justify-center gap-1.5">
                 <ShieldCheck className="w-3.5 h-3.5" />
-                <span>Acesso Exclusivo do Fotógrafo</span>
+                <span>Autenticação Oficial Supabase Auth</span>
               </span>
               <h1 className="font-serif text-2xl font-bold text-zinc-100 mt-1">
-                Lumina Studio
+                Lumina Proofing Studio
               </h1>
               <p className="text-xs text-zinc-400 mt-1.5 max-w-sm mx-auto leading-relaxed">
-                Entre com seu login e senha para acessar a gestão de ensaios, cotas de clientes e faturamento de fotos extras.
+                Acesso seguro via RBAC para administradores, fotógrafos e gestão de cotas.
               </p>
             </div>
           </div>
 
-          {/* Login Form */}
+          {/* Mode Switcher Tabs */}
+          <div className="flex items-center gap-1 p-1 bg-zinc-950 rounded-xl border border-zinc-800">
+            <button
+              type="button"
+              onClick={() => {
+                setMode('login');
+                setError(null);
+                setSuccessMessage(null);
+              }}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all ${
+                mode === 'login'
+                  ? 'bg-zinc-800 text-amber-400 shadow border border-zinc-700'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              <Lock className="w-3.5 h-3.5" />
+              <span>Entrar</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setMode('signup');
+                setError(null);
+                setSuccessMessage(null);
+              }}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all ${
+                mode === 'signup'
+                  ? 'bg-zinc-800 text-amber-400 shadow border border-zinc-700'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              <UserPlus className="w-3.5 h-3.5" />
+              <span>Criar Conta</span>
+            </button>
+          </div>
+
+          {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
+            {mode === 'signup' && (
+              <Input
+                label="Nome Completo *"
+                type="text"
+                placeholder="Ex: Lucas Silveira"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                leftIcon={<User className="w-4 h-4" />}
+                required
+              />
+            )}
+
             <Input
-              label="E-mail ou Usuário"
-              type="text"
+              label="E-mail *"
+              type="email"
               placeholder="fotografo@lumina.com"
               value={email}
               onChange={(e) => {
@@ -106,7 +193,7 @@ export const PhotographerLogin: React.FC<PhotographerLoginProps> = ({
 
             <div className="space-y-1.5">
               <label className="block text-xs font-medium text-zinc-300">
-                Senha de Acesso
+                Senha de Acesso *
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-zinc-500">
@@ -114,13 +201,13 @@ export const PhotographerLogin: React.FC<PhotographerLoginProps> = ({
                 </div>
                 <input
                   type={showPassword ? 'text' : 'password'}
-                  placeholder="••••••••"
+                  placeholder="Mínimo 6 caracteres"
                   value={password}
                   onChange={(e) => {
                     setPassword(e.target.value);
                     setError(null);
                   }}
-                  autoComplete="current-password"
+                  autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
                   required
                   className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-zinc-950/80 border border-zinc-800 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-amber-500/80 focus:ring-1 focus:ring-amber-500/40 transition-colors"
                 />
@@ -135,29 +222,59 @@ export const PhotographerLogin: React.FC<PhotographerLoginProps> = ({
               </div>
             </div>
 
-            <div className="flex items-center justify-between text-xs pt-1">
-              <label className="flex items-center gap-2 cursor-pointer select-none text-zinc-400 hover:text-zinc-300">
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="rounded border-zinc-700 bg-zinc-950 text-amber-500 focus:ring-amber-500/40"
-                />
-                <span>Lembrar de mim</span>
-              </label>
+            {mode === 'signup' && (
+              <div className="space-y-1.5">
+                <label className="block text-xs font-medium text-zinc-300">
+                  Função / Papel Solicitado
+                </label>
+                <select
+                  value={selectedRole}
+                  onChange={(e) => setSelectedRole(e.target.value as UserRole)}
+                  className="w-full py-2.5 px-3 rounded-xl bg-zinc-950/80 border border-zinc-800 text-xs text-zinc-200 focus:outline-none focus:border-amber-500/80"
+                >
+                  <option value="photographer">Fotógrafo Profissional</option>
+                  <option value="user">Usuário Comum / Cliente</option>
+                  <option value="admin">Administrador (Sujeito à validação)</option>
+                </select>
+                <p className="text-[11px] text-zinc-500">
+                  * Nota: O 1º usuário registrado no banco de dados torna-se Administrador automaticamente.
+                </p>
+              </div>
+            )}
 
-              <button
-                type="button"
-                onClick={handleFillDemoCreds}
-                className="text-amber-400/90 hover:text-amber-300 underline font-medium text-[11px]"
-              >
-                Preencher Demo
-              </button>
-            </div>
+            {mode === 'login' && (
+              <div className="flex items-center justify-between text-xs pt-1">
+                <label className="flex items-center gap-2 cursor-pointer select-none text-zinc-400 hover:text-zinc-300">
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    className="rounded border-zinc-700 bg-zinc-950 text-amber-500 focus:ring-amber-500/40"
+                  />
+                  <span>Lembrar de mim</span>
+                </label>
+
+                <button
+                  type="button"
+                  onClick={handleFillDemoCreds}
+                  className="text-amber-400/90 hover:text-amber-300 underline font-medium text-[11px]"
+                >
+                  Preencher Exemplo
+                </button>
+              </div>
+            )}
 
             {error && (
-              <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-xs text-red-300 animate-in fade-in">
-                {error}
+              <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-xs text-red-300 flex items-center gap-2 animate-in fade-in">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            {successMessage && (
+              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-300 flex items-center gap-2 animate-in fade-in">
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                <span>{successMessage}</span>
               </div>
             )}
 
@@ -168,31 +285,16 @@ export const PhotographerLogin: React.FC<PhotographerLoginProps> = ({
               className="w-full text-sm font-semibold shadow-lg shadow-amber-500/20"
               disabled={isLoading || !email.trim() || !password}
             >
-              <span>{isLoading ? 'Autenticando...' : 'Entrar no Painel do Fotógrafo'}</span>
+              <span>
+                {isLoading
+                  ? 'Processando...'
+                  : mode === 'login'
+                  ? 'Entrar no Painel'
+                  : 'Finalizar Cadastro'}
+              </span>
               <ArrowRight className="w-4 h-4 ml-1.5" />
             </Button>
           </form>
-
-          {/* Demo helper card */}
-          <div className="p-3.5 rounded-xl bg-zinc-950/60 border border-zinc-850 text-xs space-y-2">
-            <div className="flex items-center justify-between text-zinc-400">
-              <span className="font-semibold text-zinc-300 flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                <span>Credenciais Padrão</span>
-              </span>
-              <button
-                type="button"
-                onClick={handleFillDemoCreds}
-                className="px-2 py-0.5 rounded bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-[11px] font-mono border border-amber-500/30 transition-colors"
-              >
-                Inserir
-              </button>
-            </div>
-            <div className="font-mono text-[11px] text-zinc-400 space-y-0.5">
-              <div>E-mail: <span className="text-zinc-200">{profile.email}</span></div>
-              <div>Senha: <span className="text-zinc-200">admin123</span></div>
-            </div>
-          </div>
 
           {/* Switch to client view */}
           <div className="pt-2 border-t border-zinc-800 text-center">
@@ -202,7 +304,7 @@ export const PhotographerLogin: React.FC<PhotographerLoginProps> = ({
               className="text-xs text-zinc-400 hover:text-zinc-200 transition-colors inline-flex items-center gap-1.5"
             >
               <UserCheck className="w-3.5 h-3.5 text-zinc-400" />
-              <span>Você é um cliente? Ir para o <strong>Portal de Aprovação</strong></span>
+              <span>Você é um cliente? Ir para o <strong>Portal de Aprovação por PIN</strong></span>
             </button>
           </div>
         </CardContent>

@@ -143,3 +143,83 @@ CREATE POLICY "Permitir tudo em photographer_profiles"
 -- Índices de Desempenho
 CREATE INDEX IF NOT EXISTS idx_galleries_pin_code ON public.galleries(pin_code);
 CREATE INDEX IF NOT EXISTS idx_photos_gallery_id ON public.photos(gallery_id);
+
+-- =====================================================================
+-- ESTRUTURA DE AUTENTICAÇÃO REAL & PERFIS (RBAC)
+-- =====================================================================
+CREATE TABLE IF NOT EXISTS public.profiles (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  email TEXT NOT NULL,
+  full_name TEXT,
+  avatar_url TEXT,
+  role TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('admin', 'photographer', 'user')),
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid()
+      AND role = 'admin'
+      AND is_active = true
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+DECLARE
+  is_first_user BOOLEAN;
+  assigned_role TEXT;
+BEGIN
+  SELECT NOT EXISTS (SELECT 1 FROM public.profiles) INTO is_first_user;
+
+  IF is_first_user THEN
+    assigned_role := 'admin';
+  ELSE
+    assigned_role := COALESCE(new.raw_user_meta_data->>'role', 'user');
+    IF assigned_role NOT IN ('admin', 'photographer', 'user') THEN
+      assigned_role := 'user';
+    END IF;
+  END IF;
+
+  INSERT INTO public.profiles (id, email, full_name, avatar_url, role, is_active)
+  VALUES (
+    new.id,
+    new.email,
+    COALESCE(new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1)),
+    COALESCE(new.raw_user_meta_data->>'avatar_url', ''),
+    assigned_role,
+    true
+  )
+  ON CONFLICT (id) DO UPDATE SET
+    email = EXCLUDED.email,
+    updated_at = now();
+
+  RETURN new;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+DROP POLICY IF EXISTS "Leitura de perfis" ON public.profiles;
+DROP POLICY IF EXISTS "Atualização de próprio perfil" ON public.profiles;
+
+CREATE POLICY "Leitura de perfis"
+  ON public.profiles FOR SELECT TO authenticated
+  USING (auth.uid() = id OR public.is_admin());
+
+CREATE POLICY "Atualização de próprio perfil"
+  ON public.profiles FOR UPDATE TO authenticated
+  USING (auth.uid() = id OR public.is_admin())
+  WITH CHECK (auth.uid() = id OR public.is_admin());
+
