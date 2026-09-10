@@ -30,13 +30,102 @@ try {
   console.warn('Failed to parse local cache:', e);
 }
 
-function updateLocalCache(galleries: Gallery[]) {
+function clearOldCacheKeys(): void {
+  try {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (
+        key &&
+        key !== LOCAL_CACHE_KEY &&
+        key !== PROFILE_CACHE_KEY &&
+        (key.includes('cache') || key.startsWith('izylumna_') || key.startsWith('supabase_'))
+      ) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach((k) => localStorage.removeItem(k));
+  } catch (err) {
+    console.warn('[Cache Cleanup] Failed to remove old cache keys:', err);
+  }
+}
+
+/**
+ * Sanitizes gallery object for local storage to avoid QuotaExceededError.
+ * Removes long Base64 Data URLs (data:image/...) from photos and cover photo.
+ */
+function sanitizeGalleryForCache(gallery: Gallery): Gallery {
+  const isCoverBase64 =
+    gallery.coverPhotoUrl &&
+    (gallery.coverPhotoUrl.startsWith('data:') || gallery.coverPhotoUrl.length > 500);
+
+  const sanitizedCoverPhotoUrl = isCoverBase64 ? '' : gallery.coverPhotoUrl;
+
+  const sanitizedPhotos = (gallery.photos || [])
+    .filter((p) => !(p.url && p.url.startsWith('data:')))
+    .map((p) => {
+      const isBase64 = p.url && (p.url.startsWith('data:') || p.url.length > 500);
+      return {
+        ...p,
+        url: isBase64 ? '' : p.url
+      };
+    });
+
+  return {
+    ...gallery,
+    coverPhotoUrl: sanitizedCoverPhotoUrl,
+    photos: sanitizedPhotos
+  };
+}
+
+/**
+ * Updates galleries local cache safely with try/catch, sanitization, and QuotaExceededError fallback.
+ */
+export function updateGalleriesCache(galleries: Gallery[]): void {
   cachedGalleries = galleries;
   try {
-    localStorage.setItem(LOCAL_CACHE_KEY, JSON.stringify(galleries));
-  } catch (e) {
-    console.warn('Failed to update local galleries cache:', e);
+    const sanitized = galleries.map(sanitizeGalleryForCache);
+    localStorage.setItem(LOCAL_CACHE_KEY, JSON.stringify(sanitized));
+  } catch (e: any) {
+    console.warn('[Cache Warning] Failed to update local galleries cache on first attempt:', e?.message || e);
+
+    try {
+      // 1. Clear old cache keys from localStorage
+      clearOldCacheKeys();
+
+      // 2. Retry setItem with sanitized galleries
+      const sanitized = galleries.map(sanitizeGalleryForCache);
+      localStorage.setItem(LOCAL_CACHE_KEY, JSON.stringify(sanitized));
+    } catch (retryErr: any) {
+      console.warn('[Cache Warning] Storage failed after clearing old cache keys. Trying minimal metadata:', retryErr?.message || retryErr);
+
+      try {
+        // 3. Fallback: Save only essential metadata without photos
+        const minimal = galleries.map((g) => ({
+          id: g.id,
+          title: g.title,
+          clientName: g.clientName,
+          clientEmail: g.clientEmail,
+          clientPhone: g.clientPhone,
+          eventDate: g.eventDate,
+          status: g.status,
+          privacy: g.privacy,
+          pinCode: g.pinCode,
+          coverPhotoUrl: g.coverPhotoUrl && !g.coverPhotoUrl.startsWith('data:') && g.coverPhotoUrl.length < 500 ? g.coverPhotoUrl : '',
+          createdAt: g.createdAt,
+          updatedAt: g.updatedAt
+        }));
+        localStorage.setItem(LOCAL_CACHE_KEY, JSON.stringify(minimal));
+      } catch (finalErr) {
+        // Continue silently without crashing application flow
+        console.warn('[Cache Warning] QuotaExceededError persisted. Continuing in-memory without localStorage cache.', finalErr);
+      }
+    }
   }
+}
+
+function updateLocalCache(galleries: Gallery[]) {
+  updateGalleriesCache(galleries);
 }
 
 function updateProfileCache(profile: PhotographerProfile) {
