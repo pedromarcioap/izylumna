@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Gallery } from '../../types';
 import { Card, CardContent } from '../ui/Card';
 import { Button } from '../ui/Button';
-import { Lock, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Lock, ArrowRight } from 'lucide-react';
 import { getGalleryByPinAsync } from '../../lib/storage';
 
 export interface ClientAuthPinProps {
@@ -58,13 +58,6 @@ export const ClientAuthPin: React.FC<ClientAuthPinProps> = ({ gallery, allGaller
       setErrorMessage('Erro ao validar o PIN. Tente novamente.');
     } finally {
       setIsVerifying(false);
-    }
-  };
-
-  const handleAutoFill = () => {
-    if (gallery.pinCode) {
-      setPinInput(gallery.pinCode);
-      setError(false);
     }
   };
 
@@ -130,52 +123,7 @@ export const ClientAuthPin: React.FC<ClientAuthPinProps> = ({ gallery, allGaller
             </Button>
           </form>
 
-          {/* PIN Info & Quick Fill */}
-          {gallery.pinCode && (
-            <div className="pt-4 border-t border-brand-dark/50 space-y-3">
-              <div className="flex items-center justify-between text-xs text-walnut-400">
-                <span className="flex items-center text-walnut-400 text-[11px]">
-                  <CheckCircle2 className="w-3.5 h-3.5 mr-1 text-brand-emerald" />
-                  PIN Exclusivo desta Galeria:
-                </span>
-                <button
-                  type="button"
-                  onClick={handleAutoFill}
-                  className="text-brand-emerald hover:text-brand-emerald/80 underline font-mono font-bold text-[12px]"
-                >
-                  Usar PIN ({gallery.pinCode})
-                </button>
-              </div>
 
-              {allGalleries.length > 1 && (
-                <div className="text-[11px] text-walnut-400 bg-walnut-950/60 p-2.5 rounded-lg border border-brand-dark/40 text-left space-y-1">
-                  <span className="font-semibold text-walnut-300 block">Outros PINs disponíveis no sistema:</span>
-                  <div className="flex flex-wrap gap-1.5 pt-1">
-                    {allGalleries.map((g) => (
-                      <button
-                        key={g.id}
-                        type="button"
-                        onClick={() => {
-                          if (g.pinCode) {
-                            setPinInput(g.pinCode);
-                            setError(false);
-                          }
-                        }}
-                        className={`text-[11px] font-mono px-2 py-0.5 rounded border transition-colors ${
-                          g.id === gallery.id
-                            ? 'bg-brand-primary/20 border-brand-emerald/40 text-brand-emerald font-bold'
-                            : 'bg-walnut-900 border-brand-dark/50 text-walnut-400 hover:text-walnut-200'
-                        }`}
-                        title={`Galeria: ${g.title}`}
-                      >
-                        {g.pinCode || 'Sem PIN'} ({g.clientName.split(' ')[0]})
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
         </CardContent>
       </Card>
     </div>
