@@ -23,8 +23,8 @@ export const SafeImage: React.FC<SafeImageProps> = ({
 }) => {
   const [hasError, setHasError] = useState<boolean>(false);
 
-  // Validate src
-  const isInvalidSrc = !src || typeof src !== 'string' || src.trim() === '';
+  // Validate src: filter empty or stale blob URLs
+  const isInvalidSrc = !src || typeof src !== 'string' || src.trim() === '' || src.startsWith('blob:');
 
   const handleError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
     setHasError(true);

@@ -21,7 +21,6 @@ export async function uploadPhotoFile(file: File, galleryId: string = 'general')
   if (isSupabaseConfigured && supabase) {
     try {
       const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-      const fileExt = file.name.split('.').pop() || 'jpg';
       const fileName = `${galleryId}/${Date.now()}-${Math.random().toString(36).substring(2, 7)}_${sanitizedName}`;
       const bucketName = 'gallery-photos';
 
@@ -40,15 +39,19 @@ export async function uploadPhotoFile(file: File, galleryId: string = 'general')
         if (publicUrlData?.publicUrl) {
           return publicUrlData.publicUrl;
         }
-      } else if (error) {
-        console.warn('[Storage Warning] Supabase storage upload failed, using Data URL fallback:', error.message);
       }
-    } catch (err) {
-      console.warn('[Storage Warning] Supabase storage upload exception, using Data URL fallback:', err);
+
+      if (error) {
+        console.error('[Storage Error] Supabase storage upload failed:', error.message);
+        throw new Error(`Falha no upload da imagem "${file.name}": ${error.message}`);
+      }
+    } catch (err: any) {
+      console.error('[Storage Error] Supabase storage upload exception:', err);
+      throw err;
     }
   }
 
-  // Fallback for local/mock or when Supabase storage is unconfigured or fails:
-  // Convert File to Base64 Data URL so it persists across refreshes in localStorage or database!
+  // Fallback for local/mock when Supabase is unconfigured:
+  // Convert File to Base64 Data URL so it persists across refreshes (NEVER a temporary blob: URL!)
   return await fileToDataUrl(file);
 }

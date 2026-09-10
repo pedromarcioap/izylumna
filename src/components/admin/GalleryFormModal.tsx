@@ -207,8 +207,13 @@ export const GalleryFormModal: React.FC<GalleryFormModalProps> = ({
         );
 
         setCoverPhotoUrl((prevCover) => (prevCover === item.blobUrl ? permanentUrl : prevCover));
-      } catch (err) {
-        console.warn('[GalleryFormModal] Erro ao processar upload de imagem:', err);
+      } catch (err: any) {
+        console.error('[GalleryFormModal] Erro ao carregar foto:', err);
+        URL.revokeObjectURL(item.blobUrl);
+        // Remove temporary photo with blob: URL to prevent persistence
+        setPhotos((prevPhotos) => prevPhotos.filter((p) => p.id !== item.photo.id));
+        setCoverPhotoUrl((prevCover) => (prevCover === item.blobUrl ? '' : prevCover));
+        alert(`Falha no upload da foto "${item.file.name}". O arquivo não foi gravado.`);
       }
     }
   };
@@ -278,8 +283,9 @@ export const GalleryFormModal: React.FC<GalleryFormModalProps> = ({
     if (privacy === 'private' && (!pinCode || pinCode.length < 4)) {
       errors.pinCode = 'O PIN deve ter no mínimo 4 dígitos.';
     }
-    if (photos.length === 0) {
-      errors.photos = 'Adicione ao menos uma foto à galeria.';
+    const cleanPhotos = photos.filter((p) => p.url && !p.url.startsWith('blob:'));
+    if (cleanPhotos.length === 0) {
+      errors.photos = 'Adicione ao menos uma foto válida à galeria.';
     }
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
@@ -290,6 +296,11 @@ export const GalleryFormModal: React.FC<GalleryFormModalProps> = ({
     if (!validate()) return;
 
     try {
+      const cleanPhotos = photos.filter((p) => p.url && !p.url.startsWith('blob:'));
+      const cleanCoverUrl = (coverPhotoUrl && !coverPhotoUrl.startsWith('blob:'))
+        ? coverPhotoUrl
+        : (cleanPhotos[0]?.url || '');
+
       const galleryData: Gallery = {
         id: galleryToEdit ? galleryToEdit.id : `gal-${Date.now()}`,
         title: title.trim(),
@@ -310,8 +321,8 @@ export const GalleryFormModal: React.FC<GalleryFormModalProps> = ({
         extraPhotoPrice: excessPolicy === 'charge' ? Number(extraPhotoPrice) : 0,
         watermarkEnabled,
         watermarkText: watermarkEnabled ? watermarkText : undefined,
-        coverPhotoUrl: coverPhotoUrl || photos[0]?.url || '',
-        photos,
+        coverPhotoUrl: cleanCoverUrl,
+        photos: cleanPhotos,
         clientSelection: galleryToEdit?.clientSelection || {
           selectedPhotoIds: [],
           comments: {},

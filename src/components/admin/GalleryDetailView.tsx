@@ -84,6 +84,7 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
     );
 
     // Process files asynchronously to generate permanent URLs (Supabase storage or Base64 Data URL)
+    let uploadFailed = false;
     for (const item of tempItems) {
       try {
         const permanentUrl = await uploadPhotoFile(item.file, gallery.id);
@@ -95,19 +96,34 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
 
         onEditGallery({
           ...gallery,
-          photos: currentPhotos,
+          photos: currentPhotos.filter((p) => p.url && !p.url.startsWith('blob:')),
           updatedAt: new Date().toISOString()
         });
-      } catch (err) {
-        console.warn('[GalleryDetailView] Erro ao carregar foto:', err);
+      } catch (err: any) {
+        uploadFailed = true;
+        console.error('[GalleryDetailView] Erro ao carregar foto:', err);
+        URL.revokeObjectURL(item.blobUrl);
+        currentPhotos = currentPhotos.filter((p) => p.id !== item.photo.id);
+        onEditGallery({
+          ...gallery,
+          photos: currentPhotos.filter((p) => p.url && !p.url.startsWith('blob:')),
+          updatedAt: new Date().toISOString()
+        });
+        onShowToast(
+          'Falha no Upload',
+          `Não foi possível enviar "${item.file.name}". O upload foi interrompido.`,
+          'error'
+        );
       }
     }
 
-    onShowToast(
-      'Upload Concluído!',
-      `Fotos salvas e sincronizadas com sucesso.`,
-      'success'
-    );
+    if (!uploadFailed) {
+      onShowToast(
+        'Upload Concluído!',
+        `Fotos salvas e sincronizadas com sucesso.`,
+        'success'
+      );
+    }
   };
 
   const threshold = gallery.consensusThreshold || 2;

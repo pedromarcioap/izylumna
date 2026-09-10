@@ -55,14 +55,16 @@ function clearOldCacheKeys(): void {
  * Removes long Base64 Data URLs (data:image/...) from photos and cover photo.
  */
 function sanitizeGalleryForCache(gallery: Gallery): Gallery {
-  const isCoverBase64 =
-    gallery.coverPhotoUrl &&
-    (gallery.coverPhotoUrl.startsWith('data:') || gallery.coverPhotoUrl.length > 500);
+  const isCoverInvalid =
+    !gallery.coverPhotoUrl ||
+    gallery.coverPhotoUrl.startsWith('blob:') ||
+    gallery.coverPhotoUrl.startsWith('data:') ||
+    gallery.coverPhotoUrl.length > 500;
 
-  const sanitizedCoverPhotoUrl = isCoverBase64 ? '' : gallery.coverPhotoUrl;
+  const sanitizedCoverPhotoUrl = isCoverInvalid ? '' : gallery.coverPhotoUrl;
 
   const sanitizedPhotos = (gallery.photos || [])
-    .filter((p) => !(p.url && p.url.startsWith('data:')))
+    .filter((p) => p.url && !p.url.startsWith('blob:') && !p.url.startsWith('data:'))
     .map((p) => {
       const isBase64 = p.url && (p.url.startsWith('data:') || p.url.length > 500);
       return {
@@ -159,14 +161,16 @@ function mapRowToGallery(row: any, photosRows: any[] = [], selectionRow: any = n
   const rawVotes: Record<string, PhotoVote[]> = selectionRow?.votes || {};
   const rawCommentsMap: Record<string, PhotoCommentItem[]> = selectionRow?.comments_map || {};
 
-  const photos: Photo[] = (photosRows || []).map((p: any) => ({
-    id: p.id || crypto.randomUUID(),
-    url: p.url || '',
-    originalFileName: p.original_filename || p.originalFileName || '',
-    isStarred: Boolean(p.is_starred ?? p.isStarred),
-    votes: rawVotes[p.id] || [],
-    commentsList: rawCommentsMap[p.id] || []
-  }));
+  const photos: Photo[] = (photosRows || [])
+    .filter((p: any) => p.url && !p.url.startsWith('blob:'))
+    .map((p: any) => ({
+      id: p.id || crypto.randomUUID(),
+      url: p.url || '',
+      originalFileName: p.original_filename || p.originalFileName || '',
+      isStarred: Boolean(p.is_starred ?? p.isStarred),
+      votes: rawVotes[p.id] || [],
+      commentsList: rawCommentsMap[p.id] || []
+    }));
 
   const selectedPhotoIds: string[] =
     selectionRow?.selected_photo_ids || selectionRow?.selected_photos || [];
@@ -179,6 +183,11 @@ function mapRowToGallery(row: any, photosRows: any[] = [], selectionRow: any = n
     : [];
   const approvedAt = selectionRow?.approved_at || selectionRow?.finalized_at || undefined;
 
+  const rawCoverUrl = row.cover_photo_url;
+  const coverPhotoUrl = (rawCoverUrl && !rawCoverUrl.startsWith('blob:'))
+    ? rawCoverUrl
+    : (photos[0]?.url || '');
+
   return {
     id: row.id,
     title: row.title || 'Galeria sem título',
@@ -187,7 +196,7 @@ function mapRowToGallery(row: any, photosRows: any[] = [], selectionRow: any = n
     clientPhone: row.client_phone || '',
     eventDate: row.event_date || new Date().toISOString().split('T')[0],
     description: row.description || '',
-    coverPhotoUrl: row.cover_photo_url || (photos[0]?.url || ''),
+    coverPhotoUrl,
     status: row.status || 'awaiting_client',
     privacy: row.privacy || 'private',
     pinCode: row.pin_code || '1001',
@@ -220,7 +229,8 @@ function mapRowToGallery(row: any, photosRows: any[] = [], selectionRow: any = n
 }
 
 /**
- * Sync photos array to Supabase with explicit photo ID generation
+ * Sync photos array to Supabase with explicit photo ID generation.
+ * Strictly excludes temporary blob: URLs from being stored in Supabase.
  */
 export async function syncPhotos(galleryId: string, photos: Photo[]): Promise<void> {
   if (!isSupabaseConfigured || !supabase || !photos || photos.length === 0) return;
@@ -228,7 +238,11 @@ export async function syncPhotos(galleryId: string, photos: Photo[]): Promise<vo
   try {
     await supabase.from('photos').delete().eq('gallery_id', galleryId);
 
-    const photoPayload = photos.map((p) => ({
+    // Filter out photos with temporary blob: URLs
+    const validPhotos = photos.filter((p) => p.url && !p.url.startsWith('blob:'));
+    if (validPhotos.length === 0) return;
+
+    const photoPayload = validPhotos.map((p) => ({
       id: (p.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(p.id))
         ? p.id
         : crypto.randomUUID(),
@@ -457,9 +471,16 @@ export async function saveGalleryAsync(gallery: Gallery): Promise<Gallery> {
     pinCode = generateUniquePin(existingPins);
   }
 
+  const cleanPhotos = (gallery.photos || []).filter((p) => p.url && !p.url.startsWith('blob:'));
+  const cleanCoverUrl = (gallery.coverPhotoUrl && !gallery.coverPhotoUrl.startsWith('blob:'))
+    ? gallery.coverPhotoUrl
+    : (cleanPhotos[0]?.url || '');
+
   const updatedGallery: Gallery = {
     ...gallery,
     id: galleryId,
+    coverPhotoUrl: cleanCoverUrl,
+    photos: cleanPhotos,
     pinCode,
     updatedAt: now
   };
@@ -501,7 +522,7 @@ export async function saveGalleryAsync(gallery: Gallery): Promise<Gallery> {
       extra_photo_price: Number(gallery.extraPhotoPrice) || 30,
       watermark_enabled: Boolean(gallery.watermarkEnabled ?? true),
       watermark_text: gallery.watermarkText || 'PROVA • LUMINA STUDIO • PROVA',
-      cover_photo_url: gallery.coverPhotoUrl || (gallery.photos[0]?.url || ''),
+      cover_photo_url: cleanCoverUrl,
       updated_at: now
     };
 
@@ -513,8 +534,8 @@ export async function saveGalleryAsync(gallery: Gallery): Promise<Gallery> {
     }
 
     // Sync photos only after successful gallery upsert
-    if (gallery.photos && gallery.photos.length > 0) {
-      await syncPhotos(galleryId, gallery.photos);
+    if (cleanPhotos && cleanPhotos.length > 0) {
+      await syncPhotos(galleryId, cleanPhotos);
     }
 
     // Sync client selections only after successful gallery upsert
