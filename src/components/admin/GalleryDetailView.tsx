@@ -4,6 +4,8 @@ import { generateLightroomSelectionString, downloadApprovalManifest } from '../.
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
+import { SafeImage } from '../common/SafeImage';
+import { uploadPhotoFile } from '../../lib/photoUpload';
 import {
   ArrowLeft,
   Copy,
@@ -44,27 +46,66 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
   const [activeFilter, setActiveFilter] = useState<'consensus' | 'all_voted' | 'voter' | 'package' | 'extra' | 'commented'>('consensus');
   const [selectedVoterIdFilter, setSelectedVoterIdFilter] = useState<string>('');
 
-  const handleDetailFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleDetailFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    const newPhotos: Photo[] = Array.from(files).map((file: File, idx: number) => ({
-      id: `upload-${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${idx}`,
-      originalFileName: file.name,
-      url: URL.createObjectURL(file),
-      caption: file.name.replace(/\.[^/.]+$/, '')
-    }));
+    const fileList = Array.from(files) as File[];
 
-    const updatedGallery: Gallery = {
+    // Create temporary entries with blob URLs for immediate UI feedback
+    const tempItems = fileList.map((file, idx) => {
+      const blobUrl = URL.createObjectURL(file);
+      return {
+        id: `upload-${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${idx}`,
+        file,
+        blobUrl,
+        photo: {
+          id: `upload-${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${idx}`,
+          originalFileName: file.name,
+          url: blobUrl,
+          caption: file.name.replace(/\.[^/.]+$/, '')
+        }
+      };
+    });
+
+    let currentPhotos = [...gallery.photos, ...tempItems.map((t) => t.photo)];
+
+    // Instantly update gallery with temp photos for instant responsiveness
+    onEditGallery({
       ...gallery,
-      photos: [...gallery.photos, ...newPhotos],
+      photos: currentPhotos,
       updatedAt: new Date().toISOString()
-    };
+    });
 
-    onEditGallery(updatedGallery);
     onShowToast(
-      'Fotos Adicionadas!',
-      `${newPhotos.length} ${newPhotos.length === 1 ? 'foto adicionada' : 'fotos adicionadas'} à galeria com sucesso.`,
+      'Processando fotos...',
+      `Enviando ${fileList.length} ${fileList.length === 1 ? 'foto' : 'fotos'}...`,
+      'info'
+    );
+
+    // Process files asynchronously to generate permanent URLs (Supabase storage or Base64 Data URL)
+    for (const item of tempItems) {
+      try {
+        const permanentUrl = await uploadPhotoFile(item.file, gallery.id);
+        URL.revokeObjectURL(item.blobUrl);
+
+        currentPhotos = currentPhotos.map((p) =>
+          p.id === item.photo.id ? { ...p, url: permanentUrl } : p
+        );
+
+        onEditGallery({
+          ...gallery,
+          photos: currentPhotos,
+          updatedAt: new Date().toISOString()
+        });
+      } catch (err) {
+        console.warn('[GalleryDetailView] Erro ao carregar foto:', err);
+      }
+    }
+
+    onShowToast(
+      'Upload Concluído!',
+      `Fotos salvas e sincronizadas com sucesso.`,
       'success'
     );
   };
@@ -512,9 +553,10 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
                 }`}
               >
                 <div className="relative aspect-3/2 bg-zinc-950 overflow-hidden">
-                  <img
+                  <SafeImage
                     src={photo.url}
                     alt={photo.originalFileName}
+                    fallbackText={photo.originalFileName}
                     className="w-full h-full object-cover protected-photo"
                   />
 

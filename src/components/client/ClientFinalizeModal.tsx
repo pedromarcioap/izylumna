@@ -4,6 +4,7 @@ import { Dialog } from '../ui/Dialog';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 import { Textarea } from '../ui/Input';
+import { SafeImage } from '../common/SafeImage';
 import { CheckCheck, Sparkles, Lock, MessageSquare, Users, Heart } from 'lucide-react';
 
 export interface ClientFinalizeModalProps {
@@ -108,9 +109,10 @@ export const ClientFinalizeModal: React.FC<ClientFinalizeModalProps> = ({
                 key={photo.id}
                 className="relative shrink-0 w-16 h-16 rounded-lg overflow-hidden border border-amber-500/50"
               >
-                <img
+                <SafeImage
                   src={photo.url}
                   alt={photo.originalFileName}
+                  fallbackText={photo.originalFileName}
                   className="w-full h-full object-cover protected-photo"
                 />
                 <div className="absolute bottom-0 inset-x-0 bg-black/80 text-[9px] font-mono text-center text-amber-300 truncate px-0.5">

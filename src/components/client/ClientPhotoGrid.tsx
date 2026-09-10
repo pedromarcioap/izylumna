@@ -1,6 +1,7 @@
 import React from 'react';
 import { Gallery, Photo, GalleryVoter, PhotoVote } from '../../types';
 import { Watermark } from '../common/Watermark';
+import { SafeImage } from '../common/SafeImage';
 import { Heart, Maximize2, MessageSquare, Sparkles, Users } from 'lucide-react';
 import { Badge } from '../ui/Badge';
 
@@ -66,9 +67,10 @@ export const ClientPhotoGrid: React.FC<ClientPhotoGridProps> = ({
           >
             {/* Image Container with Watermark and Anti-Copy */}
             <div className="relative aspect-4/3 sm:aspect-3/2 bg-zinc-900 overflow-hidden select-none">
-              <img
+              <SafeImage
                 src={photo.url}
                 alt={photo.caption || photo.originalFileName}
+                fallbackText={photo.originalFileName}
                 loading="lazy"
                 draggable={false}
                 className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 protected-photo select-none pointer-events-none ${

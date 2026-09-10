@@ -4,6 +4,8 @@ import { Dialog } from '../ui/Dialog';
 import { Input, Textarea, Select } from '../ui/Input';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
+import { SafeImage } from '../common/SafeImage';
+import { uploadPhotoFile } from '../../lib/photoUpload';
 import {
   Upload,
   Plus,
@@ -169,25 +171,52 @@ export const GalleryFormModal: React.FC<GalleryFormModalProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
 
+  const processAndAddFiles = async (fileList: File[]) => {
+    if (!fileList || fileList.length === 0) return;
+
+    // Create temporary photos with blob URLs for instantaneous visual preview
+    const tempItems = fileList.map((file, idx) => {
+      const blobUrl = URL.createObjectURL(file);
+      return {
+        id: `upload-${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${idx}`,
+        file,
+        blobUrl,
+        photo: {
+          id: `upload-${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${idx}`,
+          originalFileName: file.name,
+          url: blobUrl,
+          caption: file.name.replace(/\.[^/.]+$/, '')
+        }
+      };
+    });
+
+    // Add temp photos to UI immediately
+    setPhotos((prev) => [...prev, ...tempItems.map((t) => t.photo)]);
+    if (!coverPhotoUrl && tempItems.length > 0) {
+      setCoverPhotoUrl(tempItems[0].photo.url);
+    }
+
+    // Process files asynchronously to get permanent URLs (Supabase storage or Base64 Data URL)
+    for (const item of tempItems) {
+      try {
+        const permanentUrl = await uploadPhotoFile(item.file, galleryToEdit?.id || 'new');
+        URL.revokeObjectURL(item.blobUrl);
+
+        setPhotos((prevPhotos) =>
+          prevPhotos.map((p) => (p.id === item.photo.id ? { ...p, url: permanentUrl } : p))
+        );
+
+        setCoverPhotoUrl((prevCover) => (prevCover === item.blobUrl ? permanentUrl : prevCover));
+      } catch (err) {
+        console.warn('[GalleryFormModal] Erro ao processar upload de imagem:', err);
+      }
+    }
+  };
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
-
-    const newPhotosList: Photo[] = [];
-    Array.from(files).forEach((file: File, idx: number) => {
-      const url = URL.createObjectURL(file);
-      newPhotosList.push({
-        id: `upload-${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${idx}`,
-        originalFileName: file.name,
-        url,
-        caption: file.name.replace(/\.[^/.]+$/, '')
-      });
-    });
-
-    setPhotos((prev) => [...prev, ...newPhotosList]);
-    if (!coverPhotoUrl && newPhotosList.length > 0) {
-      setCoverPhotoUrl(newPhotosList[0].url);
-    }
+    processAndAddFiles(Array.from(files) as File[]);
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -210,25 +239,8 @@ export const GalleryFormModal: React.FC<GalleryFormModalProps> = ({
     const files = e.dataTransfer.files;
     if (!files || files.length === 0) return;
 
-    const newPhotosList: Photo[] = [];
-    Array.from(files).forEach((file: File, idx: number) => {
-      if (file.type.startsWith('image/')) {
-        const url = URL.createObjectURL(file);
-        newPhotosList.push({
-          id: `upload-${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${idx}`,
-          originalFileName: file.name,
-          url,
-          caption: file.name.replace(/\.[^/.]+$/, '')
-        });
-      }
-    });
-
-    if (newPhotosList.length > 0) {
-      setPhotos((prev) => [...prev, ...newPhotosList]);
-      if (!coverPhotoUrl) {
-        setCoverPhotoUrl(newPhotosList[0].url);
-      }
-    }
+    const imageFiles = (Array.from(files) as File[]).filter((file) => file.type.startsWith('image/'));
+    processAndAddFiles(imageFiles);
   };
 
   const handleAddSamplePhotos = () => {
@@ -590,7 +602,12 @@ export const GalleryFormModal: React.FC<GalleryFormModalProps> = ({
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 max-h-56 overflow-y-auto p-2 bg-zinc-950/60 rounded-xl border border-zinc-850">
               {photos.map((photo) => (
                 <div key={photo.id} className="relative group rounded-lg overflow-hidden border border-zinc-800 bg-zinc-900 aspect-3/2">
-                  <img src={photo.url} alt={photo.originalFileName} className="w-full h-full object-cover" />
+                  <SafeImage
+                    src={photo.url}
+                    alt={photo.originalFileName}
+                    fallbackText={photo.originalFileName}
+                    className="w-full h-full object-cover"
+                  />
                   
                   {coverPhotoUrl === photo.url && (
                     <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded bg-amber-500 text-zinc-950 font-bold text-[9px] uppercase tracking-wider">

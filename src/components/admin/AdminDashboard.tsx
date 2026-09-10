@@ -4,6 +4,7 @@ import { Card, CardContent } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 import { Input } from '../ui/Input';
+import { SafeImage } from '../common/SafeImage';
 import { PhotographerSettingsModal } from './PhotographerSettingsModal';
 import { DeleteConfirmModal } from '../common/DeleteConfirmModal';
 import {
@@ -388,9 +389,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   >
                     {/* Cover Image & Badges */}
                     <div className="relative aspect-16/10 bg-zinc-950 overflow-hidden">
-                      <img
+                      <SafeImage
                         src={gallery.coverPhotoUrl}
                         alt={gallery.title}
+                        fallbackText={gallery.title}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 protected-photo"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/20 to-transparent" />

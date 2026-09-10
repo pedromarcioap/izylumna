@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Gallery, Photo, GalleryVoter, PhotoVote, PhotoCommentItem } from '../../types';
 import { Watermark } from '../common/Watermark';
+import { SafeImage } from '../common/SafeImage';
 import { X, ChevronLeft, ChevronRight, Heart, MessageSquare, Sparkles, Users, Send } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
@@ -122,9 +123,10 @@ export const ClientLightbox: React.FC<ClientLightboxProps> = ({
 
         {/* The Photo Container with Watermark */}
         <div className="relative max-h-full max-w-full flex items-center justify-center">
-          <img
+          <SafeImage
             src={currentPhoto.url}
             alt={currentPhoto.caption || currentPhoto.originalFileName}
+            fallbackText={currentPhoto.originalFileName}
             draggable={false}
             className="max-h-[72vh] sm:max-h-[78vh] max-w-[90vw] object-contain rounded-lg shadow-2xl protected-photo pointer-events-none"
           />

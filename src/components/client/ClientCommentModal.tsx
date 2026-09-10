@@ -3,6 +3,7 @@ import { Photo, GalleryVoter, PhotoCommentItem } from '../../types';
 import { Dialog } from '../ui/Dialog';
 import { Textarea } from '../ui/Input';
 import { Button } from '../ui/Button';
+import { SafeImage } from '../common/SafeImage';
 import { MessageSquare, Trash2, Send, User, Clock } from 'lucide-react';
 
 export interface ClientCommentModalProps {
@@ -56,9 +57,10 @@ export const ClientCommentModal: React.FC<ClientCommentModalProps> = ({
       <div className="space-y-4">
         {/* Photo thumbnail preview */}
         <div className="flex items-center gap-3 p-2.5 rounded-xl bg-zinc-950/80 border border-zinc-800">
-          <img
+          <SafeImage
             src={photo.url}
             alt={photo.originalFileName}
+            fallbackText={photo.originalFileName}
             className="w-16 h-16 object-cover rounded-lg protected-photo shadow"
           />
           <div className="min-w-0 flex-1">
