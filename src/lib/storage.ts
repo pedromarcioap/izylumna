@@ -168,6 +168,7 @@ function mapRowToGallery(row: any, photosRows: any[] = [], selectionRow: any = n
       url: p.url || '',
       originalFileName: p.original_filename || p.originalFileName || '',
       isStarred: Boolean(p.is_starred ?? p.isStarred),
+      metadata: p.metadata || null,
       votes: rawVotes[p.id] || [],
       commentsList: rawCommentsMap[p.id] || []
     }));
@@ -251,7 +252,8 @@ export async function syncPhotos(galleryId: string, photos: Photo[]): Promise<vo
       gallery_id: galleryId,
       url: p.url,
       original_filename: p.originalFileName || (p as any).original_filename || '',
-      is_starred: Boolean(p.isStarred ?? (p as any).is_starred)
+      is_starred: Boolean(p.isStarred ?? (p as any).is_starred),
+      metadata: p.metadata || null
     }));
 
     const { error } = await supabase.from('photos').insert(photoPayload);

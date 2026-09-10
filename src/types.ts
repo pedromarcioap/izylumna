@@ -48,6 +48,16 @@ export interface PhotoComment {
   createdAt: string;
 }
 
+export interface PhotoMetadata {
+  camera?: string | null;
+  lens?: string | null;
+  f_stop?: string | null;
+  shutter_speed?: string | null;
+  iso?: string | null;
+  focal_length?: string | null;
+  taken_at?: string | null;
+}
+
 export interface Photo {
   id: string;
   originalFileName: string; // e.g., "IMG_4021.CR3", "DSC_0092.JPG"
@@ -57,9 +67,11 @@ export interface Photo {
   orientation?: 'landscape' | 'portrait' | 'square';
   caption?: string;
   isStarred?: boolean;
+  metadata?: PhotoMetadata | null;
   votes?: PhotoVote[];
   commentsList?: PhotoCommentItem[];
 }
+
 
 export interface ClientSelectionData {
   id?: string;

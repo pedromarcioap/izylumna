@@ -6,6 +6,7 @@ import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 import { SafeImage } from '../common/SafeImage';
 import { uploadPhotoFile, uploadPhotosInBatches } from '../../lib/photoUpload';
+import { extractExif } from '../../lib/exif';
 import { WatermarkSettingsModal } from './WatermarkSettingsModal';
 import {
   ArrowLeft,
@@ -55,21 +56,25 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
 
     const fileList = Array.from(files) as File[];
 
-    // Create temporary entries with blob URLs for immediate visual preview
-    const tempItems = fileList.map((file, idx) => {
-      const blobUrl = URL.createObjectURL(file);
-      return {
-        id: `upload-${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${idx}`,
-        file,
-        blobUrl,
-        photo: {
+    // Create temporary entries with blob URLs & extracted EXIF for immediate visual preview
+    const tempItems = await Promise.all(
+      fileList.map(async (file, idx) => {
+        const blobUrl = URL.createObjectURL(file);
+        const metadata = await extractExif(file);
+        return {
           id: `upload-${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${idx}`,
-          originalFileName: file.name,
-          url: blobUrl,
-          caption: file.name.replace(/\.[^/.]+$/, '')
-        }
-      };
-    });
+          file,
+          blobUrl,
+          photo: {
+            id: `upload-${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${idx}`,
+            originalFileName: file.name,
+            url: blobUrl,
+            caption: file.name.replace(/\.[^/.]+$/, ''),
+            metadata
+          }
+        };
+      })
+    );
 
     let currentPhotos: Photo[] = [...gallery.photos, ...tempItems.map((t) => t.photo)];
 

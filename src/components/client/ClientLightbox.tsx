@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Gallery, Photo, GalleryVoter, PhotoVote, PhotoCommentItem } from '../../types';
 import { Watermark } from '../common/Watermark';
 import { SafeImage } from '../common/SafeImage';
+import { PhotoTechnicalDetails } from '../common/PhotoTechnicalDetails';
 import { X, ChevronLeft, ChevronRight, Heart, MessageSquare, Sparkles, Users, Send } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
@@ -88,6 +89,9 @@ export const ClientLightbox: React.FC<ClientLightboxProps> = ({
         </div>
 
         <div className="flex items-center gap-3">
+          {/* Photo EXIF Technical Details */}
+          <PhotoTechnicalDetails metadata={currentPhoto.metadata} />
+
           {/* Add comment button */}
           <Button
             variant={photoComments.length > 0 ? 'primary' : 'outline'}

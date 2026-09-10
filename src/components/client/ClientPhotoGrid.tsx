@@ -2,6 +2,7 @@ import React from 'react';
 import { Gallery, Photo, GalleryVoter, PhotoVote } from '../../types';
 import { Watermark } from '../common/Watermark';
 import { SafeImage } from '../common/SafeImage';
+import { PhotoTechnicalDetails } from '../common/PhotoTechnicalDetails';
 import { Heart, Maximize2, MessageSquare, Sparkles, Users } from 'lucide-react';
 import { Badge } from '../ui/Badge';
 
@@ -139,8 +140,9 @@ export const ClientPhotoGrid: React.FC<ClientPhotoGridProps> = ({
                 </button>
               </div>
 
-              {/* Bottom Actions Row (Comment and Fullscreen Lightbox) */}
-              <div className="absolute bottom-3 right-3 z-30 flex items-center gap-2">
+              {/* Bottom Actions Row (EXIF details, Comment, and Fullscreen Lightbox) */}
+              <div className="absolute bottom-3 right-3 z-30 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                <PhotoTechnicalDetails metadata={photo.metadata} />
                 {/* Comment button */}
                 <button
                   type="button"

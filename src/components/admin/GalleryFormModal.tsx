@@ -7,6 +7,7 @@ import { Badge } from '../ui/Badge';
 import { SafeImage } from '../common/SafeImage';
 import { Watermark } from '../common/Watermark';
 import { uploadPhotoFile, uploadPhotosInBatches } from '../../lib/photoUpload';
+import { extractExif } from '../../lib/exif';
 import { getPhotographerSession } from '../../lib/auth';
 import {
   Upload,
@@ -40,27 +41,72 @@ const SAMPLE_PHOTO_PRESETS = [
   {
     name: 'Retrato Noivos - Luz Natural',
     original: 'IMG_4021.CR3',
-    url: 'https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=1200&auto=format&fit=crop'
+    url: 'https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=1200&auto=format&fit=crop',
+    metadata: {
+      camera: 'EOS 5D Mark IV',
+      lens: 'EF 50mm f/1.2L USM',
+      f_stop: 'f/1.8',
+      shutter_speed: '1/250s',
+      iso: 'ISO 200',
+      focal_length: '50mm',
+      taken_at: '2026-05-15T16:30:00.000Z'
+    }
   },
   {
     name: 'Cerimônia - Troca de Alianças',
     original: 'IMG_4022.CR3',
-    url: 'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?q=80&w=1200&auto=format&fit=crop'
+    url: 'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?q=80&w=1200&auto=format&fit=crop',
+    metadata: {
+      camera: 'EOS R6',
+      lens: 'RF 24-70mm f/2.8L IS USM',
+      f_stop: 'f/2.8',
+      shutter_speed: '1/500s',
+      iso: 'ISO 400',
+      focal_length: '70mm',
+      taken_at: '2026-05-15T17:15:00.000Z'
+    }
   },
   {
     name: 'Entrada da Noiva - Emoção',
     original: 'IMG_4023.CR3',
-    url: 'https://images.unsplash.com/photo-1583939003579-730e3918a45a?q=80&w=1200&auto=format&fit=crop'
+    url: 'https://images.unsplash.com/photo-1583939003579-730e3918a45a?q=80&w=1200&auto=format&fit=crop',
+    metadata: {
+      camera: 'EOS R6',
+      lens: 'RF 85mm f/1.2L USM',
+      f_stop: 'f/1.4',
+      shutter_speed: '1/320s',
+      iso: 'ISO 800',
+      focal_length: '85mm',
+      taken_at: '2026-05-15T16:45:00.000Z'
+    }
   },
   {
     name: 'Recepção - Pista de Dança',
     original: 'IMG_4024.CR3',
-    url: 'https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?q=80&w=1200&auto=format&fit=crop'
+    url: 'https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?q=80&w=1200&auto=format&fit=crop',
+    metadata: {
+      camera: 'A7 III',
+      lens: 'FE 35mm f/1.4 GM',
+      f_stop: 'f/2.0',
+      shutter_speed: '1/160s',
+      iso: 'ISO 1600',
+      focal_length: '35mm',
+      taken_at: '2026-05-15T21:00:00.000Z'
+    }
   },
   {
     name: 'Detalhes - Buquê e Alianças',
     original: 'IMG_4025.CR3',
-    url: 'https://images.unsplash.com/photo-1519225421980-715cb0215aed?q=80&w=1200&auto=format&fit=crop'
+    url: 'https://images.unsplash.com/photo-1519225421980-715cb0215aed?q=80&w=1200&auto=format&fit=crop',
+    metadata: {
+      camera: 'EOS 5D Mark IV',
+      lens: 'EF 100mm f/2.8L Macro IS USM',
+      f_stop: 'f/4.0',
+      shutter_speed: '1/200s',
+      iso: 'ISO 100',
+      focal_length: '100mm',
+      taken_at: '2026-05-15T14:20:00.000Z'
+    }
   }
 ];
 
@@ -163,7 +209,8 @@ export const GalleryFormModal: React.FC<GalleryFormModalProps> = ({
         id: `photo-new-${Date.now()}-${idx}`,
         originalFileName: p.original,
         url: p.url,
-        caption: p.name
+        caption: p.name,
+        metadata: p.metadata
       }));
       setPhotos(initialPhotos);
       setCoverPhotoUrl(initialPhotos[0]?.url || '');
@@ -201,21 +248,25 @@ export const GalleryFormModal: React.FC<GalleryFormModalProps> = ({
     setIsUploading(true);
     setUploadProgress({ current: 0, total: fileList.length });
 
-    // Create temporary photos with blob URLs for instantaneous visual preview
-    const tempItems = fileList.map((file, idx) => {
-      const blobUrl = URL.createObjectURL(file);
-      return {
-        id: `upload-${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${idx}`,
-        file,
-        blobUrl,
-        photo: {
+    // Create temporary photos with blob URLs and EXIF metadata for instantaneous visual preview
+    const tempItems = await Promise.all(
+      fileList.map(async (file, idx) => {
+        const blobUrl = URL.createObjectURL(file);
+        const metadata = await extractExif(file);
+        return {
           id: `upload-${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${idx}`,
-          originalFileName: file.name,
-          url: blobUrl,
-          caption: file.name.replace(/\.[^/.]+$/, '')
-        }
-      };
-    });
+          file,
+          blobUrl,
+          photo: {
+            id: `upload-${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${idx}`,
+            originalFileName: file.name,
+            url: blobUrl,
+            caption: file.name.replace(/\.[^/.]+$/, ''),
+            metadata
+          }
+        };
+      })
+    );
 
     // Add temp photos to UI immediately using functional state updater
     setPhotos((prev) => [...prev, ...tempItems.map((t) => t.photo)]);
