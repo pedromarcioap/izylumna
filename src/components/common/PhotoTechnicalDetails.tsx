@@ -39,19 +39,22 @@ export const PhotoTechnicalDetails: React.FC<PhotoTechnicalDetailsProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
 
-  // Get effective metadata (uses real EXIF if available, or deterministic plausible fallback)
+  // Get effective metadata (uses real EXIF if available)
   const exif = getEffectiveExif(metadata, photoSeed);
+  const isAvailable = hasExifData(exif);
 
   const cameraModel = exif.camera?.trim();
   const lensModel = exif.lens?.trim();
 
-  let cameraLensText = 'Câmera & Lente';
+  let cameraLensText = 'Sem EXIF';
   if (cameraModel && lensModel) {
     cameraLensText = `${cameraModel} • ${lensModel}`;
   } else if (cameraModel) {
     cameraLensText = cameraModel;
   } else if (lensModel) {
     cameraLensText = lensModel;
+  } else if (!isAvailable) {
+    cameraLensText = 'Sem metadados EXIF';
   }
 
   const shootingValues = [
@@ -73,6 +76,18 @@ export const PhotoTechnicalDetails: React.FC<PhotoTechnicalDetailsProps> = ({
 
   // Render Horizontal Banner (Used in Lightbox header or footer)
   if (variant === 'banner') {
+    if (!isAvailable) {
+      return (
+        <div
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-walnut-950/60 backdrop-blur-md border border-walnut-800/60 text-xs text-walnut-400 select-none shadow-md ${className}`}
+          title="Nenhum metadado EXIF encontrado neste arquivo"
+        >
+          <Camera className="w-3.5 h-3.5 shrink-0 text-walnut-500" />
+          <span className="font-medium text-[11px]">Sem EXIF</span>
+        </div>
+      );
+    }
+
     return (
       <div
         className={`flex flex-wrap items-center gap-2 px-3 py-1.5 rounded-full bg-walnut-950/80 backdrop-blur-md border border-walnut-800/80 text-xs text-walnut-200 select-none shadow-md ${className}`}
@@ -100,6 +115,43 @@ export const PhotoTechnicalDetails: React.FC<PhotoTechnicalDetailsProps> = ({
 
   // Render Compact Overlay Badge (Used on Photo Cards in Grid)
   if (variant === 'badge') {
+    if (!isAvailable) {
+      return (
+        <div className={`relative inline-block ${className}`}>
+          <button
+            type="button"
+            onClick={() => setIsOpen((prev) => !prev)}
+            className="px-2.5 py-1 rounded-full text-[10px] font-mono font-medium bg-walnut-950/60 hover:bg-walnut-900 text-walnut-400 border border-walnut-800/60 backdrop-blur-md transition-all flex items-center gap-1 shadow-md active:scale-95 group"
+            title="Nenhum metadado EXIF no arquivo"
+          >
+            <Camera className="w-3 h-3 text-walnut-500" />
+            <span className="text-walnut-400 text-[10px]">Sem EXIF</span>
+          </button>
+
+          {isOpen && (
+            <div
+              className="absolute bottom-full mb-2 left-0 z-50 w-64 p-3 bg-walnut-950/95 backdrop-blur-xl border border-walnut-800 rounded-xl shadow-2xl space-y-1.5 animate-in fade-in zoom-in-95 duration-150"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between text-xs font-semibold text-walnut-200">
+                <span>Sem dados EXIF</span>
+                <button
+                  type="button"
+                  onClick={() => setIsOpen(false)}
+                  className="text-walnut-500 hover:text-walnut-300 p-0.5"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <p className="text-[11px] text-walnut-400 leading-snug">
+                Esta imagem não possui metadados EXIF gravados no arquivo (ex.: câmera, lente ou abertura).
+              </p>
+            </div>
+          )}
+        </div>
+      );
+    }
+
     return (
       <div className={`relative inline-block ${className}`}>
         <button
@@ -164,7 +216,7 @@ export const PhotoTechnicalDetails: React.FC<PhotoTechnicalDetailsProps> = ({
   // Default Popover Mode
   return (
     <div className={`relative inline-block ${className}`}>
-      {/* Subtle Trigger Button */}
+      {/* Trigger Button */}
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
@@ -172,12 +224,14 @@ export const PhotoTechnicalDetails: React.FC<PhotoTechnicalDetailsProps> = ({
         className={`px-3 py-1.5 rounded-full text-xs font-medium border backdrop-blur-md transition-all flex items-center gap-1.5 select-none ${
           isOpen
             ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-lg shadow-amber-500/10'
-            : 'bg-walnut-950/80 hover:bg-walnut-900 text-walnut-200 border-walnut-800 hover:border-walnut-700'
+            : isAvailable
+            ? 'bg-walnut-950/80 hover:bg-walnut-900 text-walnut-200 border-walnut-800 hover:border-walnut-700'
+            : 'bg-walnut-950/50 text-walnut-400 border-walnut-800/60'
         }`}
         title="Ver Detalhes do Disparo (Dados EXIF)"
         aria-expanded={isOpen}
       >
-        <Camera className={`w-3.5 h-3.5 ${isOpen ? 'text-amber-400' : 'text-amber-400/80'}`} />
+        <Camera className={`w-3.5 h-3.5 ${isAvailable ? (isOpen ? 'text-amber-400' : 'text-amber-400/80') : 'text-walnut-500'}`} />
         <span>EXIF</span>
       </button>
 
@@ -220,7 +274,7 @@ export const PhotoTechnicalDetails: React.FC<PhotoTechnicalDetailsProps> = ({
             </div>
 
             {/* Shooting Line: Organized values */}
-            {shootingValues.length > 0 && (
+            {isAvailable && shootingValues.length > 0 ? (
               <div className="space-y-1.5">
                 <span className="text-[10px] font-semibold text-walnut-400 uppercase tracking-wider block">
                   Configuração do Disparo
@@ -234,6 +288,10 @@ export const PhotoTechnicalDetails: React.FC<PhotoTechnicalDetailsProps> = ({
                   ))}
                 </div>
               </div>
+            ) : !isAvailable && (
+              <p className="text-xs text-walnut-400 leading-relaxed">
+                Nenhum metadado técnico (câmera, lente, abertura ou ISO) foi encontrado neste arquivo de foto.
+              </p>
             )}
           </div>
 
@@ -260,7 +318,7 @@ export const PhotoTechnicalDetails: React.FC<PhotoTechnicalDetailsProps> = ({
               </button>
             </div>
 
-            {shootingValues.length > 0 && (
+            {isAvailable && shootingValues.length > 0 ? (
               <div className="flex items-center justify-around p-2.5 rounded-xl bg-walnut-900 border border-walnut-800 text-xs font-mono text-amber-300">
                 {shootingValues.map((val, idx) => (
                   <React.Fragment key={idx}>
@@ -269,6 +327,8 @@ export const PhotoTechnicalDetails: React.FC<PhotoTechnicalDetailsProps> = ({
                   </React.Fragment>
                 ))}
               </div>
+            ) : !isAvailable && (
+              <p className="text-xs text-walnut-400">Sem metadados EXIF no arquivo.</p>
             )}
           </div>
         </>

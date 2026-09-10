@@ -2,55 +2,145 @@ import exifr from 'exifr';
 import { PhotoMetadata } from '../types';
 
 /**
- * Extracts EXIF technical metadata from a local image File before upload.
+ * Extracts authentic EXIF technical metadata from a local image File before upload.
  */
 export async function extractExif(file: File): Promise<PhotoMetadata | null> {
   try {
-    const data = await exifr.parse(file, [
-      'Make', 'Model', 'LensModel',
-      'FNumber', 'ExposureTime', 'ISO',
-      'FocalLength', 'DateTimeOriginal'
-    ]);
+    // exifr options MUST be an object with pick array, not a direct array
+    const data = await exifr.parse(file, {
+      pick: [
+        'Make',
+        'Model',
+        'LensModel',
+        'Lens',
+        'LensInfo',
+        'LensType',
+        'FNumber',
+        'ApertureValue',
+        'ExposureTime',
+        'ShutterSpeedValue',
+        'ISO',
+        'ISOSpeedRatings',
+        'FocalLength',
+        'FocalLengthIn35mmFormat',
+        'DateTimeOriginal',
+        'CreateDate'
+      ]
+    });
+
     if (!data) return null;
 
-    const formatShutter = (time: number) => {
-      if (!time) return null;
-      return time < 1 ? `1/${Math.round(1 / time)}s` : `${time}s`;
+    // Helper to format shutter speed cleanly
+    const formatShutter = (timeVal: any): string | null => {
+      if (typeof timeVal !== 'number' || isNaN(timeVal) || timeVal <= 0) return null;
+      if (timeVal < 1) {
+        const denominator = Math.round(1 / timeVal);
+        return `1/${denominator}s`;
+      }
+      const rounded = Number(timeVal.toFixed(1));
+      return `${rounded}s`;
     };
 
-    const rawCamera = data.Model
-      ? `${data.Make || ''} ${data.Model}`.replace(/\bCanon\b|\bNikon\b|\bSony\b/gi, '').trim()
-      : null;
+    // Camera Make & Model formatting
+    const make = typeof data.Make === 'string' ? data.Make.trim() : '';
+    const model = typeof data.Model === 'string' ? data.Model.trim() : '';
+    let camera: string | null = null;
+
+    if (model) {
+      if (make && !model.toLowerCase().includes(make.toLowerCase())) {
+        camera = `${make} ${model}`;
+      } else {
+        camera = model;
+      }
+    } else if (make) {
+      camera = make;
+    }
+
+    // Lens Model
+    const rawLens = data.LensModel || data.Lens || data.LensInfo || data.LensType;
+    const lens = typeof rawLens === 'string' && rawLens.trim() ? rawLens.trim() : null;
+
+    // Aperture f/stop
+    const fNum = data.FNumber || data.ApertureValue;
+    const f_stop =
+      typeof fNum === 'number' && !isNaN(fNum) && fNum > 0
+        ? `f/${Number(fNum.toFixed(1)).toString().replace(/\.0$/, '')}`
+        : null;
+
+    // Shutter speed
+    const expTime = data.ExposureTime || data.ShutterSpeedValue;
+    const shutter_speed = formatShutter(expTime);
+
+    // ISO
+    const isoVal = data.ISO || (Array.isArray(data.ISOSpeedRatings) ? data.ISOSpeedRatings[0] : data.ISOSpeedRatings);
+    const iso = isoVal ? `ISO ${isoVal}` : null;
+
+    // Focal length
+    const focalVal = data.FocalLength || data.FocalLengthIn35mmFormat;
+    const focal_length = typeof focalVal === 'number' && !isNaN(focalVal) ? `${Math.round(focalVal)}mm` : null;
+
+    // Date Taken
+    const rawDate = data.DateTimeOriginal || data.CreateDate;
+    let taken_at: string | null = null;
+    if (rawDate) {
+      try {
+        taken_at = new Date(rawDate).toISOString();
+      } catch {
+        taken_at = null;
+      }
+    }
 
     const metadata: PhotoMetadata = {
-      camera: rawCamera || (data.Make ? data.Make.trim() : null),
-      lens: data.LensModel || null,
-      f_stop: data.FNumber ? `f/${data.FNumber}` : null,
-      shutter_speed: formatShutter(data.ExposureTime),
-      iso: data.ISO ? `ISO ${data.ISO}` : null,
-      focal_length: data.FocalLength ? `${Math.round(data.FocalLength)}mm` : null,
-      taken_at: data.DateTimeOriginal ? new Date(data.DateTimeOriginal).toISOString() : null
+      camera,
+      lens,
+      f_stop,
+      shutter_speed,
+      iso,
+      focal_length,
+      taken_at
     };
 
-    // Return null if no meaningful fields exist
     const hasData = Object.values(metadata).some((val) => val !== null && val !== '');
     return hasData ? metadata : null;
-  } catch {
+  } catch (err) {
+    console.warn('[EXIF Extraction Warning] Failed to parse EXIF for file:', file.name, err);
     return null;
   }
 }
 
 /**
- * Ensures photo metadata is always populated.
- * Returns provided metadata if present, or generates realistic deterministic EXIF
- * based on photo seed (filename or ID) for a seamless display.
+ * Ensures photo metadata is populated.
+ * - Returns authentic provided metadata if available.
+ * - Returns null object if photo explicitly has no EXIF data (preventing fake camera models).
+ * - Only generates demo fallback if metadata is strictly undefined (for demo/preset photos).
  */
 export function getEffectiveExif(metadata?: PhotoMetadata | null, seed: string = ''): PhotoMetadata {
-  if (metadata && (metadata.camera || metadata.lens || metadata.f_stop || metadata.iso || metadata.shutter_speed || metadata.focal_length)) {
-    return metadata;
+  if (metadata !== undefined && metadata !== null) {
+    return {
+      camera: metadata.camera || null,
+      lens: metadata.lens || null,
+      f_stop: metadata.f_stop || null,
+      shutter_speed: metadata.shutter_speed || null,
+      iso: metadata.iso || null,
+      focal_length: metadata.focal_length || null,
+      taken_at: metadata.taken_at || null
+    };
   }
 
-  // Deterministic seed hashing for fallback metadata
+  // If metadata is explicitly null, return empty structure (no fake camera models)
+  if (metadata === null) {
+    return {
+      camera: null,
+      lens: null,
+      f_stop: null,
+      shutter_speed: null,
+      iso: null,
+      focal_length: null,
+      taken_at: null
+    };
+  }
+
+  // Deterministic seed hashing for fallback metadata only when metadata is completely undefined
   let hash = 0;
   for (let i = 0; i < seed.length; i++) {
     hash = (hash << 5) - hash + seed.charCodeAt(i);
@@ -75,3 +165,4 @@ export function getEffectiveExif(metadata?: PhotoMetadata | null, seed: string =
     taken_at: new Date(Date.now() - (posHash % 30) * 86400000).toISOString()
   };
 }
+
