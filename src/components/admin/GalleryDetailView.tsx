@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 import { SafeImage } from '../common/SafeImage';
-import { uploadPhotoFile } from '../../lib/photoUpload';
+import { uploadPhotoFile, uploadPhotosInBatches } from '../../lib/photoUpload';
 import {
   ArrowLeft,
   Copy,
@@ -52,7 +52,7 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
 
     const fileList = Array.from(files) as File[];
 
-    // Create temporary entries with blob URLs for immediate UI feedback
+    // Create temporary entries with blob URLs for immediate visual preview
     const tempItems = fileList.map((file, idx) => {
       const blobUrl = URL.createObjectURL(file);
       return {
@@ -68,59 +68,58 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
       };
     });
 
-    let currentPhotos = [...gallery.photos, ...tempItems.map((t) => t.photo)];
-
-    // Instantly update gallery with temp photos for instant responsiveness
-    onEditGallery({
-      ...gallery,
-      photos: currentPhotos,
-      updatedAt: new Date().toISOString()
-    });
+    let currentPhotos: Photo[] = [...gallery.photos, ...tempItems.map((t) => t.photo)];
 
     onShowToast(
       'Processando fotos...',
-      `Enviando ${fileList.length} ${fileList.length === 1 ? 'foto' : 'fotos'}...`,
+      `Enviando 1 de ${fileList.length} foto(s)...`,
       'info'
     );
 
-    // Process files asynchronously to generate permanent URLs (Supabase storage or Base64 Data URL)
-    let uploadFailed = false;
-    for (const item of tempItems) {
-      try {
-        const permanentUrl = await uploadPhotoFile(item.file, gallery.id);
-        URL.revokeObjectURL(item.blobUrl);
-
-        currentPhotos = currentPhotos.map((p) =>
-          p.id === item.photo.id ? { ...p, url: permanentUrl } : p
-        );
-
-        onEditGallery({
-          ...gallery,
-          photos: currentPhotos.filter((p) => p.url && !p.url.startsWith('blob:')),
-          updatedAt: new Date().toISOString()
-        });
-      } catch (err: any) {
-        uploadFailed = true;
-        console.error('[GalleryDetailView] Erro ao carregar foto:', err);
-        URL.revokeObjectURL(item.blobUrl);
-        currentPhotos = currentPhotos.filter((p) => p.id !== item.photo.id);
-        onEditGallery({
-          ...gallery,
-          photos: currentPhotos.filter((p) => p.url && !p.url.startsWith('blob:')),
-          updatedAt: new Date().toISOString()
-        });
+    // Process files in batches with controlled concurrency (3 at a time)
+    const batchResults = await uploadPhotosInBatches(
+      tempItems,
+      gallery.id,
+      (completedCount, totalCount, item, permanentUrl) => {
         onShowToast(
-          'Falha no Upload',
-          `Não foi possível enviar "${item.file.name}". O upload foi interrompido.`,
-          'error'
+          'Processando fotos...',
+          `Enviando foto ${completedCount} de ${totalCount}...`,
+          'info'
         );
-      }
-    }
 
-    if (!uploadFailed) {
+        URL.revokeObjectURL(item.blobUrl);
+        if (permanentUrl) {
+          currentPhotos = currentPhotos.map((p) =>
+            p.id === item.photo.id ? { ...p, url: permanentUrl } : p
+          );
+        } else {
+          currentPhotos = currentPhotos.filter((p) => p.id !== item.photo.id);
+        }
+      },
+      3
+    );
+
+    // Filter out any temporary blob: URLs to ensure data integrity
+    const finalPhotos = currentPhotos.filter((p) => p.url && !p.url.startsWith('blob:'));
+
+    // Perform ONE SINGLE CONSOLIDATED SAVE to Supabase after all batch uploads finish
+    onEditGallery({
+      ...gallery,
+      photos: finalPhotos,
+      updatedAt: new Date().toISOString()
+    });
+
+    const failedCount = batchResults.filter((r) => !r.success).length;
+    if (failedCount > 0) {
+      onShowToast(
+        'Upload Parcial',
+        `${batchResults.length - failedCount} fotos enviadas. ${failedCount} foto(s) falharam e foram descartadas.`,
+        'error'
+      );
+    } else {
       onShowToast(
         'Upload Concluído!',
-        `Fotos salvas e sincronizadas com sucesso.`,
+        `${finalPhotos.length} fotos salvas e sincronizadas com sucesso.`,
         'success'
       );
     }

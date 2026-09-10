@@ -55,3 +55,43 @@ export async function uploadPhotoFile(file: File, galleryId: string = 'general')
   // Convert File to Base64 Data URL so it persists across refreshes (NEVER a temporary blob: URL!)
   return await fileToDataUrl(file);
 }
+
+/**
+ * Processes a list of files with controlled concurrency (default: 3 simultaneous uploads).
+ * Iterates through ALL files without artificial limits and reports progress.
+ */
+export async function uploadPhotosInBatches<T extends { file: File }>(
+  items: T[],
+  galleryId: string,
+  onProgress?: (completedCount: number, totalCount: number, item: T, resultUrl: string) => void,
+  concurrencyLimit = 3
+): Promise<{ item: T; url: string; success: boolean; error?: any }[]> {
+  const results: { item: T; url: string; success: boolean; error?: any }[] = [];
+  let completedCount = 0;
+  const totalCount = items.length;
+
+  for (let i = 0; i < items.length; i += concurrencyLimit) {
+    const chunk = items.slice(i, i + concurrencyLimit);
+    const chunkPromises = chunk.map(async (item) => {
+      try {
+        const permanentUrl = await uploadPhotoFile(item.file, galleryId);
+        completedCount++;
+        if (onProgress) {
+          onProgress(completedCount, totalCount, item, permanentUrl);
+        }
+        return { item, url: permanentUrl, success: true };
+      } catch (err) {
+        completedCount++;
+        if (onProgress) {
+          onProgress(completedCount, totalCount, item, '');
+        }
+        return { item, url: '', success: false, error: err };
+      }
+    });
+
+    const chunkResults = await Promise.all(chunkPromises);
+    results.push(...chunkResults);
+  }
+
+  return results;
+}

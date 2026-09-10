@@ -5,7 +5,7 @@ import { Input, Textarea, Select } from '../ui/Input';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 import { SafeImage } from '../common/SafeImage';
-import { uploadPhotoFile } from '../../lib/photoUpload';
+import { uploadPhotoFile, uploadPhotosInBatches } from '../../lib/photoUpload';
 import {
   Upload,
   Plus,
@@ -20,7 +20,8 @@ import {
   Image as ImageIcon,
   Check,
   Users,
-  UserPlus
+  UserPlus,
+  RefreshCw
 } from 'lucide-react';
 
 export interface GalleryFormModalProps {
@@ -170,9 +171,14 @@ export const GalleryFormModal: React.FC<GalleryFormModalProps> = ({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
 
   const processAndAddFiles = async (fileList: File[]) => {
     if (!fileList || fileList.length === 0) return;
+
+    setIsUploading(true);
+    setUploadProgress({ current: 0, total: fileList.length });
 
     // Create temporary photos with blob URLs for instantaneous visual preview
     const tempItems = fileList.map((file, idx) => {
@@ -190,32 +196,42 @@ export const GalleryFormModal: React.FC<GalleryFormModalProps> = ({
       };
     });
 
-    // Add temp photos to UI immediately
+    // Add temp photos to UI immediately using functional state updater
     setPhotos((prev) => [...prev, ...tempItems.map((t) => t.photo)]);
     if (!coverPhotoUrl && tempItems.length > 0) {
       setCoverPhotoUrl(tempItems[0].photo.url);
     }
 
-    // Process files asynchronously to get permanent URLs (Supabase storage or Base64 Data URL)
-    for (const item of tempItems) {
-      try {
-        const permanentUrl = await uploadPhotoFile(item.file, galleryToEdit?.id || 'new');
-        URL.revokeObjectURL(item.blobUrl);
+    // Process files in batch with controlled concurrency (3 uploads at a time)
+    const batchResults = await uploadPhotosInBatches(
+      tempItems,
+      galleryToEdit?.id || 'new',
+      (completedCount, totalCount, item, permanentUrl) => {
+        setUploadProgress({ current: completedCount, total: totalCount });
 
-        setPhotos((prevPhotos) =>
-          prevPhotos.map((p) => (p.id === item.photo.id ? { ...p, url: permanentUrl } : p))
-        );
+        if (permanentUrl) {
+          URL.revokeObjectURL(item.blobUrl);
+          // Functional state updater to avoid race conditions
+          setPhotos((prevPhotos) =>
+            prevPhotos.map((p) => (p.id === item.photo.id ? { ...p, url: permanentUrl } : p))
+          );
+          setCoverPhotoUrl((prevCover) => (prevCover === item.blobUrl ? permanentUrl : prevCover));
+        } else {
+          URL.revokeObjectURL(item.blobUrl);
+          // Remove temporary photo on failure
+          setPhotos((prevPhotos) => prevPhotos.filter((p) => p.id !== item.photo.id));
+          setCoverPhotoUrl((prevCover) => (prevCover === item.blobUrl ? '' : prevCover));
+        }
+      },
+      3
+    );
 
-        setCoverPhotoUrl((prevCover) => (prevCover === item.blobUrl ? permanentUrl : prevCover));
-      } catch (err: any) {
-        console.error('[GalleryFormModal] Erro ao carregar foto:', err);
-        URL.revokeObjectURL(item.blobUrl);
-        // Remove temporary photo with blob: URL to prevent persistence
-        setPhotos((prevPhotos) => prevPhotos.filter((p) => p.id !== item.photo.id));
-        setCoverPhotoUrl((prevCover) => (prevCover === item.blobUrl ? '' : prevCover));
-        alert(`Falha no upload da foto "${item.file.name}". O arquivo não foi gravado.`);
-      }
+    const failedCount = batchResults.filter((r) => !r.success).length;
+    if (failedCount > 0) {
+      alert(`${failedCount} das ${tempItems.length} foto(s) falharam no upload e foram removidas.`);
     }
+
+    setIsUploading(false);
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -580,6 +596,22 @@ export const GalleryFormModal: React.FC<GalleryFormModalProps> = ({
           </div>
 
           {formErrors.photos && <p className="text-xs text-red-400 font-medium">{formErrors.photos}</p>}
+
+          {/* Upload Progress Banner */}
+          {isUploading && (
+            <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between text-xs text-amber-300">
+              <div className="flex items-center gap-2.5">
+                <RefreshCw className="w-4 h-4 animate-spin text-amber-400" />
+                <span className="font-medium">
+                  Enviando foto <strong className="text-amber-200">{uploadProgress.current}</strong> de{' '}
+                  <strong className="text-amber-200">{uploadProgress.total}</strong> ao Supabase Storage...
+                </span>
+              </div>
+              <span className="font-mono text-[11px] font-bold bg-amber-500/20 px-2 py-0.5 rounded text-amber-300">
+                {Math.round((uploadProgress.current / (uploadProgress.total || 1)) * 100)}%
+              </span>
+            </div>
+          )}
 
           {/* Drag & Drop Dropzone */}
           <div
