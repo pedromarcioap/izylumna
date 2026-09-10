@@ -120,6 +120,22 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
       return;
     }
 
+    const hasVoted = (votesMap[photo.id] || []).some(
+      (v) => v.voterId === currentVoter.id
+    );
+
+    // Block extra selections if gallery policy is strictly set to 'block'
+    if (!hasVoted && gallery.excessPolicy === 'block') {
+      if (myVotesCount >= gallery.quotaIncluded) {
+        onShowToast(
+          'Cota Máxima Atingida!',
+          `O fotógrafo limitou esta galeria ao máximo de ${gallery.quotaIncluded} foto(s) inclusas. Desmarque uma foto selecionada anteriormente para adicionar esta.`,
+          'warning'
+        );
+        return;
+      }
+    }
+
     const updated = await togglePhotoVoteAsync(gallery, photo.id, currentVoter);
     onUpdateGallery(updated);
 

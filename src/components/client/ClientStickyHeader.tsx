@@ -73,6 +73,21 @@ export const ClientStickyHeader: React.FC<ClientStickyHeaderProps> = ({
       );
     }
 
+    if (gallery.excessPolicy === 'block') {
+      const isFull = myVotesCount >= quota;
+      return (
+        <span className="text-zinc-300">
+          <strong className="text-white font-mono">{myVotesCount}</strong> de{' '}
+          <strong className="text-zinc-200 font-mono">{quota}</strong> inclusas (Limite Fixo)
+          {isFull ? (
+            <span className="text-rose-400 font-semibold ml-1.5">(Cota Máxima Atingida)</span>
+          ) : (
+            <span className="text-zinc-400 text-xs ml-1.5">({quota - myVotesCount} restantes)</span>
+          )}
+        </span>
+      );
+    }
+
     return (
       <span className="text-zinc-300">
         <strong className="text-white font-mono">{myVotesCount}</strong> de{' '}

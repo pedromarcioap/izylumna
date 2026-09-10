@@ -98,6 +98,26 @@ export const ClientFinalizeModal: React.FC<ClientFinalizeModalProps> = ({
           </div>
         </div>
 
+        {/* Quota Policy Banner */}
+        <div className="p-3 rounded-xl bg-zinc-950/80 border border-zinc-800 flex items-center justify-between text-xs">
+          <span className="text-zinc-400 font-medium">Regra de Seleção da Galeria:</span>
+          {gallery.excessPolicy === 'block' && (
+            <Badge variant="warning" className="font-semibold">
+              Cota Fixa ({gallery.quotaIncluded} fotos max - Bloqueado)
+            </Badge>
+          )}
+          {gallery.excessPolicy === 'charge' && (
+            <Badge variant="amber" className="font-semibold">
+              Cota Inclusa ({gallery.quotaIncluded} fotos + R$ {gallery.extraPhotoPrice}/extra)
+            </Badge>
+          )}
+          {gallery.excessPolicy === 'free_approval' && (
+            <Badge variant="success" className="font-semibold">
+              Seleção Livre (Aprovação Sujeita a Ajustes)
+            </Badge>
+          )}
+        </div>
+
         {/* Selected Photos Thumbnails Strip */}
         <div className="space-y-2">
           <span className="text-xs font-semibold text-zinc-300 block">

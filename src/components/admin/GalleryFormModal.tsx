@@ -104,6 +104,8 @@ export const GalleryFormModal: React.FC<GalleryFormModalProps> = ({
   useEffect(() => {
     const session = getPhotographerSession();
     const defaultText = session?.profile?.defaultWatermarkText || 'PROVA • SEU ESTÚDIO • PROVA';
+    const defaultPosition = session?.profile?.defaultWatermarkPosition || 'both';
+    const defaultOpacity = session?.profile?.defaultWatermarkOpacity ?? 0.25;
 
     if (galleryToEdit) {
       setTitle(galleryToEdit.title);
@@ -120,8 +122,8 @@ export const GalleryFormModal: React.FC<GalleryFormModalProps> = ({
       setExtraPhotoPrice(galleryToEdit.extraPhotoPrice || 30);
       setWatermarkEnabled(galleryToEdit.watermarkEnabled);
       setWatermarkText(galleryToEdit.watermarkText || defaultText);
-      setWatermarkPosition(galleryToEdit.watermarkPosition || 'both');
-      setWatermarkOpacity(galleryToEdit.watermarkOpacity ?? 0.25);
+      setWatermarkPosition(galleryToEdit.watermarkPosition || defaultPosition);
+      setWatermarkOpacity(galleryToEdit.watermarkOpacity ?? defaultOpacity);
 
       setPredefinedVoters(galleryToEdit.predefinedVoters || [
         { id: 'v1', name: 'Noiva', isDecisionMaker: true },
@@ -144,11 +146,11 @@ export const GalleryFormModal: React.FC<GalleryFormModalProps> = ({
       setPinCode(Math.floor(1000 + Math.random() * 9000).toString());
       setQuotaIncluded(20);
       setExcessPolicy('charge');
-      setExtraPhotoPrice(30);
+      setExtraPhotoPrice(session?.profile?.defaultExtraPrice || 30);
       setWatermarkEnabled(true);
       setWatermarkText(defaultText);
-      setWatermarkPosition('both');
-      setWatermarkOpacity(0.25);
+      setWatermarkPosition(defaultPosition);
+      setWatermarkOpacity(defaultOpacity);
 
       setPredefinedVoters([
         { id: 'v1', name: 'Noiva', isDecisionMaker: true },

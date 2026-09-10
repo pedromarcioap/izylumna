@@ -212,6 +212,8 @@ function mapRowToGallery(row: any, photosRows: any[] = [], selectionRow: any = n
     extraPhotoPrice: Number(row.extra_photo_price) || 30,
     watermarkEnabled: Boolean(row.watermark_enabled ?? true),
     watermarkText: row.watermark_text || 'PROVA • LUMINA STUDIO • PROVA',
+    watermarkPosition: row.watermark_position || 'both',
+    watermarkOpacity: typeof row.watermark_opacity === 'number' ? row.watermark_opacity : 0.25,
     photos,
     clientSelection: {
       id: selectionRow?.id,
@@ -522,6 +524,8 @@ export async function saveGalleryAsync(gallery: Gallery): Promise<Gallery> {
       extra_photo_price: Number(gallery.extraPhotoPrice) || 30,
       watermark_enabled: Boolean(gallery.watermarkEnabled ?? true),
       watermark_text: gallery.watermarkText || 'PROVA • LUMINA STUDIO • PROVA',
+      watermark_position: gallery.watermarkPosition || 'both',
+      watermark_opacity: gallery.watermarkOpacity ?? 0.25,
       cover_photo_url: cleanCoverUrl,
       updated_at: now
     };

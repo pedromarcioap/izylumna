@@ -6,6 +6,7 @@ import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 import { SafeImage } from '../common/SafeImage';
 import { uploadPhotoFile, uploadPhotosInBatches } from '../../lib/photoUpload';
+import { WatermarkSettingsModal } from './WatermarkSettingsModal';
 import {
   ArrowLeft,
   Copy,
@@ -22,7 +23,8 @@ import {
   CheckCircle2,
   AlertCircle,
   Filter,
-  Upload
+  Upload,
+  ShieldCheck
 } from 'lucide-react';
 
 export interface GalleryDetailViewProps {
@@ -45,6 +47,7 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
   const [copiedNoExt, setCopiedNoExt] = useState(false);
   const [activeFilter, setActiveFilter] = useState<'consensus' | 'all_voted' | 'voter' | 'package' | 'extra' | 'commented'>('consensus');
   const [selectedVoterIdFilter, setSelectedVoterIdFilter] = useState<string>('');
+  const [isWatermarkModalOpen, setIsWatermarkModalOpen] = useState(false);
 
   const handleDetailFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -250,6 +253,10 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
             <Upload className="w-3.5 h-3.5 text-amber-400" />
             <span>Adicionar Fotos</span>
           </Button>
+          <Button variant="outline" size="sm" onClick={() => setIsWatermarkModalOpen(true)}>
+            <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+            <span>Marca d'Água</span>
+          </Button>
           <Button variant="outline" size="sm" onClick={() => onEditGallery(gallery)}>
             <SlidersHorizontal className="w-3.5 h-3.5" />
             <span>Configurações & Regras</span>
@@ -290,6 +297,15 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
               <span className="flex items-center gap-1.5">
                 <span className="text-amber-400/90 font-mono">PIN: {gallery.pinCode || 'Sem PIN'}</span>
               </span>
+              <button
+                type="button"
+                onClick={() => setIsWatermarkModalOpen(true)}
+                className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-zinc-950/80 border border-zinc-800 hover:border-amber-500/40 text-zinc-300 hover:text-amber-300 transition-colors"
+                title="Clique para editar as configurações da marca d'água"
+              >
+                <ShieldCheck className={`w-3.5 h-3.5 ${gallery.watermarkEnabled ? 'text-amber-400' : 'text-zinc-500'}`} />
+                <span>Marca d'Água: <strong className={gallery.watermarkEnabled ? 'text-amber-300' : 'text-zinc-400'}>{gallery.watermarkEnabled ? 'Ativa' : 'Desativada'}</strong></span>
+              </button>
             </div>
           </div>
 
@@ -633,6 +649,17 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
             );
           })}
         </div>
+      )}
+
+      {/* Watermark Settings Modal */}
+      {isWatermarkModalOpen && (
+        <WatermarkSettingsModal
+          isOpen={isWatermarkModalOpen}
+          onClose={() => setIsWatermarkModalOpen(false)}
+          gallery={gallery}
+          onSave={onEditGallery}
+          onShowToast={onShowToast}
+        />
       )}
     </div>
   );

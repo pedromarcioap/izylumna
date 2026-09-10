@@ -39,6 +39,12 @@ export const PhotographerSettingsModal: React.FC<PhotographerSettingsModalProps>
   const [defaultWatermark, setDefaultWatermark] = useState(
     profile.defaultWatermarkText || 'PROVA • LUMINA STUDIO • PROVA'
   );
+  const [defaultPosition, setDefaultPosition] = useState<'grid' | 'center' | 'both' | 'bottom-right'>(
+    profile.defaultWatermarkPosition || 'both'
+  );
+  const [defaultOpacity, setDefaultOpacity] = useState<number>(
+    profile.defaultWatermarkOpacity ?? 0.25
+  );
   const [defaultExtraPrice, setDefaultExtraPrice] = useState(
     profile.defaultExtraPrice || 30
   );
@@ -50,6 +56,8 @@ export const PhotographerSettingsModal: React.FC<PhotographerSettingsModalProps>
       studioName: studioName.trim(),
       phone: phone.trim(),
       defaultWatermarkText: defaultWatermark.trim(),
+      defaultWatermarkPosition: defaultPosition,
+      defaultWatermarkOpacity: defaultOpacity,
       defaultExtraPrice: Number(defaultExtraPrice)
     };
 
@@ -162,6 +170,38 @@ export const PhotographerSettingsModal: React.FC<PhotographerSettingsModalProps>
               onChange={(e) => setDefaultWatermark(e.target.value)}
               placeholder="PROVA • SEU ESTÚDIO"
             />
+
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-zinc-300 block">
+                Posição Padrão da Marca d'Água
+              </label>
+              <select
+                value={defaultPosition}
+                onChange={(e) => setDefaultPosition(e.target.value as any)}
+                className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-zinc-200 focus:ring-1 focus:ring-amber-500"
+              >
+                <option value="both">Grade Diagonal + Centro (Máxima Segurança)</option>
+                <option value="grid">Grade Diagonal Repetida</option>
+                <option value="center">Selo Centralizado</option>
+                <option value="bottom-right">Canto Inferior Direito</option>
+              </select>
+            </div>
+
+            <div className="space-y-1.5 p-3 rounded-xl bg-zinc-950/60 border border-zinc-800">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-zinc-300">Opacidade Padrão</span>
+                <span className="font-mono text-amber-400 font-bold">{Math.round(defaultOpacity * 100)}%</span>
+              </div>
+              <input
+                type="range"
+                min="0.10"
+                max="0.70"
+                step="0.05"
+                value={defaultOpacity}
+                onChange={(e) => setDefaultOpacity(parseFloat(e.target.value))}
+                className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-amber-500"
+              />
+            </div>
 
             <Input
               label="Preço Padrão por Foto Extra (R$)"

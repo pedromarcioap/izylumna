@@ -7,6 +7,7 @@ import { Badge } from '../ui/Badge';
 import { Input } from '../ui/Input';
 import { SafeImage } from '../common/SafeImage';
 import { PhotographerSettingsModal } from './PhotographerSettingsModal';
+import { WatermarkSettingsModal } from './WatermarkSettingsModal';
 import { DeleteConfirmModal } from '../common/DeleteConfirmModal';
 import { UserManagementView } from './UserManagementView';
 import { useAuth } from '../../contexts/AuthContext';
@@ -72,6 +73,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [statusFilter, setStatusFilter] = useState<'all' | 'awaiting_client' | 'completed' | 'draft'>('all');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [galleryToDelete, setGalleryToDelete] = useState<Gallery | null>(null);
+  const [watermarkGallery, setWatermarkGallery] = useState<Gallery | null>(null);
 
 
   // Metrics computation
@@ -569,6 +571,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
                           <div className="flex items-center gap-1">
                             <button
+                              onClick={() => setWatermarkGallery(gallery)}
+                              className="p-1.5 text-zinc-400 hover:text-amber-400 hover:bg-amber-500/10 rounded transition-colors"
+                              title="Editar Marca d'Água"
+                            >
+                              <ShieldCheck className="w-3.5 h-3.5" />
+                            </button>
+                            <button
                               onClick={() => onEditGallery(gallery)}
                               className="p-1.5 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded transition-colors"
                               title="Editar galeria"
@@ -801,6 +810,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         }}
         galleryTitle={galleryToDelete?.title || ''}
       />
+
+      {/* Watermark Settings Modal */}
+      {watermarkGallery && (
+        <WatermarkSettingsModal
+          isOpen={!!watermarkGallery}
+          onClose={() => setWatermarkGallery(null)}
+          gallery={watermarkGallery}
+          onSave={onEditGallery}
+          onShowToast={onShowToast}
+        />
+      )}
     </div>
   );
 };

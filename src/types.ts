@@ -132,6 +132,8 @@ export interface PhotographerProfile {
   phone?: string;
   avatarUrl?: string;
   defaultWatermarkText?: string;
+  defaultWatermarkPosition?: 'grid' | 'center' | 'both' | 'bottom-right';
+  defaultWatermarkOpacity?: number;
   defaultExtraPrice?: number;
 }
 
