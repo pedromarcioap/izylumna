@@ -15,6 +15,7 @@ export interface ClientStickyHeaderProps {
   onFilterChange: (filter: 'all' | 'my_choices' | 'consensus' | 'commented') => void;
   onOpenFinalizeModal: () => void;
   isSubmitted: boolean;
+  onResetMyVotes?: () => void;
 }
 
 export const ClientStickyHeader: React.FC<ClientStickyHeaderProps> = ({
@@ -27,7 +28,8 @@ export const ClientStickyHeader: React.FC<ClientStickyHeaderProps> = ({
   activeFilter,
   onFilterChange,
   onOpenFinalizeModal,
-  isSubmitted
+  isSubmitted,
+  onResetMyVotes
 }) => {
   const quota = gallery.quotaIncluded;
   const threshold = gallery.consensusThreshold || 2;
@@ -115,14 +117,27 @@ export const ClientStickyHeader: React.FC<ClientStickyHeaderProps> = ({
             </span>
           </div>
 
-          <button
-            type="button"
-            onClick={onChangeVoter}
-            className="flex items-center text-[11px] text-walnut-400 hover:text-brand-emerald transition-colors shrink-0 font-medium hover:underline"
-          >
-            <RefreshCw className="w-3 h-3 mr-1" />
-            Alternar participante
-          </button>
+          <div className="flex items-center gap-3 shrink-0">
+            {myVotesCount > 0 && onResetMyVotes && (
+              <button
+                type="button"
+                onClick={onResetMyVotes}
+                className="flex items-center text-[11px] text-red-400/90 hover:text-red-300 transition-colors font-medium hover:underline"
+                title="Zerar todos os seus votos nesta galeria"
+              >
+                <RefreshCw className="w-3 h-3 mr-1" />
+                Zerar meus votos ({myVotesCount})
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onChangeVoter}
+              className="flex items-center text-[11px] text-walnut-400 hover:text-brand-emerald transition-colors font-medium hover:underline"
+            >
+              <RefreshCw className="w-3 h-3 mr-1" />
+              Alternar participante
+            </button>
+          </div>
         </div>
       </div>
 

@@ -1,9 +1,17 @@
 import React, { useState } from 'react';
 import { Gallery, Photo } from '../../types';
-import { generateLightroomSelectionString, downloadApprovalManifest } from '../../lib/storage';
+import {
+  generateLightroomSelectionString,
+  downloadApprovalManifest,
+  resetGalleryVotesAsync,
+  resetVoterVotesAsync,
+  clearPhotoVotesAsync,
+  deleteVoteAsync
+} from '../../lib/storage';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
+import { Dialog } from '../ui/Dialog';
 import { SafeImage } from '../common/SafeImage';
 import { uploadPhotoFile, uploadPhotosInBatches } from '../../lib/photoUpload';
 import { extractExif } from '../../lib/exif';
@@ -25,7 +33,10 @@ import {
   AlertCircle,
   Filter,
   Upload,
-  ShieldCheck
+  ShieldCheck,
+  RotateCcw,
+  Trash2,
+  AlertTriangle
 } from 'lucide-react';
 
 export interface GalleryDetailViewProps {
@@ -49,6 +60,58 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
   const [activeFilter, setActiveFilter] = useState<'consensus' | 'all_voted' | 'voter' | 'package' | 'extra' | 'commented'>('consensus');
   const [selectedVoterIdFilter, setSelectedVoterIdFilter] = useState<string>('');
   const [isWatermarkModalOpen, setIsWatermarkModalOpen] = useState(false);
+
+  // Voting reset modal states
+  const [isResetAllModalOpen, setIsResetAllModalOpen] = useState(false);
+  const [voterToReset, setVoterToReset] = useState<any | null>(null);
+  const [photoToClear, setPhotoToClear] = useState<Photo | null>(null);
+
+  const handleResetAllVotes = async () => {
+    try {
+      const updated = await resetGalleryVotesAsync(gallery);
+      onEditGallery(updated);
+      setIsResetAllModalOpen(false);
+      onShowToast(
+        'Votação Zerada!',
+        'Todos os votos registrados na galeria foram limpos com sucesso.',
+        'success'
+      );
+    } catch (e) {
+      onShowToast('Erro ao Zerar Votação', 'Falha ao redefinir a votação.', 'error');
+    }
+  };
+
+  const handleResetVoterVotes = async () => {
+    if (!voterToReset) return;
+    try {
+      const updated = await resetVoterVotesAsync(gallery, voterToReset.id);
+      onEditGallery(updated);
+      onShowToast(
+        'Votos do Votante Zerados!',
+        `Todos os votos de ${voterToReset.name} foram removidos.`,
+        'success'
+      );
+      setVoterToReset(null);
+    } catch (e) {
+      onShowToast('Erro ao Zerar Votos', 'Falha ao remover votos do participante.', 'error');
+    }
+  };
+
+  const handleClearPhotoVotes = async () => {
+    if (!photoToClear) return;
+    try {
+      const updated = await clearPhotoVotesAsync(gallery, photoToClear.id);
+      onEditGallery(updated);
+      onShowToast(
+        'Votos da Foto Limpos!',
+        `Votos da foto ${photoToClear.originalFileName} foram zerados.`,
+        'info'
+      );
+      setPhotoToClear(null);
+    } catch (e) {
+      onShowToast('Erro ao Limpar Votos', 'Falha ao remover votos da foto.', 'error');
+    }
+  };
 
   const handleDetailFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -266,6 +329,16 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
             <SlidersHorizontal className="w-3.5 h-3.5" />
             <span>Configurações & Regras</span>
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsResetAllModalOpen(true)}
+            className="text-red-400 border-red-500/30 hover:bg-red-500/10 hover:text-red-300"
+            title="Zerar todos os votos da galeria e reiniciar a votação"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Zerar Votação Total</span>
+          </Button>
           <Button variant="amber" size="sm" onClick={() => onOpenClientView(gallery.id)}>
             <Eye className="w-3.5 h-3.5" />
             <span>Visão do Cliente (Votante)</span>
@@ -422,15 +495,26 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
 
                     <div className="mt-3 flex items-center justify-between text-xs text-zinc-400 pt-2 border-t border-zinc-850">
                       <span>{votesCount} fotos votadas</span>
-                      <button
-                        onClick={() => {
-                          setSelectedVoterIdFilter(voter.id);
-                          setActiveFilter('voter');
-                        }}
-                        className="text-amber-400 hover:underline text-[11px] font-medium flex items-center gap-1"
-                      >
-                        <Filter className="w-3 h-3" /> Ver votos
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => {
+                            setSelectedVoterIdFilter(voter.id);
+                            setActiveFilter('voter');
+                          }}
+                          className="text-amber-400 hover:underline text-[11px] font-medium flex items-center gap-1"
+                        >
+                          <Filter className="w-3 h-3" /> Ver
+                        </button>
+                        {votesCount > 0 && (
+                          <button
+                            onClick={() => setVoterToReset(voter)}
+                            className="text-red-400/80 hover:text-red-400 hover:underline text-[11px] font-medium flex items-center gap-1"
+                            title="Zerar todos os votos deste participante"
+                          >
+                            <RotateCcw className="w-3 h-3" /> Zerar
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
@@ -614,10 +698,19 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
                 </div>
 
                 <div className="p-3.5 space-y-2">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-1">
                     <span className="font-mono text-xs font-semibold text-zinc-200 truncate">
                       {photo.originalFileName}
                     </span>
+                    {votesList.length > 0 && (
+                      <button
+                        onClick={() => setPhotoToClear(photo)}
+                        className="text-[10px] text-red-400/80 hover:text-red-300 hover:underline flex items-center gap-0.5 shrink-0 font-medium"
+                        title="Limpar todos os votos desta foto"
+                      >
+                        <Trash2 className="w-2.5 h-2.5" /> Limpar
+                      </button>
+                    )}
                   </div>
 
                   {/* Voter Chips */}
@@ -626,9 +719,25 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
                       {votesList.map((v) => (
                         <span
                           key={v.voterId}
-                          className="px-1.5 py-0.5 rounded bg-zinc-800 text-[10px] text-zinc-300 font-medium"
+                          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-zinc-800 text-[10px] text-zinc-300 font-medium border border-zinc-700/50"
                         >
-                          ✓ {v.voterName}
+                          <span>✓ {v.voterName}</span>
+                          <button
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              const updated = await deleteVoteAsync(gallery, photo.id, v.voterId);
+                              onEditGallery(updated);
+                              onShowToast(
+                                'Voto Removido',
+                                `Voto de ${v.voterName} removido da foto ${photo.originalFileName}`,
+                                'info'
+                              );
+                            }}
+                            className="text-zinc-400 hover:text-red-400 hover:bg-zinc-700 rounded p-0.5 font-bold transition-colors"
+                            title={`Remover voto de ${v.voterName}`}
+                          >
+                            ✕
+                          </button>
                         </span>
                       ))}
                     </div>
@@ -666,6 +775,110 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
           onShowToast={onShowToast}
         />
       )}
+
+      {/* Confirmation Dialog: Zerar Votação Total */}
+      <Dialog
+        isOpen={isResetAllModalOpen}
+        onClose={() => setIsResetAllModalOpen(false)}
+        title={
+          <div className="flex items-center gap-2 text-red-400">
+            <AlertTriangle className="w-5 h-5" />
+            <span>Zerar Toda a Votação?</span>
+          </div>
+        }
+        description="Atenção: esta ação irá resetar completamente a seleção de fotos."
+        maxWidth="md"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-walnut-300">
+            Você está prestes a remover <strong className="text-red-400">TODOS os votos</strong> de todos os participantes cadastrados nesta galeria (<strong>{gallery.title}</strong>).
+          </p>
+          <div className="p-3 rounded-lg bg-red-950/40 border border-red-800/50 text-xs text-red-300 space-y-1">
+            <p className="font-semibold">• O status da galeria retornará para em andamento.</p>
+            <p className="font-semibold">• As finalizações dos clientes serão canceladas.</p>
+            <p className="font-semibold">• Essa ação é irreversível.</p>
+          </div>
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-walnut-700">
+            <Button variant="ghost" size="sm" onClick={() => setIsResetAllModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleResetAllVotes}
+              className="bg-red-600/20 text-red-300 border-red-500/50 hover:bg-red-600 hover:text-white"
+            >
+              Sim, Zerar Toda a Votação
+            </Button>
+          </div>
+        </div>
+      </Dialog>
+
+      {/* Confirmation Dialog: Zerar Votos do Votante */}
+      <Dialog
+        isOpen={!!voterToReset}
+        onClose={() => setVoterToReset(null)}
+        title={
+          <div className="flex items-center gap-2 text-amber-400">
+            <RotateCcw className="w-5 h-5" />
+            <span>Zerar votos de {voterToReset?.name}?</span>
+          </div>
+        }
+        description="Reiniciar a participação deste cliente."
+        maxWidth="md"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-walnut-300">
+            Todos os votos marcados por <strong className="text-walnut-100">{voterToReset?.name}</strong> serão apagados da galeria. Se o cliente tiver finalizado, a sua finalização será desfeita.
+          </p>
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-walnut-700">
+            <Button variant="ghost" size="sm" onClick={() => setVoterToReset(null)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleResetVoterVotes}
+              className="bg-amber-600/20 text-amber-300 border-amber-500/50 hover:bg-amber-600 hover:text-white"
+            >
+              Confirmar e Zerar Votos
+            </Button>
+          </div>
+        </div>
+      </Dialog>
+
+      {/* Confirmation Dialog: Limpar Votos da Foto */}
+      <Dialog
+        isOpen={!!photoToClear}
+        onClose={() => setPhotoToClear(null)}
+        title={
+          <div className="flex items-center gap-2 text-zinc-300">
+            <Trash2 className="w-5 h-5 text-red-400" />
+            <span>Limpar Votos da Foto</span>
+          </div>
+        }
+        description={photoToClear?.originalFileName}
+        maxWidth="md"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-walnut-300">
+            Deseja remover todos os votos registrados para a foto <strong className="text-walnut-100">{photoToClear?.originalFileName}</strong>?
+          </p>
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-walnut-700">
+            <Button variant="ghost" size="sm" onClick={() => setPhotoToClear(null)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleClearPhotoVotes}
+              className="bg-red-600/20 text-red-300 border-red-500/50 hover:bg-red-600 hover:text-white"
+            >
+              Limpar Votos
+            </Button>
+          </div>
+        </div>
+      </Dialog>
     </div>
   );
 };

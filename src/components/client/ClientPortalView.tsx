@@ -11,8 +11,12 @@ import {
   togglePhotoVoteAsync,
   addPhotoCommentAsync,
   deletePhotoCommentAsync,
-  finalizeVoterSelectionAsync
+  finalizeVoterSelectionAsync,
+  resetVoterVotesAsync
 } from '../../lib/storage';
+import { Dialog } from '../ui/Dialog';
+import { Button } from '../ui/Button';
+import { RotateCcw, AlertTriangle } from 'lucide-react';
 
 export interface ClientPortalViewProps {
   gallery: Gallery;
@@ -57,6 +61,23 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
   const [commentPhoto, setCommentPhoto] = useState<Photo | null>(null);
   const [isFinalizeModalOpen, setIsFinalizeModalOpen] = useState(false);
   const [forceReviewMode, setForceReviewMode] = useState(false);
+  const [isResetMyVotesModalOpen, setIsResetMyVotesModalOpen] = useState(false);
+
+  const handleResetMyVotes = async () => {
+    if (!currentVoter) return;
+    try {
+      const updated = await resetVoterVotesAsync(gallery, currentVoter.id);
+      onUpdateGallery(updated);
+      const updatedVoter = { ...currentVoter, hasFinalized: false };
+      setCurrentVoter(updatedVoter);
+      localStorage.setItem('izylumna_current_voter', JSON.stringify(updatedVoter));
+      localStorage.setItem(`izylumna_voter_${gallery.id}`, JSON.stringify(updatedVoter));
+      setIsResetMyVotesModalOpen(false);
+      onShowToast('Votos Zerados!', 'Sua seleção nesta galeria foi zerada com sucesso.', 'info');
+    } catch (e) {
+      onShowToast('Erro ao Zerar Votos', 'Não foi possível zerar seus votos.', 'error');
+    }
+  };
 
   // Open voter identity modal if unlocked but no voter is selected
   useEffect(() => {
@@ -241,6 +262,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
         onFilterChange={setActiveFilter}
         onOpenFinalizeModal={() => setIsFinalizeModalOpen(true)}
         isSubmitted={Boolean(isSubmitted)}
+        onResetMyVotes={() => setIsResetMyVotesModalOpen(true)}
       />
 
       {/* Intro Description Banner */}
@@ -309,6 +331,43 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
         consensusCount={consensusCount}
         onConfirmSubmit={handleConfirmSubmit}
       />
+
+      {/* Confirmation Dialog: Zerar Meus Votos (Client) */}
+      <Dialog
+        isOpen={isResetMyVotesModalOpen}
+        onClose={() => setIsResetMyVotesModalOpen(false)}
+        title={
+          <div className="flex items-center gap-2 text-red-400">
+            <RotateCcw className="w-5 h-5" />
+            <span>Zerar Todos os Seus Votos?</span>
+          </div>
+        }
+        description="Recomeçar suas escolhas do zero."
+        maxWidth="md"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-walnut-300">
+            Você está prestes a remover <strong className="text-red-400">todos os {myVotesCount} votos</strong> efetuados por você (<strong className="text-walnut-100">{currentVoter?.name}</strong>) nesta galeria.
+          </p>
+          <div className="p-3 rounded-lg bg-walnut-950/60 border border-brand-dark/50 text-xs text-walnut-300 space-y-1">
+            <p>• Suas fotos marcadas serão limpas.</p>
+            <p>• Se você já havia finalizado, sua seleção será reaberta para edição.</p>
+          </div>
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-walnut-700">
+            <Button variant="ghost" size="sm" onClick={() => setIsResetMyVotesModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleResetMyVotes}
+              className="bg-red-600/20 text-red-300 border-red-500/50 hover:bg-red-600 hover:text-white"
+            >
+              Sim, Zerar Meus Votos
+            </Button>
+          </div>
+        </div>
+      </Dialog>
     </div>
   );
 };

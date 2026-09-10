@@ -644,6 +644,216 @@ export async function togglePhotoVoteAsync(
 }
 
 /**
+ * Reset/clear ALL votes in a gallery (complete voting reset)
+ */
+export async function resetGalleryVotesAsync(gallery: Gallery): Promise<Gallery> {
+  const now = new Date().toISOString();
+
+  // Reset voter finalized statuses
+  const resetVoters = (gallery.voters || gallery.clientSelection.voters || []).map((v) => ({
+    ...v,
+    hasFinalized: false,
+    finalizedAt: undefined
+  }));
+
+  const updatedSelection: ClientSelectionData = {
+    ...gallery.clientSelection,
+    selectedPhotoIds: [],
+    votes: {},
+    voters: resetVoters,
+    completedAt: undefined,
+    status: 'pending'
+  };
+
+  const updatedGallery: Gallery = {
+    ...gallery,
+    status: gallery.status === 'completed' ? 'awaiting_client' : gallery.status,
+    voters: resetVoters,
+    clientSelection: updatedSelection,
+    photos: gallery.photos.map((p) => ({
+      ...p,
+      votes: []
+    })),
+    updatedAt: now
+  };
+
+  // Update local cache
+  const idx = cachedGalleries.findIndex((g) => g.id === gallery.id);
+  if (idx >= 0) {
+    cachedGalleries[idx] = updatedGallery;
+    updateLocalCache(cachedGalleries);
+  }
+
+  // Save selection & gallery to Supabase
+  await saveClientSelection(gallery.id, updatedSelection, 'pending', resetVoters);
+  if (isSupabaseConfigured && supabase) {
+    try {
+      await supabase
+        .from('galleries')
+        .update({ status: updatedGallery.status, voters: resetVoters, updated_at: now })
+        .eq('id', gallery.id);
+    } catch (e) {
+      console.warn('[Supabase Fallback] Error resetting gallery status in Supabase:', e);
+    }
+  }
+
+  return updatedGallery;
+}
+
+/**
+ * Reset/clear all votes cast by a specific voter
+ */
+export async function resetVoterVotesAsync(
+  gallery: Gallery,
+  voterId: string
+): Promise<Gallery> {
+  const now = new Date().toISOString();
+  const currentVotes: Record<string, PhotoVote[]> = { ...(gallery.clientSelection.votes || {}) };
+
+  // Remove votes from voterId across all photos
+  Object.keys(currentVotes).forEach((pId) => {
+    const filtered = (currentVotes[pId] || []).filter((v) => v.voterId !== voterId);
+    if (filtered.length > 0) {
+      currentVotes[pId] = filtered;
+    } else {
+      delete currentVotes[pId];
+    }
+  });
+
+  const selectedPhotoIds = Object.keys(currentVotes);
+
+  // Reset finalized status for this voter
+  const activeVoters = (gallery.voters || gallery.clientSelection.voters || []).map((v) =>
+    v.id === voterId ? { ...v, hasFinalized: false, finalizedAt: undefined } : v
+  );
+
+  const updatedSelection: ClientSelectionData = {
+    ...gallery.clientSelection,
+    selectedPhotoIds,
+    votes: currentVotes,
+    voters: activeVoters
+  };
+
+  const updatedGallery: Gallery = {
+    ...gallery,
+    voters: activeVoters,
+    clientSelection: updatedSelection,
+    photos: gallery.photos.map((p) => ({
+      ...p,
+      votes: currentVotes[p.id] || []
+    })),
+    updatedAt: now
+  };
+
+  // Update local cache
+  const idx = cachedGalleries.findIndex((g) => g.id === gallery.id);
+  if (idx >= 0) {
+    cachedGalleries[idx] = updatedGallery;
+    updateLocalCache(cachedGalleries);
+  }
+
+  // Save to Supabase
+  await saveClientSelection(gallery.id, updatedSelection, gallery.status, activeVoters);
+  if (isSupabaseConfigured && supabase) {
+    try {
+      await supabase.from('galleries').update({ voters: activeVoters }).eq('id', gallery.id);
+    } catch (e) {
+      console.warn('[Supabase Fallback] Error updating voters in Supabase:', e);
+    }
+  }
+
+  return updatedGallery;
+}
+
+/**
+ * Clear all votes for a single photo
+ */
+export async function clearPhotoVotesAsync(
+  gallery: Gallery,
+  photoId: string
+): Promise<Gallery> {
+  const now = new Date().toISOString();
+  const currentVotes: Record<string, PhotoVote[]> = { ...(gallery.clientSelection.votes || {}) };
+  delete currentVotes[photoId];
+
+  const selectedPhotoIds = Object.keys(currentVotes).filter(
+    (pId) => (currentVotes[pId] || []).length > 0
+  );
+
+  const updatedSelection: ClientSelectionData = {
+    ...gallery.clientSelection,
+    selectedPhotoIds,
+    votes: currentVotes
+  };
+
+  const updatedGallery: Gallery = {
+    ...gallery,
+    clientSelection: updatedSelection,
+    photos: gallery.photos.map((p) =>
+      p.id === photoId ? { ...p, votes: [] } : p
+    ),
+    updatedAt: now
+  };
+
+  // Update local cache
+  const idx = cachedGalleries.findIndex((g) => g.id === gallery.id);
+  if (idx >= 0) {
+    cachedGalleries[idx] = updatedGallery;
+    updateLocalCache(cachedGalleries);
+  }
+
+  await saveClientSelection(gallery.id, updatedSelection, gallery.status, gallery.voters);
+
+  return updatedGallery;
+}
+
+/**
+ * Delete a specific vote of a voter on a specific photo
+ */
+export async function deleteVoteAsync(
+  gallery: Gallery,
+  photoId: string,
+  voterId: string
+): Promise<Gallery> {
+  const now = new Date().toISOString();
+  const currentVotes: Record<string, PhotoVote[]> = { ...(gallery.clientSelection.votes || {}) };
+  const photoVotes = (currentVotes[photoId] || []).filter((v) => v.voterId !== voterId);
+
+  if (photoVotes.length > 0) {
+    currentVotes[photoId] = photoVotes;
+  } else {
+    delete currentVotes[photoId];
+  }
+
+  const selectedPhotoIds = Object.keys(currentVotes);
+
+  const updatedSelection: ClientSelectionData = {
+    ...gallery.clientSelection,
+    selectedPhotoIds,
+    votes: currentVotes
+  };
+
+  const updatedGallery: Gallery = {
+    ...gallery,
+    clientSelection: updatedSelection,
+    photos: gallery.photos.map((p) =>
+      p.id === photoId ? { ...p, votes: photoVotes } : p
+    ),
+    updatedAt: now
+  };
+
+  const idx = cachedGalleries.findIndex((g) => g.id === gallery.id);
+  if (idx >= 0) {
+    cachedGalleries[idx] = updatedGallery;
+    updateLocalCache(cachedGalleries);
+  }
+
+  await saveClientSelection(gallery.id, updatedSelection, gallery.status, gallery.voters);
+
+  return updatedGallery;
+}
+
+/**
  * Add a comment to a photo from a specific voter with local fallback
  */
 export async function addPhotoCommentAsync(
