@@ -26,154 +26,352 @@ export const INITIAL_GALLERIES: Gallery[] = [
         originalFileName: 'IMG_4021.CR3',
         url: 'https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=1200&auto=format&fit=crop',
         caption: 'A chegada da noiva',
-        orientation: 'landscape'
+        orientation: 'landscape',
+        metadata: {
+          camera: "Canon EOS R6 Mark II",
+          lens: "RF 50mm f/1.2L USM",
+          f_stop: "f/1.8",
+          shutter_speed: "1/250s",
+          iso: "ISO 200",
+          focal_length: "50mm",
+          taken_at: "2026-08-15T16:30:00Z"
+        }
       },
       {
         id: 'p-ml-02',
         originalFileName: 'IMG_4024.CR3',
         url: 'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?q=80&w=1200&auto=format&fit=crop',
         caption: 'Olhares no altar',
-        orientation: 'landscape'
+        orientation: 'landscape',
+        metadata: {
+          camera: "Canon EOS R6 Mark II",
+          lens: "RF 24-70mm f/2.8L IS",
+          f_stop: "f/2.8",
+          shutter_speed: "1/500s",
+          iso: "ISO 400",
+          focal_length: "35mm",
+          taken_at: "2026-08-15T17:15:00Z"
+        }
       },
       {
         id: 'p-ml-03',
         originalFileName: 'IMG_4030.CR3',
         url: 'https://images.unsplash.com/photo-1583939003579-730e3918a45a?q=80&w=1000&auto=format&fit=crop',
         caption: 'Votos emocionados',
-        orientation: 'portrait'
+        orientation: 'portrait',
+        metadata: {
+          camera: "Canon EOS 5D Mark IV",
+          lens: "EF 85mm f/1.4L IS",
+          f_stop: "f/1.4",
+          shutter_speed: "1/320s",
+          iso: "ISO 100",
+          focal_length: "85mm",
+          taken_at: "2026-08-15T16:45:00Z"
+        }
       },
       {
         id: 'p-ml-04',
         originalFileName: 'IMG_4038.CR3',
         url: 'https://images.unsplash.com/photo-1522673607200-164d1b6ce486?q=80&w=1200&auto=format&fit=crop',
         caption: 'Troca de alianças',
-        orientation: 'landscape'
+        orientation: 'landscape',
+        metadata: {
+          camera: "Sony Alpha 7 IV",
+          lens: "FE 35mm f/1.4 GM",
+          f_stop: "f/2.0",
+          shutter_speed: "1/160s",
+          iso: "ISO 800",
+          focal_length: "35mm",
+          taken_at: "2026-08-15T21:00:00Z"
+        }
       },
       {
         id: 'p-ml-05',
         originalFileName: 'IMG_4045.CR3',
         url: 'https://images.unsplash.com/photo-1520854221256-17451cc331bf?q=80&w=1200&auto=format&fit=crop',
         caption: 'O primeiro beijo de casados',
-        orientation: 'landscape'
+        orientation: 'landscape',
+        metadata: {
+          camera: "Nikon Z6 II",
+          lens: "NIKKOR Z 70-200mm f/2.8",
+          f_stop: "f/2.8",
+          shutter_speed: "1/1000s",
+          iso: "ISO 250",
+          focal_length: "135mm",
+          taken_at: "2026-08-15T18:00:00Z"
+        }
       },
       {
         id: 'p-ml-06',
         originalFileName: 'IMG_4052.CR3',
         url: 'https://images.unsplash.com/photo-1606800052052-a08af7148866?q=80&w=1200&auto=format&fit=crop',
         caption: 'Chuva de arroz e comemoração',
-        orientation: 'landscape'
+        orientation: 'landscape',
+        metadata: {
+          camera: "Canon EOS R5",
+          lens: "RF 100mm f/2.8L Macro",
+          f_stop: "f/4.0",
+          shutter_speed: "1/200s",
+          iso: "ISO 160",
+          focal_length: "100mm",
+          taken_at: "2026-08-15T14:20:00Z"
+        }
       },
       {
         id: 'p-ml-07',
         originalFileName: 'IMG_4060.CR3',
         url: 'https://images.unsplash.com/photo-1537633552985-df8429e8048b?q=80&w=1000&auto=format&fit=crop',
         caption: 'Retrato no pôr do sol',
-        orientation: 'portrait'
+        orientation: 'portrait',
+        metadata: {
+          camera: "Canon EOS R6 Mark II",
+          lens: "RF 50mm f/1.2L USM",
+          f_stop: "f/1.8",
+          shutter_speed: "1/250s",
+          iso: "ISO 200",
+          focal_length: "50mm",
+          taken_at: "2026-08-15T16:30:00Z"
+        }
       },
       {
         id: 'p-ml-08',
         originalFileName: 'IMG_4068.CR3',
         url: 'https://images.unsplash.com/photo-1544078751-58fee2d8a03b?q=80&w=1200&auto=format&fit=crop',
         caption: 'Detalhes do buquê e alianças',
-        orientation: 'landscape'
+        orientation: 'landscape',
+        metadata: {
+          camera: "Canon EOS R6 Mark II",
+          lens: "RF 24-70mm f/2.8L IS",
+          f_stop: "f/2.8",
+          shutter_speed: "1/500s",
+          iso: "ISO 400",
+          focal_length: "35mm",
+          taken_at: "2026-08-15T17:15:00Z"
+        }
       },
       {
         id: 'p-ml-09',
         originalFileName: 'IMG_4073.CR3',
         url: 'https://images.unsplash.com/photo-1515934751635-c81c6bc9a2d8?q=80&w=1200&auto=format&fit=crop',
         caption: 'Caminhada dos noivos no bosque',
-        orientation: 'landscape'
+        orientation: 'landscape',
+        metadata: {
+          camera: "Canon EOS 5D Mark IV",
+          lens: "EF 85mm f/1.4L IS",
+          f_stop: "f/1.4",
+          shutter_speed: "1/320s",
+          iso: "ISO 100",
+          focal_length: "85mm",
+          taken_at: "2026-08-15T16:45:00Z"
+        }
       },
       {
         id: 'p-ml-10',
         originalFileName: 'IMG_4085.CR3',
         url: 'https://images.unsplash.com/photo-1469371670807-013ccf25f16a?q=80&w=1200&auto=format&fit=crop',
         caption: 'Brinde dos padrinhos',
-        orientation: 'landscape'
+        orientation: 'landscape',
+        metadata: {
+          camera: "Sony Alpha 7 IV",
+          lens: "FE 35mm f/1.4 GM",
+          f_stop: "f/2.0",
+          shutter_speed: "1/160s",
+          iso: "ISO 800",
+          focal_length: "35mm",
+          taken_at: "2026-08-15T21:00:00Z"
+        }
       },
       {
         id: 'p-ml-11',
         originalFileName: 'IMG_4091.CR3',
         url: 'https://images.unsplash.com/photo-1509927083803-4bd519298ac4?q=80&w=1000&auto=format&fit=crop',
         caption: 'A dança dos noivos',
-        orientation: 'portrait'
+        orientation: 'portrait',
+        metadata: {
+          camera: "Nikon Z6 II",
+          lens: "NIKKOR Z 70-200mm f/2.8",
+          f_stop: "f/2.8",
+          shutter_speed: "1/1000s",
+          iso: "ISO 250",
+          focal_length: "135mm",
+          taken_at: "2026-08-15T18:00:00Z"
+        }
       },
       {
         id: 'p-ml-12',
         originalFileName: 'IMG_4102.CR3',
         url: 'https://images.unsplash.com/photo-1529636798458-92182e662485?q=80&w=1200&auto=format&fit=crop',
         caption: 'Festa e celebração com amigos',
-        orientation: 'landscape'
+        orientation: 'landscape',
+        metadata: {
+          camera: "Canon EOS R5",
+          lens: "RF 100mm f/2.8L Macro",
+          f_stop: "f/4.0",
+          shutter_speed: "1/200s",
+          iso: "ISO 160",
+          focal_length: "100mm",
+          taken_at: "2026-08-15T14:20:00Z"
+        }
       },
       {
         id: 'p-ml-13',
         originalFileName: 'IMG_4110.CR3',
         url: 'https://images.unsplash.com/photo-1532712938310-34cb3982ef74?q=80&w=1200&auto=format&fit=crop',
         caption: 'Detalhe da decoração iluminada',
-        orientation: 'landscape'
+        orientation: 'landscape',
+        metadata: {
+          camera: "Canon EOS R6 Mark II",
+          lens: "RF 50mm f/1.2L USM",
+          f_stop: "f/1.8",
+          shutter_speed: "1/250s",
+          iso: "ISO 200",
+          focal_length: "50mm",
+          taken_at: "2026-08-15T16:30:00Z"
+        }
       },
       {
         id: 'p-ml-14',
         originalFileName: 'IMG_4118.CR3',
         url: 'https://images.unsplash.com/photo-1524824267900-2fa9cbf7a506?q=80&w=1000&auto=format&fit=crop',
         caption: 'Mesa do bolo e doces finos',
-        orientation: 'portrait'
+        orientation: 'portrait',
+        metadata: {
+          camera: "Canon EOS R6 Mark II",
+          lens: "RF 24-70mm f/2.8L IS",
+          f_stop: "f/2.8",
+          shutter_speed: "1/500s",
+          iso: "ISO 400",
+          focal_length: "35mm",
+          taken_at: "2026-08-15T17:15:00Z"
+        }
       },
       {
         id: 'p-ml-15',
         originalFileName: 'IMG_4125.CR3',
         url: 'https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?q=80&w=1200&auto=format&fit=crop',
         caption: 'Abraço com os pais',
-        orientation: 'landscape'
+        orientation: 'landscape',
+        metadata: {
+          camera: "Canon EOS 5D Mark IV",
+          lens: "EF 85mm f/1.4L IS",
+          f_stop: "f/1.4",
+          shutter_speed: "1/320s",
+          iso: "ISO 100",
+          focal_length: "85mm",
+          taken_at: "2026-08-15T16:45:00Z"
+        }
       },
       {
         id: 'p-ml-16',
         originalFileName: 'IMG_4130.CR3',
         url: 'https://images.unsplash.com/photo-1519225421980-715cb0215aed?q=80&w=1200&auto=format&fit=crop',
         caption: 'Entrada na recepção',
-        orientation: 'landscape'
+        orientation: 'landscape',
+        metadata: {
+          camera: "Sony Alpha 7 IV",
+          lens: "FE 35mm f/1.4 GM",
+          f_stop: "f/2.0",
+          shutter_speed: "1/160s",
+          iso: "ISO 800",
+          focal_length: "35mm",
+          taken_at: "2026-08-15T21:00:00Z"
+        }
       },
       {
         id: 'p-ml-17',
         originalFileName: 'IMG_4139.CR3',
         url: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?q=80&w=1000&auto=format&fit=crop',
         caption: 'Retrato individual do noivo',
-        orientation: 'portrait'
+        orientation: 'portrait',
+        metadata: {
+          camera: "Nikon Z6 II",
+          lens: "NIKKOR Z 70-200mm f/2.8",
+          f_stop: "f/2.8",
+          shutter_speed: "1/1000s",
+          iso: "ISO 250",
+          focal_length: "135mm",
+          taken_at: "2026-08-15T18:00:00Z"
+        }
       },
       {
         id: 'p-ml-18',
         originalFileName: 'IMG_4145.CR3',
         url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=1000&auto=format&fit=crop',
         caption: 'Retrato individual da noiva',
-        orientation: 'portrait'
+        orientation: 'portrait',
+        metadata: {
+          camera: "Canon EOS R5",
+          lens: "RF 100mm f/2.8L Macro",
+          f_stop: "f/4.0",
+          shutter_speed: "1/200s",
+          iso: "ISO 160",
+          focal_length: "100mm",
+          taken_at: "2026-08-15T14:20:00Z"
+        }
       },
       {
         id: 'p-ml-19',
         originalFileName: 'IMG_4152.CR3',
         url: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?q=80&w=1200&auto=format&fit=crop',
         caption: 'Amigos na pista de dança',
-        orientation: 'landscape'
+        orientation: 'landscape',
+        metadata: {
+          camera: "Canon EOS R6 Mark II",
+          lens: "RF 50mm f/1.2L USM",
+          f_stop: "f/1.8",
+          shutter_speed: "1/250s",
+          iso: "ISO 200",
+          focal_length: "50mm",
+          taken_at: "2026-08-15T16:30:00Z"
+        }
       },
       {
         id: 'p-ml-20',
         originalFileName: 'IMG_4160.CR3',
         url: 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?q=80&w=1200&auto=format&fit=crop',
         caption: 'Corte do bolo',
-        orientation: 'landscape'
+        orientation: 'landscape',
+        metadata: {
+          camera: "Canon EOS R6 Mark II",
+          lens: "RF 24-70mm f/2.8L IS",
+          f_stop: "f/2.8",
+          shutter_speed: "1/500s",
+          iso: "ISO 400",
+          focal_length: "35mm",
+          taken_at: "2026-08-15T17:15:00Z"
+        }
       },
       {
         id: 'p-ml-21',
         originalFileName: 'IMG_4170.CR3',
         url: 'https://images.unsplash.com/photo-1545232979-8bf68ee9b1af?q=80&w=1200&auto=format&fit=crop',
         caption: 'Despedida com sparklers luminosos',
-        orientation: 'landscape'
+        orientation: 'landscape',
+        metadata: {
+          camera: "Canon EOS 5D Mark IV",
+          lens: "EF 85mm f/1.4L IS",
+          f_stop: "f/1.4",
+          shutter_speed: "1/320s",
+          iso: "ISO 100",
+          focal_length: "85mm",
+          taken_at: "2026-08-15T16:45:00Z"
+        }
       },
       {
         id: 'p-ml-22',
         originalFileName: 'IMG_4185.CR3',
         url: 'https://images.unsplash.com/photo-1510076857177-7470076d4098?q=80&w=1200&auto=format&fit=crop',
         caption: 'Espontânea dos noivos rindo',
-        orientation: 'landscape'
+        orientation: 'landscape',
+        metadata: {
+          camera: "Sony Alpha 7 IV",
+          lens: "FE 35mm f/1.4 GM",
+          f_stop: "f/2.0",
+          shutter_speed: "1/160s",
+          iso: "ISO 800",
+          focal_length: "35mm",
+          taken_at: "2026-08-15T21:00:00Z"
+        }
       }
     ],
     clientSelection: {
@@ -217,112 +415,256 @@ export const INITIAL_GALLERIES: Gallery[] = [
         originalFileName: 'DSC_0092.JPG',
         url: 'https://images.unsplash.com/photo-1544717305-2782549b5136?q=80&w=1200&auto=format&fit=crop',
         caption: 'Luz dourada da manhã',
-        orientation: 'landscape'
+        orientation: 'landscape',
+        metadata: {
+          camera: "Nikon Z6 II",
+          lens: "NIKKOR Z 70-200mm f/2.8",
+          f_stop: "f/2.8",
+          shutter_speed: "1/1000s",
+          iso: "ISO 250",
+          focal_length: "135mm",
+          taken_at: "2026-08-15T18:00:00Z"
+        }
       },
       {
         id: 'p-ct-02',
         originalFileName: 'DSC_0098.JPG',
         url: 'https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?q=80&w=1000&auto=format&fit=crop',
         caption: 'Mãos na barriga com sapatinho',
-        orientation: 'portrait'
+        orientation: 'portrait',
+        metadata: {
+          camera: "Canon EOS R5",
+          lens: "RF 100mm f/2.8L Macro",
+          f_stop: "f/4.0",
+          shutter_speed: "1/200s",
+          iso: "ISO 160",
+          focal_length: "100mm",
+          taken_at: "2026-08-15T14:20:00Z"
+        }
       },
       {
         id: 'p-ct-03',
         originalFileName: 'DSC_0104.JPG',
         url: 'https://images.unsplash.com/photo-1518895949257-7621c3c786d7?q=80&w=1200&auto=format&fit=crop',
         caption: 'O abraço do casal',
-        orientation: 'landscape'
+        orientation: 'landscape',
+        metadata: {
+          camera: "Canon EOS R6 Mark II",
+          lens: "RF 50mm f/1.2L USM",
+          f_stop: "f/1.8",
+          shutter_speed: "1/250s",
+          iso: "ISO 200",
+          focal_length: "50mm",
+          taken_at: "2026-08-15T16:30:00Z"
+        }
       },
       {
         id: 'p-ct-04',
         originalFileName: 'DSC_0112.JPG',
         url: 'https://images.unsplash.com/photo-1502086223501-7ea6ecd79368?q=80&w=1000&auto=format&fit=crop',
         caption: 'Retrato sereno da mamãe',
-        orientation: 'portrait'
+        orientation: 'portrait',
+        metadata: {
+          camera: "Canon EOS R6 Mark II",
+          lens: "RF 24-70mm f/2.8L IS",
+          f_stop: "f/2.8",
+          shutter_speed: "1/500s",
+          iso: "ISO 400",
+          focal_length: "35mm",
+          taken_at: "2026-08-15T17:15:00Z"
+        }
       },
       {
         id: 'p-ct-05',
         originalFileName: 'DSC_0120.JPG',
         url: 'https://images.unsplash.com/photo-1519689680058-324335c77eba?q=80&w=1200&auto=format&fit=crop',
         caption: 'Sorrisos espontâneos sob as árvores',
-        orientation: 'landscape'
+        orientation: 'landscape',
+        metadata: {
+          camera: "Canon EOS 5D Mark IV",
+          lens: "EF 85mm f/1.4L IS",
+          f_stop: "f/1.4",
+          shutter_speed: "1/320s",
+          iso: "ISO 100",
+          focal_length: "85mm",
+          taken_at: "2026-08-15T16:45:00Z"
+        }
       },
       {
         id: 'p-ct-06',
         originalFileName: 'DSC_0129.JPG',
         url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=1000&auto=format&fit=crop',
         caption: 'Close no olhar',
-        orientation: 'portrait'
+        orientation: 'portrait',
+        metadata: {
+          camera: "Sony Alpha 7 IV",
+          lens: "FE 35mm f/1.4 GM",
+          f_stop: "f/2.0",
+          shutter_speed: "1/160s",
+          iso: "ISO 800",
+          focal_length: "35mm",
+          taken_at: "2026-08-15T21:00:00Z"
+        }
       },
       {
         id: 'p-ct-07',
         originalFileName: 'DSC_0135.JPG',
         url: 'https://images.unsplash.com/photo-1522673607200-164d1b6ce486?q=80&w=1200&auto=format&fit=crop',
         caption: 'Silhueta contra a luz',
-        orientation: 'landscape'
+        orientation: 'landscape',
+        metadata: {
+          camera: "Nikon Z6 II",
+          lens: "NIKKOR Z 70-200mm f/2.8",
+          f_stop: "f/2.8",
+          shutter_speed: "1/1000s",
+          iso: "ISO 250",
+          focal_length: "135mm",
+          taken_at: "2026-08-15T18:00:00Z"
+        }
       },
       {
         id: 'p-ct-08',
         originalFileName: 'DSC_0144.JPG',
         url: 'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?q=80&w=1200&auto=format&fit=crop',
         caption: 'Carinho no jardim',
-        orientation: 'landscape'
+        orientation: 'landscape',
+        metadata: {
+          camera: "Canon EOS R5",
+          lens: "RF 100mm f/2.8L Macro",
+          f_stop: "f/4.0",
+          shutter_speed: "1/200s",
+          iso: "ISO 160",
+          focal_length: "100mm",
+          taken_at: "2026-08-15T14:20:00Z"
+        }
       },
       {
         id: 'p-ct-09',
         originalFileName: 'DSC_0150.JPG',
         url: 'https://images.unsplash.com/photo-1509927083803-4bd519298ac4?q=80&w=1000&auto=format&fit=crop',
         caption: 'Detalhe do vestido esvoaçante',
-        orientation: 'portrait'
+        orientation: 'portrait',
+        metadata: {
+          camera: "Canon EOS R6 Mark II",
+          lens: "RF 50mm f/1.2L USM",
+          f_stop: "f/1.8",
+          shutter_speed: "1/250s",
+          iso: "ISO 200",
+          focal_length: "50mm",
+          taken_at: "2026-08-15T16:30:00Z"
+        }
       },
       {
         id: 'p-ct-10',
         originalFileName: 'DSC_0159.JPG',
         url: 'https://images.unsplash.com/photo-1469371670807-013ccf25f16a?q=80&w=1200&auto=format&fit=crop',
         caption: 'Passeio pelo caminho de pedras',
-        orientation: 'landscape'
+        orientation: 'landscape',
+        metadata: {
+          camera: "Canon EOS R6 Mark II",
+          lens: "RF 24-70mm f/2.8L IS",
+          f_stop: "f/2.8",
+          shutter_speed: "1/500s",
+          iso: "ISO 400",
+          focal_length: "35mm",
+          taken_at: "2026-08-15T17:15:00Z"
+        }
       },
       {
         id: 'p-ct-11',
         originalFileName: 'DSC_0167.JPG',
         url: 'https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=1200&auto=format&fit=crop',
         caption: 'Olhar cúmplice',
-        orientation: 'landscape'
+        orientation: 'landscape',
+        metadata: {
+          camera: "Canon EOS 5D Mark IV",
+          lens: "EF 85mm f/1.4L IS",
+          f_stop: "f/1.4",
+          shutter_speed: "1/320s",
+          iso: "ISO 100",
+          focal_length: "85mm",
+          taken_at: "2026-08-15T16:45:00Z"
+        }
       },
       {
         id: 'p-ct-12',
         originalFileName: 'DSC_0172.JPG',
         url: 'https://images.unsplash.com/photo-1583939003579-730e3918a45a?q=80&w=1000&auto=format&fit=crop',
         caption: 'Alegria do papai',
-        orientation: 'portrait'
+        orientation: 'portrait',
+        metadata: {
+          camera: "Sony Alpha 7 IV",
+          lens: "FE 35mm f/1.4 GM",
+          f_stop: "f/2.0",
+          shutter_speed: "1/160s",
+          iso: "ISO 800",
+          focal_length: "35mm",
+          taken_at: "2026-08-15T21:00:00Z"
+        }
       },
       {
         id: 'p-ct-13',
         originalFileName: 'DSC_0180.JPG',
         url: 'https://images.unsplash.com/photo-1520854221256-17451cc331bf?q=80&w=1200&auto=format&fit=crop',
         caption: 'Beijo na testa',
-        orientation: 'landscape'
+        orientation: 'landscape',
+        metadata: {
+          camera: "Nikon Z6 II",
+          lens: "NIKKOR Z 70-200mm f/2.8",
+          f_stop: "f/2.8",
+          shutter_speed: "1/1000s",
+          iso: "ISO 250",
+          focal_length: "135mm",
+          taken_at: "2026-08-15T18:00:00Z"
+        }
       },
       {
         id: 'p-ct-14',
         originalFileName: 'DSC_0188.JPG',
         url: 'https://images.unsplash.com/photo-1537633552985-df8429e8048b?q=80&w=1000&auto=format&fit=crop',
         caption: 'Sentados no gramado',
-        orientation: 'portrait'
+        orientation: 'portrait',
+        metadata: {
+          camera: "Canon EOS R5",
+          lens: "RF 100mm f/2.8L Macro",
+          f_stop: "f/4.0",
+          shutter_speed: "1/200s",
+          iso: "ISO 160",
+          focal_length: "100mm",
+          taken_at: "2026-08-15T14:20:00Z"
+        }
       },
       {
         id: 'p-ct-15',
         originalFileName: 'DSC_0195.JPG',
         url: 'https://images.unsplash.com/photo-1515934751635-c81c6bc9a2d8?q=80&w=1200&auto=format&fit=crop',
         caption: 'Foto final com pôr do sol',
-        orientation: 'landscape'
+        orientation: 'landscape',
+        metadata: {
+          camera: "Canon EOS R6 Mark II",
+          lens: "RF 50mm f/1.2L USM",
+          f_stop: "f/1.8",
+          shutter_speed: "1/250s",
+          iso: "ISO 200",
+          focal_length: "50mm",
+          taken_at: "2026-08-15T16:30:00Z"
+        }
       },
       {
         id: 'p-ct-16',
         originalFileName: 'DSC_0201.JPG',
         url: 'https://images.unsplash.com/photo-1544078751-58fee2d8a03b?q=80&w=1200&auto=format&fit=crop',
         caption: 'Detalhe dos pezinhos na manta',
-        orientation: 'landscape'
+        orientation: 'landscape',
+        metadata: {
+          camera: "Canon EOS R6 Mark II",
+          lens: "RF 24-70mm f/2.8L IS",
+          f_stop: "f/2.8",
+          shutter_speed: "1/500s",
+          iso: "ISO 400",
+          focal_length: "35mm",
+          taken_at: "2026-08-15T17:15:00Z"
+        }
       }
     ],
     clientSelection: {
@@ -360,84 +702,192 @@ export const INITIAL_GALLERIES: Gallery[] = [
         originalFileName: 'CM_LOOK1_001.CR3',
         url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=1000&auto=format&fit=crop',
         caption: 'Look 1 - Alfaiataria e luz lateral',
-        orientation: 'portrait'
+        orientation: 'portrait',
+        metadata: {
+          camera: "Canon EOS 5D Mark IV",
+          lens: "EF 85mm f/1.4L IS",
+          f_stop: "f/1.4",
+          shutter_speed: "1/320s",
+          iso: "ISO 100",
+          focal_length: "85mm",
+          taken_at: "2026-08-15T16:45:00Z"
+        }
       },
       {
         id: 'p-cm-02',
         originalFileName: 'CM_LOOK1_014.CR3',
         url: 'https://images.unsplash.com/photo-1509927083803-4bd519298ac4?q=80&w=1000&auto=format&fit=crop',
         caption: 'Look 1 - Movimento e passos',
-        orientation: 'portrait'
+        orientation: 'portrait',
+        metadata: {
+          camera: "Sony Alpha 7 IV",
+          lens: "FE 35mm f/1.4 GM",
+          f_stop: "f/2.0",
+          shutter_speed: "1/160s",
+          iso: "ISO 800",
+          focal_length: "35mm",
+          taken_at: "2026-08-15T21:00:00Z"
+        }
       },
       {
         id: 'p-cm-03',
         originalFileName: 'CM_LOOK2_028.CR3',
         url: 'https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=1200&auto=format&fit=crop',
         caption: 'Look 2 - Vestido fluido',
-        orientation: 'landscape'
+        orientation: 'landscape',
+        metadata: {
+          camera: "Nikon Z6 II",
+          lens: "NIKKOR Z 70-200mm f/2.8",
+          f_stop: "f/2.8",
+          shutter_speed: "1/1000s",
+          iso: "ISO 250",
+          focal_length: "135mm",
+          taken_at: "2026-08-15T18:00:00Z"
+        }
       },
       {
         id: 'p-cm-04',
         originalFileName: 'CM_LOOK2_035.CR3',
         url: 'https://images.unsplash.com/photo-1583939003579-730e3918a45a?q=80&w=1000&auto=format&fit=crop',
         caption: 'Look 2 - Detalhe maquiagem',
-        orientation: 'portrait'
+        orientation: 'portrait',
+        metadata: {
+          camera: "Canon EOS R5",
+          lens: "RF 100mm f/2.8L Macro",
+          f_stop: "f/4.0",
+          shutter_speed: "1/200s",
+          iso: "ISO 160",
+          focal_length: "100mm",
+          taken_at: "2026-08-15T14:20:00Z"
+        }
       },
       {
         id: 'p-cm-05',
         originalFileName: 'CM_LOOK3_050.CR3',
         url: 'https://images.unsplash.com/photo-1524824267900-2fa9cbf7a506?q=80&w=1000&auto=format&fit=crop',
         caption: 'Look 3 - Jaqueta de couro e sombra',
-        orientation: 'portrait'
+        orientation: 'portrait',
+        metadata: {
+          camera: "Canon EOS R6 Mark II",
+          lens: "RF 50mm f/1.2L USM",
+          f_stop: "f/1.8",
+          shutter_speed: "1/250s",
+          iso: "ISO 200",
+          focal_length: "50mm",
+          taken_at: "2026-08-15T16:30:00Z"
+        }
       },
       {
         id: 'p-cm-06',
         originalFileName: 'CM_LOOK3_062.CR3',
         url: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?q=80&w=1000&auto=format&fit=crop',
         caption: 'Look 3 - Poses dinâmicas no concreto',
-        orientation: 'portrait'
+        orientation: 'portrait',
+        metadata: {
+          camera: "Canon EOS R6 Mark II",
+          lens: "RF 24-70mm f/2.8L IS",
+          f_stop: "f/2.8",
+          shutter_speed: "1/500s",
+          iso: "ISO 400",
+          focal_length: "35mm",
+          taken_at: "2026-08-15T17:15:00Z"
+        }
       },
       {
         id: 'p-cm-07',
         originalFileName: 'CM_LOOK3_071.CR3',
         url: 'https://images.unsplash.com/photo-1537633552985-df8429e8048b?q=80&w=1000&auto=format&fit=crop',
         caption: 'Retrato fechado com óculos de sol',
-        orientation: 'portrait'
+        orientation: 'portrait',
+        metadata: {
+          camera: "Canon EOS 5D Mark IV",
+          lens: "EF 85mm f/1.4L IS",
+          f_stop: "f/1.4",
+          shutter_speed: "1/320s",
+          iso: "ISO 100",
+          focal_length: "85mm",
+          taken_at: "2026-08-15T16:45:00Z"
+        }
       },
       {
         id: 'p-cm-08',
         originalFileName: 'CM_LOOK4_084.CR3',
         url: 'https://images.unsplash.com/photo-1515934751635-c81c6bc9a2d8?q=80&w=1200&auto=format&fit=crop',
         caption: 'Look 4 - Neon e reflexo urbano',
-        orientation: 'landscape'
+        orientation: 'landscape',
+        metadata: {
+          camera: "Sony Alpha 7 IV",
+          lens: "FE 35mm f/1.4 GM",
+          f_stop: "f/2.0",
+          shutter_speed: "1/160s",
+          iso: "ISO 800",
+          focal_length: "35mm",
+          taken_at: "2026-08-15T21:00:00Z"
+        }
       },
       {
         id: 'p-cm-09',
         originalFileName: 'CM_LOOK4_093.CR3',
         url: 'https://images.unsplash.com/photo-1520854221256-17451cc331bf?q=80&w=1200&auto=format&fit=crop',
         caption: 'Look 4 - Contra-luz noturno',
-        orientation: 'landscape'
+        orientation: 'landscape',
+        metadata: {
+          camera: "Nikon Z6 II",
+          lens: "NIKKOR Z 70-200mm f/2.8",
+          f_stop: "f/2.8",
+          shutter_speed: "1/1000s",
+          iso: "ISO 250",
+          focal_length: "135mm",
+          taken_at: "2026-08-15T18:00:00Z"
+        }
       },
       {
         id: 'p-cm-10',
         originalFileName: 'CM_LOOK4_105.CR3',
         url: 'https://images.unsplash.com/photo-1469371670807-013ccf25f16a?q=80&w=1200&auto=format&fit=crop',
         caption: 'Look 4 - Sorriso espontâneo',
-        orientation: 'landscape'
+        orientation: 'landscape',
+        metadata: {
+          camera: "Canon EOS R5",
+          lens: "RF 100mm f/2.8L Macro",
+          f_stop: "f/4.0",
+          shutter_speed: "1/200s",
+          iso: "ISO 160",
+          focal_length: "100mm",
+          taken_at: "2026-08-15T14:20:00Z"
+        }
       },
       {
         id: 'p-cm-11',
         originalFileName: 'CM_LOOK4_112.CR3',
         url: 'https://images.unsplash.com/photo-1544078751-58fee2d8a03b?q=80&w=1200&auto=format&fit=crop',
         caption: 'Detalhe de anéis e pulseiras',
-        orientation: 'landscape'
+        orientation: 'landscape',
+        metadata: {
+          camera: "Canon EOS R6 Mark II",
+          lens: "RF 50mm f/1.2L USM",
+          f_stop: "f/1.8",
+          shutter_speed: "1/250s",
+          iso: "ISO 200",
+          focal_length: "50mm",
+          taken_at: "2026-08-15T16:30:00Z"
+        }
       },
       {
         id: 'p-cm-12',
         originalFileName: 'CM_LOOK4_120.CR3',
         url: 'https://images.unsplash.com/photo-1510076857177-7470076d4098?q=80&w=1200&auto=format&fit=crop',
         caption: 'Final do ensaio no café',
-        orientation: 'landscape'
+        orientation: 'landscape',
+        metadata: {
+          camera: "Canon EOS R6 Mark II",
+          lens: "RF 24-70mm f/2.8L IS",
+          f_stop: "f/2.8",
+          shutter_speed: "1/500s",
+          iso: "ISO 400",
+          focal_length: "35mm",
+          taken_at: "2026-08-15T17:15:00Z"
+        }
       }
     ],
     clientSelection: {

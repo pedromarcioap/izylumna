@@ -90,7 +90,11 @@ export const ClientLightbox: React.FC<ClientLightboxProps> = ({
 
         <div className="flex items-center gap-3">
           {/* Photo EXIF Technical Details */}
-          <PhotoTechnicalDetails metadata={currentPhoto.metadata} />
+          <PhotoTechnicalDetails
+            metadata={currentPhoto.metadata}
+            photoSeed={currentPhoto.originalFileName || currentPhoto.id}
+            variant="popover"
+          />
 
           {/* Add comment button */}
           <Button
@@ -154,28 +158,36 @@ export const ClientLightbox: React.FC<ClientLightboxProps> = ({
         </button>
       </div>
 
-      {/* Bottom Control Bar */}
+      {/* Bottom Control Bar with EXIF Banner */}
       <div className="p-4 sm:p-6 bg-gradient-to-t from-walnut-950 via-walnut-900 to-transparent flex flex-col sm:flex-row items-center justify-between gap-4 z-30 border-t border-brand-dark/50">
-        <div className="text-center sm:text-left space-y-1">
-          {photoVotes.length > 0 ? (
-            <div className="flex items-center gap-2 text-xs text-brand-emerald font-medium justify-center sm:justify-start">
-              <Users className="w-4 h-4 text-brand-emerald" />
-              <span>
-                Votado por:{' '}
-                <strong className="text-walnut-100 font-semibold">
-                  {photoVotes.map((v) => v.voterName).join(', ')}
-                </strong>
-              </span>
-            </div>
-          ) : (
-            <p className="text-xs text-walnut-400">Nenhum voto registrado nesta foto ainda.</p>
-          )}
+        <div className="flex flex-col sm:flex-row items-center gap-3 text-center sm:text-left">
+          <PhotoTechnicalDetails
+            metadata={currentPhoto.metadata}
+            photoSeed={currentPhoto.originalFileName || currentPhoto.id}
+            variant="banner"
+          />
 
-          {photoComments.length > 0 && (
-            <p className="text-xs text-brand-ochre italic">
-              Última observação: &ldquo;{photoComments[photoComments.length - 1].text}&rdquo; ({photoComments[photoComments.length - 1].voterName})
-            </p>
-          )}
+          <div className="space-y-0.5">
+            {photoVotes.length > 0 ? (
+              <div className="flex items-center gap-2 text-xs text-brand-emerald font-medium justify-center sm:justify-start">
+                <Users className="w-4 h-4 text-brand-emerald" />
+                <span>
+                  Votado por:{' '}
+                  <strong className="text-walnut-100 font-semibold">
+                    {photoVotes.map((v) => v.voterName).join(', ')}
+                  </strong>
+                </span>
+              </div>
+            ) : (
+              <p className="text-xs text-walnut-400">Nenhum voto registrado nesta foto ainda.</p>
+            )}
+
+            {photoComments.length > 0 && (
+              <p className="text-xs text-brand-ochre italic">
+                Última observação: &ldquo;{photoComments[photoComments.length - 1].text}&rdquo; ({photoComments[photoComments.length - 1].voterName})
+              </p>
+            )}
+          </div>
         </div>
 
         {/* Favorite / Vote Toggle in Lightbox */}
