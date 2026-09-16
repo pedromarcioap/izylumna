@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Gallery } from '../../types';
 import { Card, CardContent } from '../ui/Card';
 import { Button } from '../ui/Button';
-import { Lock, ArrowRight } from 'lucide-react';
+import { Lock, ArrowRight, Eye, EyeOff, Delete, KeyRound } from 'lucide-react';
 import { getGalleryByPinAsync } from '../../lib/storage';
 
 export interface ClientAuthPinProps {
@@ -13,12 +13,28 @@ export interface ClientAuthPinProps {
 
 export const ClientAuthPin: React.FC<ClientAuthPinProps> = ({ gallery, allGalleries = [], onUnlock }) => {
   const [pinInput, setPinInput] = useState('');
+  const [showPin, setShowPin] = useState(false);
   const [error, setError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
 
-  const handleVerify = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const focusInput = () => {
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
+  };
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      inputRef.current?.focus();
+    }, 300);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const handleVerify = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     const cleanPin = pinInput.trim();
     if (!cleanPin) return;
 
@@ -53,6 +69,7 @@ export const ClientAuthPin: React.FC<ClientAuthPinProps> = ({ gallery, allGaller
       setError(true);
       setErrorMessage(`Nenhuma galeria encontrada com o PIN "${cleanPin}". Verifique com seu fotógrafo.`);
       setPinInput('');
+      focusInput();
     } catch (err) {
       setError(true);
       setErrorMessage('Erro ao validar o PIN. Tente novamente.');
@@ -61,10 +78,30 @@ export const ClientAuthPin: React.FC<ClientAuthPinProps> = ({ gallery, allGaller
     }
   };
 
+  const handleNumPadPress = (num: string) => {
+    setError(false);
+    if (pinInput.length < 6) {
+      setPinInput((prev) => prev + num);
+    }
+  };
+
+  const handleNumPadBackspace = () => {
+    setError(false);
+    setPinInput((prev) => prev.slice(0, -1));
+  };
+
+  const handleNumPadClear = () => {
+    setError(false);
+    setPinInput('');
+  };
+
+  const pinLength = Math.max(4, Math.min(6, gallery.pinCode?.length || 4));
+  const pinDigits = pinInput.split('');
+
   return (
     <div className="min-h-[75vh] flex items-center justify-center p-4">
       <Card className="max-w-md w-full border-brand-dark/50 bg-walnut-900 shadow-2xl shadow-black/80 backdrop-blur-xl">
-        <CardContent className="p-8 sm:p-10 text-center space-y-6">
+        <CardContent className="p-6 sm:p-8 text-center space-y-6">
           {/* Lock Icon Emblem */}
           <div className="mx-auto w-16 h-16 rounded-2xl bg-brand-primary/15 border border-brand-emerald/40 flex items-center justify-center text-brand-emerald shadow-inner">
             <Lock className="w-8 h-8" />
@@ -78,32 +115,84 @@ export const ClientAuthPin: React.FC<ClientAuthPinProps> = ({ gallery, allGaller
               {gallery.title}
             </h2>
             <p className="text-xs text-walnut-400 leading-relaxed">
-              Olá, <strong className="text-walnut-200">{gallery.clientName}</strong>! Insira seu código PIN exclusivo de 4 dígitos para acessar e selecionar suas fotos.
+              Olá, <strong className="text-walnut-200">{gallery.clientName}</strong>! Digite seu código PIN exclusivo de 4 dígitos para acessar e selecionar suas fotos.
             </p>
           </div>
 
           {/* PIN Input Form */}
-          <form onSubmit={handleVerify} className="space-y-4 pt-2">
-            <div className="flex justify-center">
-              <input
-                type="password"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                maxLength={6}
-                value={pinInput}
-                onChange={(e) => {
-                  setError(false);
-                  setPinInput(e.target.value.replace(/\D/g, ''));
+          <form onSubmit={handleVerify} className="space-y-4 pt-1">
+            {/* Real HTML Input: type="tel" + inputMode="numeric" + autoComplete="one-time-code" for iOS Safari compatibility */}
+            <input
+              ref={inputRef}
+              type="tel"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              autoComplete="one-time-code"
+              maxLength={6}
+              value={pinInput}
+              onChange={(e) => {
+                setError(false);
+                const val = e.target.value.replace(/\D/g, '');
+                if (val.length <= 6) {
+                  setPinInput(val);
+                }
+              }}
+              className="opacity-0 absolute -z-10 w-0 h-0 overflow-hidden"
+              tabIndex={0}
+              aria-label="Código PIN de acesso"
+            />
+
+            {/* Stylized Visual Digit Slots */}
+            <div
+              onClick={focusInput}
+              className="cursor-pointer group flex items-center justify-center gap-2 sm:gap-3 py-3 px-3 rounded-2xl bg-walnut-950/90 border border-brand-dark/50 hover:border-brand-emerald/40 transition-all select-none"
+            >
+              {Array.from({ length: pinLength }).map((_, idx) => {
+                const digit = pinDigits[idx];
+                const isFocused = pinInput.length === idx;
+                const isFilled = digit !== undefined;
+
+                return (
+                  <div
+                    key={idx}
+                    className={`w-11 h-13 sm:w-12 sm:h-14 rounded-xl flex items-center justify-center font-mono text-2xl font-extrabold transition-all border ${
+                      error
+                        ? 'border-red-500/80 bg-red-500/10 text-red-400'
+                        : isFocused
+                        ? 'border-brand-emerald bg-brand-emerald/15 text-brand-emerald ring-2 ring-brand-emerald/30 animate-pulse'
+                        : isFilled
+                        ? 'border-brand-emerald/50 bg-walnut-900 text-walnut-100'
+                        : 'border-walnut-800 bg-walnut-900/40 text-walnut-600'
+                    }`}
+                  >
+                    {isFilled ? (showPin ? digit : '•') : ''}
+                  </div>
+                );
+              })}
+
+              {/* Show/Hide PIN Toggle */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowPin(!showPin);
                 }}
-                placeholder="••••"
-                className={`w-44 text-center tracking-[0.5em] text-2xl font-mono font-bold py-3 px-4 rounded-xl bg-walnut-950 border ${
-                  error
-                    ? 'border-red-500/80 focus:ring-red-500/30'
-                    : 'border-brand-dark/50 focus:border-brand-primary focus:ring-brand-primary/20'
-                } text-walnut-100 placeholder-walnut-500 transition-all focus:outline-none focus:ring-2`}
-                autoFocus
-              />
+                className="ml-1 p-2 text-walnut-400 hover:text-walnut-200 transition-colors rounded-lg focus:outline-none"
+                title={showPin ? 'Ocultar dígitos' : 'Mostrar dígitos'}
+              >
+                {showPin ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
             </div>
+
+            {/* Hint to tap for native keyboard */}
+            <button
+              type="button"
+              onClick={focusInput}
+              className="inline-flex items-center justify-center gap-1.5 text-[11px] text-brand-emerald hover:underline font-medium focus:outline-none"
+            >
+              <KeyRound className="w-3.5 h-3.5 text-brand-emerald" />
+              <span>Toque aqui para abrir o teclado do iPhone/Celular</span>
+            </button>
 
             {error && (
               <p className="text-xs text-red-400 font-medium animate-shake px-2">
@@ -111,19 +200,53 @@ export const ClientAuthPin: React.FC<ClientAuthPinProps> = ({ gallery, allGaller
               </p>
             )}
 
+            {/* Touch-Friendly On-Screen NumPad for Mobile / iPhone */}
+            <div className="grid grid-cols-3 gap-2 max-w-xs mx-auto pt-2">
+              {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((num) => (
+                <button
+                  key={num}
+                  type="button"
+                  onClick={() => handleNumPadPress(num)}
+                  className="py-3 text-xl font-bold font-mono rounded-xl bg-walnut-950/90 border border-brand-dark/40 text-walnut-100 hover:bg-brand-primary/20 hover:border-brand-emerald/50 active:scale-95 transition-all shadow-sm"
+                >
+                  {num}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={handleNumPadClear}
+                className="py-3 text-xs font-semibold rounded-xl bg-walnut-950/60 border border-brand-dark/40 text-walnut-400 hover:text-walnut-200 hover:bg-walnut-900 active:scale-95 transition-all"
+              >
+                Limpar
+              </button>
+              <button
+                type="button"
+                onClick={() => handleNumPadPress('0')}
+                className="py-3 text-xl font-bold font-mono rounded-xl bg-walnut-950/90 border border-brand-dark/40 text-walnut-100 hover:bg-brand-primary/20 hover:border-brand-emerald/50 active:scale-95 transition-all shadow-sm"
+              >
+                0
+              </button>
+              <button
+                type="button"
+                onClick={handleNumPadBackspace}
+                className="py-3 flex items-center justify-center rounded-xl bg-walnut-950/60 border border-brand-dark/40 text-walnut-400 hover:text-walnut-200 hover:bg-walnut-900 active:scale-95 transition-all"
+                title="Apagar último dígito"
+              >
+                <Delete className="w-5 h-5" />
+              </button>
+            </div>
+
             <Button
               type="submit"
               variant="primary"
               size="lg"
-              className="w-full text-sm font-semibold shadow-lg shadow-[#01743F]/25"
+              className="w-full text-sm font-semibold shadow-lg shadow-[#01743F]/25 mt-4"
               disabled={pinInput.length < 4 || isVerifying}
             >
               <span>{isVerifying ? 'Verificando...' : 'Acessar Meu Ensaio'}</span>
               <ArrowRight className="w-4 h-4 ml-1" />
             </Button>
           </form>
-
-
         </CardContent>
       </Card>
     </div>
