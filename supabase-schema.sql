@@ -140,6 +140,33 @@ CREATE POLICY "Permitir tudo em photographer_profiles"
   USING (true) 
   WITH CHECK (true);
 
+-- Configurar Buckets do Supabase Storage
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('gallery-photos', 'gallery-photos', true)
+ON CONFLICT (id) DO UPDATE SET public = true;
+
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('avatars', 'avatars', true)
+ON CONFLICT (id) DO UPDATE SET public = true;
+
+-- Políticas RLS para storage.objects (Uploads de Fotos e Avatares)
+DROP POLICY IF EXISTS "Permitir tudo em gallery-photos" ON storage.objects;
+DROP POLICY IF EXISTS "Permitir tudo em avatars" ON storage.objects;
+
+CREATE POLICY "Permitir tudo em gallery-photos"
+  ON storage.objects
+  FOR ALL
+  TO anon, authenticated
+  USING (bucket_id = 'gallery-photos')
+  WITH CHECK (bucket_id = 'gallery-photos');
+
+CREATE POLICY "Permitir tudo em avatars"
+  ON storage.objects
+  FOR ALL
+  TO anon, authenticated
+  USING (bucket_id = 'avatars')
+  WITH CHECK (bucket_id = 'avatars');
+
 -- Índices de Desempenho
 CREATE INDEX IF NOT EXISTS idx_galleries_pin_code ON public.galleries(pin_code);
 CREATE INDEX IF NOT EXISTS idx_photos_gallery_id ON public.photos(gallery_id);

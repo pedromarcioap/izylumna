@@ -124,29 +124,33 @@ CREATE POLICY "Atualização de próprio perfil"
     auth.uid() = id OR public.is_admin()
   );
 
--- 6. Configurar Bucket para Avatares no Supabase Storage
+-- 6. Configurar Buckets no Supabase Storage
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('gallery-photos', 'gallery-photos', true)
+ON CONFLICT (id) DO UPDATE SET public = true;
+
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('avatars', 'avatars', true)
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (id) DO UPDATE SET public = true;
 
--- RLS para Storage de Avatares
+-- RLS para Storage de Fotos e Avatares
+DROP POLICY IF EXISTS "Permitir tudo em gallery-photos" ON storage.objects;
+DROP POLICY IF EXISTS "Permitir tudo em avatars" ON storage.objects;
 DROP POLICY IF EXISTS "Leitura publica de avatares" ON storage.objects;
 DROP POLICY IF EXISTS "Upload de avatares autenticados" ON storage.objects;
+DROP POLICY IF EXISTS "Atualizacao de avatares autenticados" ON storage.objects;
 
-CREATE POLICY "Leitura publica de avatares"
-  ON storage.objects FOR SELECT
-  TO public
-  USING (bucket_id = 'avatars');
+CREATE POLICY "Permitir tudo em gallery-photos"
+  ON storage.objects FOR ALL
+  TO anon, authenticated
+  USING (bucket_id = 'gallery-photos')
+  WITH CHECK (bucket_id = 'gallery-photos');
 
-CREATE POLICY "Upload de avatares autenticados"
-  ON storage.objects FOR INSERT
-  TO authenticated
+CREATE POLICY "Permitir tudo em avatars"
+  ON storage.objects FOR ALL
+  TO anon, authenticated
+  USING (bucket_id = 'avatars')
   WITH CHECK (bucket_id = 'avatars');
-
-CREATE POLICY "Atualizacao de avatares autenticados"
-  ON storage.objects FOR UPDATE
-  TO authenticated
-  USING (bucket_id = 'avatars');
 
 -- 7. Índices para Otimização
 CREATE INDEX IF NOT EXISTS idx_profiles_role ON public.profiles(role);
