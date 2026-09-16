@@ -17,9 +17,10 @@ export const AdobeOAuthCallbackView: React.FC<AdobeOAuthCallbackViewProps> = ({ 
         const urlParams = new URLSearchParams(window.location.search);
         const code = urlParams.get('code');
         const error = urlParams.get('error');
+        const errorDesc = urlParams.get('error_description');
 
         if (error) {
-          throw new Error(`Autorização Adobe negada ou cancelada: ${error}`);
+          throw new Error(`Autorização Adobe negada ou cancelada: ${errorDesc || error}`);
         }
 
         if (!code) {

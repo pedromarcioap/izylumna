@@ -51,37 +51,56 @@ export async function exchangeAdobeCodeForToken(code: string, userId: string): P
   };
 
   try {
-    // Try calling Supabase Edge Function first if deployed
-    const { data: edgeData, error: edgeError } = await supabase.functions.invoke('adobe-token-exchange', {
-      body: { code, redirect_uri: ADOBE_REDIRECT_URI }
-    });
-
-    if (!edgeError && edgeData?.access_token) {
-      tokenData = edgeData;
-    } else {
-      // Fallback to direct IMS call (for dev environments)
-      const bodyParams = new URLSearchParams({
-        grant_type: 'authorization_code',
-        client_id: ADOBE_CLIENT_ID,
-        client_secret: clientSecret,
-        code: code,
-        redirect_uri: ADOBE_REDIRECT_URI,
-      });
-
-      const response = await fetch(`${ADOBE_IMS_HOST}/ims/token/v3`, {
+    // 1. Try Vercel Serverless Function /api/adobe-token first
+    let vercelSuccess = false;
+    try {
+      const vercelRes = await fetch('/api/adobe-token', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: bodyParams.toString(),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, redirect_uri: ADOBE_REDIRECT_URI }),
       });
 
-      if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(`Adobe Token Exchange failed (${response.status}): ${errText}`);
+      if (vercelRes.ok) {
+        tokenData = await vercelRes.json();
+        vercelSuccess = true;
       }
+    } catch (vErr) {
+      console.warn('[Adobe OAuth] Vercel Serverless Function /api/adobe-token not reached, checking fallback:', vErr);
+    }
 
-      tokenData = await response.json();
+    if (!vercelSuccess) {
+      // 2. Try Supabase Edge Function if available
+      const { data: edgeData, error: edgeError } = await supabase.functions.invoke('adobe-token-exchange', {
+        body: { code, redirect_uri: ADOBE_REDIRECT_URI }
+      });
+
+      if (!edgeError && edgeData?.access_token) {
+        tokenData = edgeData;
+      } else {
+        // 3. Fallback to direct IMS call (for dev environments)
+        const bodyParams = new URLSearchParams({
+          grant_type: 'authorization_code',
+          client_id: ADOBE_CLIENT_ID,
+          client_secret: clientSecret,
+          code: code,
+          redirect_uri: ADOBE_REDIRECT_URI,
+        });
+
+        const response = await fetch(`${ADOBE_IMS_HOST}/ims/token/v3`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: bodyParams.toString(),
+        });
+
+        if (!response.ok) {
+          const errText = await response.text();
+          throw new Error(`Adobe Token Exchange failed (${response.status}): ${errText}`);
+        }
+
+        tokenData = await response.json();
+      }
     }
 
     const expiresAt = new Date(Date.now() + (tokenData.expires_in || 86400) * 1000).toISOString();
