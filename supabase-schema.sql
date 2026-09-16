@@ -111,6 +111,14 @@ DROP POLICY IF EXISTS "Permitir tudo em photos" ON public.photos;
 DROP POLICY IF EXISTS "Permitir tudo em client_selections" ON public.client_selections;
 DROP POLICY IF EXISTS "Permitir tudo em photographer_profiles" ON public.photographer_profiles;
 
+-- Conceder permissões completas de tabelas para anon, authenticated e service_role
+GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL FUNCTIONS IN SCHEMA public TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON FUNCTIONS TO anon, authenticated, service_role;
+
 -- Criar Políticas Permissivas para evitar o Erro RLS 42501
 CREATE POLICY "Permitir tudo em galleries" 
   ON public.galleries 

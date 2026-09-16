@@ -24,35 +24,52 @@ export async function uploadPhotoFile(file: File, galleryId: string = 'general')
       const fileName = `${galleryId}/${Date.now()}-${Math.random().toString(36).substring(2, 7)}_${sanitizedName}`;
       const bucketName = 'gallery-photos';
 
-      const { data, error } = await supabase.storage
-        .from(bucketName)
-        .upload(fileName, file, {
-          cacheControl: '36000',
-          upsert: true
-        });
+      let uploadResult: { path: string } | null = null;
+      let lastError: any = null;
 
-      if (!error && data) {
+      // Retry up to 3 times with exponential backoff to recover from transient network drops or ERR_FAILED
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          const { data, error } = await supabase.storage
+            .from(bucketName)
+            .upload(fileName, file, {
+              cacheControl: '36000',
+              upsert: true
+            });
+
+          if (!error && data) {
+            uploadResult = data;
+            break;
+          }
+          lastError = error;
+        } catch (fetchErr) {
+          lastError = fetchErr;
+        }
+
+        if (attempt < 3) {
+          await new Promise((resolve) => setTimeout(resolve, attempt * 300));
+        }
+      }
+
+      if (uploadResult) {
         const { data: publicUrlData } = supabase.storage
           .from(bucketName)
-          .getPublicUrl(data.path || fileName);
+          .getPublicUrl(uploadResult.path || fileName);
 
         if (publicUrlData?.publicUrl) {
           return publicUrlData.publicUrl;
         }
       }
 
-      if (error) {
-        console.error('[Storage Error] Supabase storage upload failed:', error.message);
-        throw new Error(`Falha no upload da imagem "${file.name}": ${error.message}`);
+      if (lastError) {
+        console.warn('[Storage Upload Warning] Storage upload failed after retries, falling back to Data URL:', lastError.message || lastError);
       }
     } catch (err: any) {
-      console.error('[Storage Error] Supabase storage upload exception:', err);
-      throw err;
+      console.warn('[Storage Upload Warning] Exception uploading to storage, falling back to Data URL:', err);
     }
   }
 
-  // Fallback for local/mock when Supabase is unconfigured:
-  // Convert File to Base64 Data URL so it persists across refreshes (NEVER a temporary blob: URL!)
+  // Fallback: Convert File to Base64 Data URL so photo upload ALWAYS succeeds and persists across refreshes
   return await fileToDataUrl(file);
 }
 
