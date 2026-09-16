@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { 
   getValidAdobeAccessToken, 
-  getAdobeOAuthUrl, 
+  getAdobeAuthorizeUrl, 
   disconnectAdobeIntegration 
 } from '../../lib/adobeLightroom';
 import { PhotographerIntegration } from '../../types';
@@ -43,8 +43,13 @@ export const PhotographerIntegrationsTab: React.FC<PhotographerIntegrationsTabPr
   }, [userId]);
 
   function handleConnectAdobe() {
-    const url = getAdobeOAuthUrl();
-    window.location.href = url;
+    try {
+      const url = getAdobeAuthorizeUrl();
+      window.location.href = url;
+    } catch (err: any) {
+      console.error('Adobe Authorization Error:', err);
+      onShowToast('Erro de Configuração Adobe', err.message || 'VITE_ADOBE_CLIENT_ID não configurado.', 'error');
+    }
   }
 
   async function handleDisconnectAdobe() {

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { 
   getValidAdobeAccessToken, 
-  getAdobeOAuthUrl,
+  getAdobeAuthorizeUrl,
   listLightroomAlbums, 
   getAlbumAssets 
 } from '../../lib/adobeLightroom';
@@ -179,8 +179,12 @@ export const AdobeImportModal: React.FC<AdobeImportModalProps> = ({
                 <button
                   type="button"
                   onClick={() => {
-                    const authUrl = getAdobeOAuthUrl();
-                    window.location.href = authUrl;
+                    try {
+                      const authUrl = getAdobeAuthorizeUrl();
+                      window.location.href = authUrl;
+                    } catch (err: any) {
+                      onShowToast('error', 'Erro de Configuração Adobe', err.message || 'Client ID ausente.');
+                    }
                   }}
                   className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-sm inline-flex items-center gap-2 shadow-lg transition"
                 >

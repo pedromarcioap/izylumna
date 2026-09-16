@@ -17,15 +17,32 @@ const ADOBE_REDIRECT_URI = import.meta.env.VITE_ADOBE_REDIRECT_URI || `${window.
 const ADOBE_IMS_HOST = 'https://ims-na1.adobelogin.com';
 const ADOBE_LR_HOST = 'https://lr.adobe.io';
 
+export const ADOBE_SCOPES = [
+  'openid',
+  'offline_access',
+  'AdobeID',
+  'lr_partner_rendition_apis',
+  'lr_partner_apis'
+];
+
 /**
- * Generates the Adobe IMS OAuth 2.0 authorization URL
+ * Generates the Adobe IMS OAuth 2.0 authorization URL with all required partner scopes
  */
-export function getAdobeOAuthUrl(state?: string): string {
+export function getAdobeAuthorizeUrl(state?: string): string {
+  const clientId = import.meta.env.VITE_ADOBE_CLIENT_ID || ADOBE_CLIENT_ID;
+  const redirectUri = import.meta.env.VITE_ADOBE_REDIRECT_URI || `${window.location.origin}/adobe/callback`;
+
+  if (!clientId || clientId.trim() === '') {
+    throw new Error('VITE_ADOBE_CLIENT_ID não configurado no ambiente (.env).');
+  }
+
+  const scopeParam = ADOBE_SCOPES.join(',');
+
   const params = new URLSearchParams({
-    client_id: ADOBE_CLIENT_ID,
+    client_id: clientId.trim(),
     response_type: 'code',
-    scope: 'openid,lr_partner_apis',
-    redirect_uri: ADOBE_REDIRECT_URI,
+    scope: scopeParam,
+    redirect_uri: redirectUri,
   });
 
   if (state) {
@@ -34,6 +51,8 @@ export function getAdobeOAuthUrl(state?: string): string {
 
   return `${ADOBE_IMS_HOST}/ims/authorize/v2?${params.toString()}`;
 }
+
+export const getAdobeOAuthUrl = getAdobeAuthorizeUrl;
 
 /**
  * Exchanges authorization code for access & refresh tokens securely.
