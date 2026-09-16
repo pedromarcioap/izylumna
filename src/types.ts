@@ -70,6 +70,10 @@ export interface Photo {
   metadata?: PhotoMetadata | null;
   votes?: PhotoVote[];
   commentsList?: PhotoCommentItem[];
+
+  // Adobe Lightroom Cloud Integration Fields
+  adobeAssetId?: string;
+  adobeRenditionUrl?: string;
 }
 
 
@@ -101,6 +105,10 @@ export interface Gallery {
   privacy: PrivacyType;
   pinCode?: string; // 4 to 6 digits if private
 
+  // Adobe Lightroom Link
+  adobeCatalogId?: string;
+  adobeAlbumId?: string;
+
   // Collaborative Consensus Configuration
   predefinedVoters?: GalleryVoter[]; // Pre-defined roles ("Noiva", "Noivo", "Pai da Noiva")
   consensusThreshold?: number; // Minimum votes required for consensus (default 2)
@@ -126,6 +134,66 @@ export interface Gallery {
 
   createdAt: string;
   updatedAt: string;
+}
+
+// ==========================================
+// Adobe Lightroom Cloud Integration Models
+// ==========================================
+
+export interface PhotographerIntegration {
+  id: string;
+  user_id: string;
+  provider: 'adobe';
+  access_token: string;
+  refresh_token: string;
+  expires_at: string;
+  catalog_id?: string | null;
+  account_email?: string | null;
+  account_name?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface LightroomCatalog {
+  id: string;
+  type: string;
+  created: string;
+  updated: string;
+  payload?: {
+    name?: string;
+  };
+}
+
+export interface LightroomAlbum {
+  id: string;
+  type: string;
+  subtype?: string;
+  serviceId?: string;
+  created: string;
+  updated: string;
+  payload: {
+    name: string;
+    cover?: {
+      id: string;
+    };
+  };
+  assetCount?: number;
+}
+
+export interface LightroomAsset {
+  id: string;
+  type: string;
+  subtype?: string;
+  created: string;
+  updated: string;
+  payload: {
+    captureDate?: string;
+    importTimestamp?: string;
+    fileName?: string;
+    ratings?: Record<string, { rating: number }>;
+    flags?: Record<string, { flag: 'pick' | 'unflagged' | 'reject' }>;
+  };
+  renditionUrl?: string;
 }
 
 export interface ToastMessage {

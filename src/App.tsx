@@ -15,6 +15,7 @@ import { GalleryDetailView } from './components/admin/GalleryDetailView';
 import { GalleryFormModal } from './components/admin/GalleryFormModal';
 import { PhotographerLogin } from './components/admin/PhotographerLogin';
 import { ClientPortalView } from './components/client/ClientPortalView';
+import { AdobeOAuthCallbackView } from './components/admin/AdobeOAuthCallbackView';
 import { useAuth } from './contexts/AuthContext';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 
@@ -22,6 +23,11 @@ import { ProtectedRoute } from './components/auth/ProtectedRoute';
 export default function App() {
   const { user, profile, signOut } = useAuth();
   const [galleries, setGalleries] = useState<Gallery[]>(() => getGalleries());
+
+  const isAdobeCallback = typeof window !== 'undefined' && (
+    window.location.pathname.includes('/adobe/callback') ||
+    (window.location.search.includes('code=') && window.location.search.includes('state='))
+  );
   const [photographerSession, setPhotographerSession] = useState<PhotographerSession>(() => getPhotographerSession());
   const [currentRole, setCurrentRole] = useState<'admin' | 'client'>('admin');
   const [selectedGalleryId, setSelectedGalleryId] = useState<string>(() => {
@@ -216,6 +222,21 @@ export default function App() {
 
   // Active gallery for admin detail view
   const detailGallery = galleries.find((g) => g.id === detailGalleryId);
+
+  if (isAdobeCallback) {
+    return (
+      <AdobeOAuthCallbackView
+        onComplete={(status, message) => {
+          showToast(
+            status === 'success' ? 'Adobe Conectado!' : 'Erro de Autenticação',
+            message,
+            status === 'success' ? 'success' : 'error'
+          );
+          window.location.href = window.location.origin;
+        }}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#0c0d0e] text-zinc-100 flex flex-col font-sans selection:bg-amber-500/20 selection:text-amber-200">

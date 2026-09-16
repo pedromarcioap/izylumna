@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { Gallery, Photo } from '../../types';
+import { useAuth } from '../../contexts/AuthContext';
+import { getValidAdobeAccessToken, syncClientVotesToAdobe } from '../../lib/adobeLightroom';
 import {
   generateLightroomSelectionString,
   downloadApprovalManifest,
@@ -37,7 +39,9 @@ import {
   ShieldCheck,
   RotateCcw,
   Trash2,
-  AlertTriangle
+  AlertTriangle,
+  Cloud,
+  Loader2
 } from 'lucide-react';
 
 export interface GalleryDetailViewProps {
@@ -55,17 +59,66 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
   onEditGallery,
   onShowToast
 }) => {
+  const { user } = useAuth();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [copiedWithExt, setCopiedWithExt] = useState(false);
   const [copiedNoExt, setCopiedNoExt] = useState(false);
   const [activeFilter, setActiveFilter] = useState<'consensus' | 'all_voted' | 'voter' | 'package' | 'extra' | 'commented'>('consensus');
   const [selectedVoterIdFilter, setSelectedVoterIdFilter] = useState<string>('');
   const [isWatermarkModalOpen, setIsWatermarkModalOpen] = useState(false);
+  const [isSyncingAdobe, setIsSyncingAdobe] = useState(false);
 
   // Voting reset modal states
   const [isResetAllModalOpen, setIsResetAllModalOpen] = useState(false);
   const [voterToReset, setVoterToReset] = useState<any | null>(null);
   const [photoToClear, setPhotoToClear] = useState<Photo | null>(null);
+
+  const handleSyncToAdobeCloud = async () => {
+    if (!user) {
+      onShowToast('Autenticação Necessária', 'Faça login para sincronizar com o Adobe Lightroom.', 'warning');
+      return;
+    }
+
+    setIsSyncingAdobe(true);
+    try {
+      const validCreds = await getValidAdobeAccessToken(user.id);
+      if (!validCreds || !validCreds.accessToken) {
+        onShowToast('Adobe Não Conectado', 'Conecte sua conta do Adobe Lightroom nas Configurações.', 'warning');
+        setIsSyncingAdobe(false);
+        return;
+      }
+
+      const catalogId = gallery.adobeCatalogId || validCreds.catalogId || 'default';
+      const exportPhotos = getExportPhotos();
+      const exportPhotoIds = exportPhotos.map(p => p.id);
+
+      const result = await syncClientVotesToAdobe(
+        validCreds.accessToken,
+        catalogId,
+        gallery.photos,
+        exportPhotoIds
+      );
+
+      if (result.successCount > 0) {
+        onShowToast(
+          'Sincronização Concluída!',
+          `${result.successCount} fotos marcadas com Pick / 5 Estrelas no Adobe Lightroom Cloud.`,
+          'success'
+        );
+      } else {
+        onShowToast(
+          'Nenhuma foto sincronizada',
+          'Certifique-se de que as fotos desta galeria foram importadas da Adobe ou possuem IDs válidos.',
+          'info'
+        );
+      }
+    } catch (err: any) {
+      console.error('Adobe Sync Error:', err);
+      onShowToast('Falha na Sincronização', err.message || 'Erro ao sincronizar votos com a Adobe.', 'error');
+    } finally {
+      setIsSyncingAdobe(false);
+    }
+  };
 
   const handleResetAllVotes = async () => {
     try {
@@ -432,6 +485,26 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
             <Button variant="outline" size="sm" onClick={handleDownloadTxt}>
               <Download className="w-3.5 h-3.5" />
               <span>Relatório .TXT</span>
+            </Button>
+
+            <Button 
+              variant="amber" 
+              size="sm" 
+              onClick={handleSyncToAdobeCloud}
+              disabled={isSyncingAdobe}
+              title="Sincronizar as fotos aprovadas/selecionadas com a conta Adobe Lightroom Cloud (Rating 5 estrelas / Pick)"
+            >
+              {isSyncingAdobe ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Sincronizando Adobe...</span>
+                </>
+              ) : (
+                <>
+                  <Cloud className="w-3.5 h-3.5" />
+                  <span>Exportar p/ Lightroom Cloud</span>
+                </>
+              )}
             </Button>
           </div>
         </div>

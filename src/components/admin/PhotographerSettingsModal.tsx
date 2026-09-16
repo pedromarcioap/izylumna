@@ -6,12 +6,14 @@ import { PhotographerProfile } from '../../types';
 import { savePhotographerProfile } from '../../lib/auth';
 import { useAuth } from '../../contexts/AuthContext';
 import { ProfileSettingsView } from '../settings/ProfileSettingsView';
+import { PhotographerIntegrationsTab } from './PhotographerIntegrationsTab';
 import {
   ShieldCheck,
   User,
   Camera,
   DollarSign,
-  Save
+  Save,
+  Cloud
 } from 'lucide-react';
 
 export interface PhotographerSettingsModalProps {
@@ -29,7 +31,8 @@ export const PhotographerSettingsModal: React.FC<PhotographerSettingsModalProps>
   onProfileUpdated,
   onShowToast
 }) => {
-  const [activeTab, setActiveTab] = useState<'profile' | 'studio' | 'defaults'>('profile');
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<'profile' | 'studio' | 'defaults' | 'integrations'>('profile');
 
   // Studio fields
   const [studioName, setStudioName] = useState(profile.studioName);
@@ -77,12 +80,12 @@ export const PhotographerSettingsModal: React.FC<PhotographerSettingsModalProps>
           <span>Configurações do Perfil & Estúdio</span>
         </div>
       }
-      description="Gerencie seus dados pessoais, avatar do Supabase Storage, marca d'água e cotas de impressão."
+      description="Gerencie seus dados pessoais, avatar do Supabase Storage, marca d'água e integrações de nuvem."
       maxWidth="2xl"
     >
       <div className="space-y-6">
         {/* Sub-tabs */}
-        <div className="flex items-center gap-2 border-b border-zinc-800 pb-2">
+        <div className="flex items-center gap-2 border-b border-zinc-800 pb-2 overflow-x-auto">
           <button
             type="button"
             onClick={() => setActiveTab('profile')}
@@ -93,7 +96,7 @@ export const PhotographerSettingsModal: React.FC<PhotographerSettingsModalProps>
             }`}
           >
             <User className="w-3.5 h-3.5" />
-            <span>Perfil & Storage Avatar</span>
+            <span>Perfil</span>
           </button>
 
           <button
@@ -121,11 +124,32 @@ export const PhotographerSettingsModal: React.FC<PhotographerSettingsModalProps>
             <DollarSign className="w-3.5 h-3.5" />
             <span>Padrões & Cotas</span>
           </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('integrations')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              activeTab === 'integrations'
+                ? 'bg-zinc-800 text-amber-400 font-semibold border border-zinc-700'
+                : 'text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            <Cloud className="w-3.5 h-3.5 text-amber-400" />
+            <span>Integrações (Adobe)</span>
+          </button>
         </div>
 
-        {/* Tab 1: Profile (Supabase Auth & Storage Avatar) */}
+        {/* Tab 1: Profile */}
         {activeTab === 'profile' && (
           <ProfileSettingsView onShowToast={onShowToast} onClose={onClose} />
+        )}
+
+        {/* Tab 4: Integrations */}
+        {activeTab === 'integrations' && (
+          <PhotographerIntegrationsTab 
+            userId={user?.id || profile.id} 
+            onShowToast={onShowToast} 
+          />
         )}
 
         {/* Tab 2: Studio Information */}

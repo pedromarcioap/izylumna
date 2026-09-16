@@ -8,11 +8,11 @@ import { Input } from '../ui/Input';
 import { SafeImage } from '../common/SafeImage';
 import { PhotographerSettingsModal } from './PhotographerSettingsModal';
 import { WatermarkSettingsModal } from './WatermarkSettingsModal';
+import { AdobeImportModal } from './AdobeImportModal';
 import { DeleteConfirmModal } from '../common/DeleteConfirmModal';
 import { UserManagementView } from './UserManagementView';
 import { useAuth } from '../../contexts/AuthContext';
 import {
-
   Plus,
   Search,
   Calendar,
@@ -39,7 +39,8 @@ import {
   Settings,
   MessageCircle,
   Mail,
-  Phone
+  Phone,
+  Cloud
 } from 'lucide-react';
 
 export interface AdminDashboardProps {
@@ -67,11 +68,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onOpenClientView,
   onShowToast
 }) => {
-  const { profile: userProfile, isAdmin } = useAuth();
+  const { user, profile: userProfile, isAdmin } = useAuth();
   const [dashboardTab, setDashboardTab] = useState<'galleries' | 'financial' | 'clients' | 'users'>('galleries');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'awaiting_client' | 'completed' | 'draft'>('all');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isAdobeImportOpen, setIsAdobeImportOpen] = useState(false);
   const [galleryToDelete, setGalleryToDelete] = useState<Gallery | null>(null);
   const [watermarkGallery, setWatermarkGallery] = useState<Gallery | null>(null);
 
@@ -201,6 +203,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           >
             <Settings className="w-3.5 h-3.5 mr-1 text-zinc-400" />
             <span>Configurações & Senha</span>
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsAdobeImportOpen(true)}
+            className="text-xs border-amber-500/30 text-amber-300 hover:bg-amber-500/10"
+            title="Importar álbuns e fotos diretamente da sua conta Adobe Lightroom Cloud"
+          >
+            <Cloud className="w-3.5 h-3.5 mr-1 text-amber-400" />
+            <span>Importar do Lightroom</span>
           </Button>
 
           <Button
@@ -819,6 +832,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           gallery={watermarkGallery}
           onSave={onEditGallery}
           onShowToast={onShowToast}
+        />
+      )}
+
+      {/* Adobe Lightroom Import Modal */}
+      {isAdobeImportOpen && (
+        <AdobeImportModal
+          userId={user?.id || ''}
+          isOpen={isAdobeImportOpen}
+          onClose={() => setIsAdobeImportOpen(false)}
+          onGalleryCreated={(newGallery) => {
+            onViewGalleryDetails(newGallery);
+          }}
+          onShowToast={(type, title, description) => {
+            onShowToast(title, description, type);
+          }}
         />
       )}
     </div>
