@@ -27,7 +27,8 @@ export function hasExifData(metadata?: PhotoMetadata | null): boolean {
     metadata.f_stop ||
     metadata.shutter_speed ||
     metadata.iso ||
-    metadata.focal_length
+    metadata.focal_length ||
+    metadata.taken_at
   );
 }
 

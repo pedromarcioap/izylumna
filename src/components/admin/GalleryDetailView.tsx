@@ -15,6 +15,7 @@ import { Dialog } from '../ui/Dialog';
 import { SafeImage } from '../common/SafeImage';
 import { uploadPhotoFile, uploadPhotosInBatches } from '../../lib/photoUpload';
 import { extractExif } from '../../lib/exif';
+import { PhotoTechnicalDetails } from '../common/PhotoTechnicalDetails';
 import { WatermarkSettingsModal } from './WatermarkSettingsModal';
 import {
   ArrowLeft,
@@ -695,6 +696,15 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
                       <span>{commentsList.length}</span>
                     </div>
                   )}
+
+                  {/* EXIF Metadata Badge */}
+                  <div className="absolute bottom-2.5 left-2.5 z-20" onClick={(e) => e.stopPropagation()}>
+                    <PhotoTechnicalDetails
+                      metadata={photo.metadata}
+                      photoSeed={photo.originalFileName || photo.id}
+                      variant="badge"
+                    />
+                  </div>
                 </div>
 
                 <div className="p-3.5 space-y-2">

@@ -4,48 +4,45 @@ import { PhotoMetadata } from '../types';
 /**
  * Extracts authentic EXIF technical metadata from a local image File before upload.
  */
-export async function extractExif(file: File): Promise<PhotoMetadata | null> {
+export async function extractExif(fileOrUrl: File | Blob | ArrayBuffer | string): Promise<PhotoMetadata | null> {
   try {
-    // exifr options MUST be an object with pick array, not a direct array
-    const data = await exifr.parse(file, {
-      pick: [
-        'Make',
-        'Model',
-        'LensModel',
-        'Lens',
-        'LensInfo',
-        'LensType',
-        'FNumber',
-        'ApertureValue',
-        'ExposureTime',
-        'ShutterSpeedValue',
-        'ISO',
-        'ISOSpeedRatings',
-        'FocalLength',
-        'FocalLengthIn35mmFormat',
-        'DateTimeOriginal',
-        'CreateDate'
-      ]
+    if (!fileOrUrl) return null;
+
+    // Use full exifr parsing to extract tags across all IFDs (TIFF, EXIF, GPS, etc.)
+    const data = await exifr.parse(fileOrUrl, {
+      tiff: true,
+      exif: true,
+      gps: true,
+      reviveValues: true,
+      sanitize: true,
+      mergeOutput: true
     });
 
-    if (!data) return null;
+    if (!data || typeof data !== 'object') return null;
 
-    // Helper to format shutter speed cleanly
+    // Helper to format shutter speed cleanly (e.g. 0.004 -> 1/250s, 0.5 -> 0.5s, 2 -> 2s)
     const formatShutter = (timeVal: any): string | null => {
-      if (typeof timeVal !== 'number' || isNaN(timeVal) || timeVal <= 0) return null;
-      if (timeVal < 1) {
-        const denominator = Math.round(1 / timeVal);
+      if (typeof timeVal === 'string' && timeVal.trim()) {
+        const str = timeVal.trim();
+        return str.endsWith('s') ? str : `${str}s`;
+      }
+      const num = Number(timeVal);
+      if (isNaN(num) || num <= 0) return null;
+      if (num < 1) {
+        const denominator = Math.round(1 / num);
         return `1/${denominator}s`;
       }
-      const rounded = Number(timeVal.toFixed(1));
+      const rounded = Number(num.toFixed(1)).toString().replace(/\.0$/, '');
       return `${rounded}s`;
     };
 
-    // Camera Make & Model formatting
-    const make = typeof data.Make === 'string' ? data.Make.trim() : '';
-    const model = typeof data.Model === 'string' ? data.Model.trim() : '';
-    let camera: string | null = null;
+    // Camera Make & Model formatting across various camera manufacturers (Canon, Sony, Nikon, Apple, Fuji, etc.)
+    const rawMake = data.Make || data.make || data.Manufacturer || data.manufacturer;
+    const rawModel = data.Model || data.model || data.CameraModelName || data.UniqueCameraModel;
+    const make = typeof rawMake === 'string' ? rawMake.trim() : '';
+    const model = typeof rawModel === 'string' ? rawModel.trim() : '';
 
+    let camera: string | null = null;
     if (model) {
       if (make && !model.toLowerCase().includes(make.toLowerCase())) {
         camera = `${make} ${model}`;
@@ -56,35 +53,84 @@ export async function extractExif(file: File): Promise<PhotoMetadata | null> {
       camera = make;
     }
 
-    // Lens Model
-    const rawLens = data.LensModel || data.Lens || data.LensInfo || data.LensType;
+    // Lens Model formatting
+    const rawLens =
+      data.LensModel ||
+      data.lensModel ||
+      data.Lens ||
+      data.lens ||
+      data.LensInfo ||
+      data.LensType ||
+      data.LensSpecification ||
+      data.LensID ||
+      data.LensName;
     const lens = typeof rawLens === 'string' && rawLens.trim() ? rawLens.trim() : null;
 
-    // Aperture f/stop
-    const fNum = data.FNumber || data.ApertureValue;
-    const f_stop =
-      typeof fNum === 'number' && !isNaN(fNum) && fNum > 0
-        ? `f/${Number(fNum.toFixed(1)).toString().replace(/\.0$/, '')}`
-        : null;
+    // Aperture f/stop formatting
+    const rawFNum = data.FNumber ?? data.fNumber ?? data.ApertureValue ?? data.Aperture ?? data.ApertureFNumber;
+    let f_stop: string | null = null;
+    if (typeof rawFNum === 'number' && !isNaN(rawFNum) && rawFNum > 0) {
+      f_stop = `f/${Number(rawFNum.toFixed(1)).toString().replace(/\.0$/, '')}`;
+    } else if (typeof rawFNum === 'string' && rawFNum.trim()) {
+      const cleanF = rawFNum.trim();
+      f_stop = cleanF.startsWith('f/') ? cleanF : `f/${cleanF}`;
+    }
 
-    // Shutter speed
-    const expTime = data.ExposureTime || data.ShutterSpeedValue;
-    const shutter_speed = formatShutter(expTime);
+    // Shutter speed formatting
+    const rawExpTime = data.ExposureTime ?? data.exposureTime ?? data.ShutterSpeedValue ?? data.ShutterSpeed;
+    const shutter_speed = formatShutter(rawExpTime);
 
-    // ISO
-    const isoVal = data.ISO || (Array.isArray(data.ISOSpeedRatings) ? data.ISOSpeedRatings[0] : data.ISOSpeedRatings);
-    const iso = isoVal ? `ISO ${isoVal}` : null;
+    // ISO speed formatting
+    const rawIso =
+      data.ISO ??
+      data.iso ??
+      data.ISOSpeedRatings ??
+      data.PhotographicSensitivity ??
+      data.SensitivityType;
+    let iso: string | null = null;
+    if (rawIso) {
+      const isoNum = Array.isArray(rawIso) ? rawIso[0] : rawIso;
+      if (isoNum) {
+        const isoStr = String(isoNum).trim();
+        iso = isoStr.toUpperCase().startsWith('ISO') ? isoStr : `ISO ${isoStr}`;
+      }
+    }
 
-    // Focal length
-    const focalVal = data.FocalLength || data.FocalLengthIn35mmFormat;
-    const focal_length = typeof focalVal === 'number' && !isNaN(focalVal) ? `${Math.round(focalVal)}mm` : null;
+    // Focal length formatting
+    const rawFocal =
+      data.FocalLength ??
+      data.focalLength ??
+      data.FocalLengthIn35mmFormat ??
+      data.FocalLengthIn35mmFilm ??
+      data.FocalLength35efl;
+    let focal_length: string | null = null;
+    if (typeof rawFocal === 'number' && !isNaN(rawFocal) && rawFocal > 0) {
+      focal_length = `${Math.round(rawFocal)}mm`;
+    } else if (typeof rawFocal === 'string' && rawFocal.trim()) {
+      const cleanFocal = rawFocal.trim();
+      focal_length = cleanFocal.endsWith('mm') ? cleanFocal : `${cleanFocal}mm`;
+    }
 
-    // Date Taken
-    const rawDate = data.DateTimeOriginal || data.CreateDate;
+    // Date & Time taken formatting
+    const rawDate =
+      data.DateTimeOriginal ??
+      data.dateTimeOriginal ??
+      data.CreateDate ??
+      data.createDate ??
+      data.DateTimeDigitized ??
+      data.DateTime ??
+      data.ModifyDate;
     let taken_at: string | null = null;
     if (rawDate) {
       try {
-        taken_at = new Date(rawDate).toISOString();
+        if (rawDate instanceof Date && !isNaN(rawDate.getTime())) {
+          taken_at = rawDate.toISOString();
+        } else if (typeof rawDate === 'string' || typeof rawDate === 'number') {
+          const parsedDate = new Date(rawDate);
+          if (!isNaN(parsedDate.getTime())) {
+            taken_at = parsedDate.toISOString();
+          }
+        }
       } catch {
         taken_at = null;
       }
@@ -100,10 +146,10 @@ export async function extractExif(file: File): Promise<PhotoMetadata | null> {
       taken_at
     };
 
-    const hasData = Object.values(metadata).some((val) => val !== null && val !== '');
+    const hasData = Object.values(metadata).some((val) => val !== null && val !== undefined && val !== '');
     return hasData ? metadata : null;
   } catch (err) {
-    console.warn('[EXIF Extraction Warning] Failed to parse EXIF for file:', file.name, err);
+    console.warn('[EXIF Extraction Warning] Failed to parse EXIF metadata:', err);
     return null;
   }
 }

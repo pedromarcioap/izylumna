@@ -149,13 +149,8 @@ export const ClientPhotoGrid: React.FC<ClientPhotoGridProps> = ({
                 />
               </div>
 
-              {/* Bottom Right Actions Row (EXIF popover, Comment, and Fullscreen Lightbox) */}
+              {/* Bottom Right Actions Row (Comment and Fullscreen Lightbox) */}
               <div className="absolute bottom-3 right-3 z-30 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                <PhotoTechnicalDetails
-                  metadata={photo.metadata}
-                  photoSeed={photo.originalFileName || photo.id}
-                  variant="popover"
-                />
                 {/* Comment button */}
                 <button
                   type="button"
