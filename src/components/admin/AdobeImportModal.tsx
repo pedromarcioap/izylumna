@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { 
   getValidAdobeAccessToken, 
+  getAdobeOAuthUrl,
   listLightroomAlbums, 
   getAlbumAssets 
 } from '../../lib/adobeLightroom';
@@ -171,9 +172,22 @@ export const AdobeImportModal: React.FC<AdobeImportModalProps> = ({
               <p className="text-sm text-zinc-400">Carregando seus álbuns do Lightroom Cloud...</p>
             </div>
           ) : errorMsg ? (
-            <div className="p-6 bg-red-500/10 border border-red-500/20 rounded-xl text-center space-y-3">
+            <div className="p-6 bg-red-500/10 border border-red-500/20 rounded-xl text-center space-y-4">
               <AlertCircle className="w-10 h-10 text-red-400 mx-auto" />
               <p className="text-sm text-red-200">{errorMsg}</p>
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const authUrl = getAdobeOAuthUrl();
+                    window.location.href = authUrl;
+                  }}
+                  className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold text-sm inline-flex items-center gap-2 shadow-lg transition"
+                >
+                  <Cloud className="w-4 h-4" />
+                  <span>Conectar Conta Adobe Agora</span>
+                </button>
+              </div>
             </div>
           ) : albums.length === 0 ? (
             <div className="py-16 text-center space-y-3">
