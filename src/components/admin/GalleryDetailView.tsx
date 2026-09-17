@@ -73,9 +73,29 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
   const [voterToReset, setVoterToReset] = useState<any | null>(null);
   const [photoToClear, setPhotoToClear] = useState<Photo | null>(null);
 
+  // Closure fee payment modal states
+  const [isClosureFeeModalOpen, setIsClosureFeeModalOpen] = useState(false);
+  const [isGeneratingClosurePix, setIsGeneratingClosurePix] = useState(false);
+  const [copiedClosurePix, setCopiedClosurePix] = useState(false);
+  const [closurePixData, setClosurePixData] = useState<{
+    orderId?: string;
+    copyPaste: string;
+    qrCodeBase64: string;
+    amount: number;
+    isMock?: boolean;
+  } | null>(null);
+
+  const isExportUnlocked = gallery.paymentStatus === 'paid' || gallery.paymentStatus === 'waived';
+  const closureFee = gallery.galleryClosureFee ?? 6.90;
+
   const handleSyncToAdobeCloud = async () => {
     if (!user) {
       onShowToast('Autenticação Necessária', 'Faça login para sincronizar com o Adobe Lightroom.', 'warning');
+      return;
+    }
+
+    if (!isExportUnlocked) {
+      setIsClosureFeeModalOpen(true);
       return;
     }
 
@@ -288,6 +308,11 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
   };
 
   const handleCopyLightroom = (stripExt: boolean) => {
+    if (!isExportUnlocked) {
+      setIsClosureFeeModalOpen(true);
+      return;
+    }
+
     const exportList = getExportPhotos();
     if (exportList.length === 0) {
       onShowToast('Nenhuma foto encontrada', 'Não há fotos nesta categoria para exportar.', 'warning');
@@ -312,9 +337,55 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
   };
 
   const handleDownloadTxt = () => {
+    if (!isExportUnlocked) {
+      setIsClosureFeeModalOpen(true);
+      return;
+    }
+
     const exportType = activeFilter === 'voter' ? 'voter' : activeFilter === 'consensus' ? 'consensus' : 'all';
     downloadApprovalManifest(gallery, exportType as any, selectedVoterIdFilter || undefined);
     onShowToast('Download iniciado', 'Relatório completo de aprovação gerado em arquivo .txt', 'success');
+  };
+
+  const handleGenerateClosurePix = async () => {
+    setIsGeneratingClosurePix(true);
+    try {
+      const mockOrderId = `closure_order_${Date.now()}`;
+      const mockCopyPaste = `00020126580014br.gov.bcb.pix0136izylumna-closure-${mockOrderId}5204000053039865405${closureFee.toFixed(2)}5802BR5910IZY LUMNA6009SAO PAULO62070503***6304`;
+      
+      const svgString = `<svg xmlns="http://www.w3.org/2000/svg" width="220" height="220" viewBox="0 0 200 200">
+        <rect width="200" height="200" fill="#030712"/>
+        <rect x="15" y="15" width="170" height="170" rx="16" fill="#111827" stroke="#f59e0b" stroke-width="3"/>
+        <path d="M 40 40 h 40 v 40 h -40 z M 120 40 h 40 v 40 h -40 z M 40 120 h 40 v 40 h -40 z" fill="#f59e0b"/>
+        <path d="M 50 50 h 20 v 20 h -20 z M 130 50 h 20 v 20 h -20 z M 50 130 h 20 v 20 h -20 z" fill="#030712"/>
+        <circle cx="100" cy="100" r="16" fill="#10b981"/>
+        <text x="100" y="180" font-size="10" fill="#9ca3af" text-anchor="middle" font-family="sans-serif">Taxa Encerramento Izy Lumna</text>
+      </svg>`;
+
+      setClosurePixData({
+        orderId: mockOrderId,
+        copyPaste: mockCopyPaste,
+        qrCodeBase64: `data:image/svg+xml;base64,${btoa(svgString)}`,
+        amount: closureFee,
+        isMock: true
+      });
+    } finally {
+      setIsGeneratingClosurePix(false);
+    }
+  };
+
+  const handleSimulateClosurePaid = () => {
+    onEditGallery({
+      ...gallery,
+      paymentStatus: 'paid',
+      updatedAt: new Date().toISOString()
+    });
+    setIsClosureFeeModalOpen(false);
+    onShowToast(
+      'Taxa de Encerramento Quitada!',
+      'Exportação liberada com sucesso! Você já pode copiar para o Lightroom ou sincronizar na nuvem.',
+      'success'
+    );
   };
 
   // Display photos grid
@@ -958,6 +1029,97 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
               className="bg-red-600/20 text-red-300 border-red-500/50 hover:bg-red-600 hover:text-white"
             >
               Limpar Votos
+            </Button>
+          </div>
+        </div>
+      </Dialog>
+
+      {/* Closure Fee Payment Modal */}
+      <Dialog
+        isOpen={isClosureFeeModalOpen}
+        onClose={() => setIsClosureFeeModalOpen(false)}
+        title={
+          <div className="flex items-center gap-2 text-amber-400">
+            <ShieldCheck className="w-5 h-5" />
+            <span>Desbloquear Exportação de Fotos</span>
+          </div>
+        }
+        description="Como o cliente não comprou fotos extras, efetue o pagamento da microtaxa de encerramento da galeria para liberar o download e a cópia para o Lightroom."
+        maxWidth="md"
+      >
+        <div className="space-y-5">
+          <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-200 space-y-2">
+            <div className="flex items-center justify-between font-bold text-amber-400">
+              <span>Taxa Fixa de Encerramento:</span>
+              <span className="font-mono text-base">R$ {closureFee.toFixed(2)}</span>
+            </div>
+            <p className="text-[11px] text-zinc-400 leading-relaxed">
+              Esta taxa cobre os custos de infraestrutura e processamento da galeria quando não há comissão gerada por fotos extras.
+            </p>
+          </div>
+
+          {!closurePixData ? (
+            <div className="text-center py-4">
+              <Button
+                variant="amber"
+                size="md"
+                disabled={isGeneratingClosurePix}
+                onClick={handleGenerateClosurePix}
+                className="font-bold shadow-lg shadow-amber-500/20 w-full"
+              >
+                <Sparkles className="w-4 h-4 mr-2" />
+                <span>Gerar QR Code PIX (R$ {closureFee.toFixed(2)})</span>
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4 text-center">
+              <div className="p-3 bg-white rounded-2xl border-4 border-zinc-800 shadow-xl inline-block mx-auto">
+                <img
+                  src={closurePixData.qrCodeBase64}
+                  alt="QR Code PIX Encerramento"
+                  className="w-44 h-44 object-contain"
+                />
+              </div>
+
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={closurePixData.copyPaste}
+                  className="flex-1 py-2 px-3 rounded-xl bg-zinc-950 border border-zinc-800 text-xs font-mono text-zinc-400 truncate"
+                />
+                <Button
+                  type="button"
+                  variant={copiedClosurePix ? 'emerald' : 'secondary'}
+                  size="sm"
+                  onClick={() => {
+                    navigator.clipboard.writeText(closurePixData.copyPaste);
+                    setCopiedClosurePix(true);
+                    setTimeout(() => setCopiedClosurePix(false), 2500);
+                  }}
+                >
+                  {copiedClosurePix ? 'Copiado!' : 'Copiar'}
+                </Button>
+              </div>
+
+              {closurePixData.isMock && (
+                <div className="pt-2 border-t border-zinc-800">
+                  <button
+                    type="button"
+                    onClick={handleSimulateClosurePaid}
+                    className="w-full py-2.5 px-3 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 text-xs font-bold flex items-center justify-center gap-2 transition-all"
+                  >
+                    <Check className="w-4 h-4 text-emerald-400" />
+                    <span>Simular Taxa Paga (Modo de Teste)</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="flex justify-end pt-3 border-t border-zinc-800">
+            <Button variant="ghost" size="sm" onClick={() => setIsClosureFeeModalOpen(false)}>
+              Fechar
             </Button>
           </div>
         </div>

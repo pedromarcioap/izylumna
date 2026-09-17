@@ -117,8 +117,12 @@ export interface Gallery {
 
   // Quota and Excess Rules
   quotaIncluded: number; // Y photos included in the package
+  maxContractedPhotos?: number; // Alias / contract max limit (default 20)
   excessPolicy: ExcessPolicy;
   extraPhotoPrice: number; // R$ per extra photo (used if excessPolicy === 'charge')
+  galleryClosureFee?: number; // R$ 6.90 closure fee when client stays within quota
+  platformCommissionRate?: number; // Platform split rate (default 0.08 / 8%)
+  paymentStatus?: 'pending' | 'paid' | 'waived'; // Financial status of gallery
 
   // Protection & Display
   watermarkEnabled: boolean;
@@ -134,6 +138,31 @@ export interface Gallery {
 
   createdAt: string;
   updatedAt: string;
+}
+
+// ==========================================
+// Payment & Order Financial Models (Supabase)
+// ==========================================
+
+export type PaymentStatus = 'pending' | 'paid' | 'waived';
+
+export type OrderPayerType = 'client' | 'photographer';
+
+export type OrderStatus = 'pending' | 'paid' | 'expired' | 'canceled';
+
+export interface Order {
+  id: string;
+  galleryId: string;
+  payerType: OrderPayerType;
+  totalAmount: number;
+  platformFee: number;
+  photographerAmount: number;
+  externalId?: string;
+  status: OrderStatus;
+  pixCopyPaste?: string;
+  pixQrCodeBase64?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 // ==========================================
@@ -215,6 +244,8 @@ export interface PhotographerProfile {
   defaultWatermarkPosition?: 'grid' | 'center' | 'both' | 'bottom-right';
   defaultWatermarkOpacity?: number;
   defaultExtraPrice?: number;
+  pixKey?: string;
+  pixKeyType?: 'cpf' | 'cnpj' | 'email' | 'phone' | 'random';
 }
 
 export interface PhotographerSession {

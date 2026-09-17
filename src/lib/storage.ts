@@ -5,7 +5,8 @@ import {
   PhotographerProfile,
   GalleryVoter,
   PhotoVote,
-  PhotoCommentItem
+  PhotoCommentItem,
+  Order
 } from '../types';
 import { supabase, isSupabaseConfigured } from './supabase';
 
@@ -209,8 +210,12 @@ function mapRowToGallery(row: any, photosRows: any[] = [], selectionRow: any = n
     voters: votersList,
 
     quotaIncluded: Number(row.quota_included) || 20,
+    maxContractedPhotos: Number(row.max_contracted_photos ?? row.quota_included) || 20,
     excessPolicy: row.excess_policy || 'charge',
-    extraPhotoPrice: Number(row.extra_photo_price) || 30,
+    extraPhotoPrice: Number(row.extra_photo_price) || 25,
+    galleryClosureFee: Number(row.gallery_closure_fee) || 6.90,
+    platformCommissionRate: Number(row.platform_commission_rate) || 0.08,
+    paymentStatus: (row.payment_status as any) || 'pending',
     watermarkEnabled: Boolean(row.watermark_enabled ?? true),
     watermarkText: row.watermark_text || 'PROVA • LUMINA STUDIO • PROVA',
     watermarkPosition: row.watermark_position || 'both',
@@ -522,8 +527,12 @@ export async function saveGalleryAsync(gallery: Gallery): Promise<Gallery> {
       allow_free_voter_registration: Boolean(gallery.allowFreeVoterRegistration ?? true),
       voters: Array.isArray(gallery.voters) ? gallery.voters : [],
       quota_included: Number(gallery.quotaIncluded) || 20,
+      max_contracted_photos: Number(gallery.maxContractedPhotos ?? gallery.quotaIncluded) || 20,
       excess_policy: gallery.excessPolicy || 'charge',
-      extra_photo_price: Number(gallery.extraPhotoPrice) || 30,
+      extra_photo_price: Number(gallery.extraPhotoPrice) || 25,
+      gallery_closure_fee: Number(gallery.galleryClosureFee) || 6.90,
+      platform_commission_rate: Number(gallery.platformCommissionRate) || 0.08,
+      payment_status: gallery.paymentStatus || 'pending',
       watermark_enabled: Boolean(gallery.watermarkEnabled ?? true),
       watermark_text: gallery.watermarkText || 'PROVA • LUMINA STUDIO • PROVA',
       watermark_position: gallery.watermarkPosition || 'both',
@@ -1184,3 +1193,63 @@ Gerado via IzyLumna • Sistema Colaborativo de Prova Fotográfica
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
 }
+
+// ==========================================
+// Order Management & Financial Helpers
+// ==========================================
+
+export async function getGalleryOrdersAsync(galleryId: string): Promise<Order[]> {
+  if (!isSupabaseConfigured || !supabase) {
+    return [];
+  }
+  try {
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('gallery_id', galleryId)
+      .order('created_at', { ascending: false });
+
+    if (error || !data) return [];
+    return data.map((row: any) => ({
+      id: row.id,
+      galleryId: row.gallery_id,
+      payerType: row.payer_type,
+      totalAmount: Number(row.total_amount) || 0,
+      platformFee: Number(row.platform_fee) || 0,
+      photographerAmount: Number(row.photographer_amount) || 0,
+      externalId: row.external_id,
+      status: row.status,
+      pixCopyPaste: row.pix_copy_paste,
+      pixQrCodeBase64: row.pix_qr_code_base64,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    }));
+  } catch (e) {
+    console.warn('[Supabase Fallback] Failed fetching orders for gallery:', e);
+    return [];
+  }
+}
+
+export async function updateGalleryPaymentStatusAsync(
+  galleryId: string,
+  status: 'pending' | 'paid' | 'waived'
+): Promise<void> {
+  const galleries = getGalleries();
+  const idx = galleries.findIndex((g) => g.id === galleryId);
+  if (idx >= 0) {
+    galleries[idx].paymentStatus = status;
+    updateGalleriesCache(galleries);
+  }
+
+  if (isSupabaseConfigured && supabase) {
+    try {
+      await supabase
+        .from('galleries')
+        .update({ payment_status: status, updated_at: new Date().toISOString() })
+        .eq('id', galleryId);
+    } catch (e) {
+      console.warn('[Supabase Fallback] Failed updating gallery payment_status:', e);
+    }
+  }
+}
+

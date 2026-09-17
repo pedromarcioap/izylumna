@@ -127,7 +127,10 @@ export const GalleryFormModal: React.FC<GalleryFormModalProps> = ({
   const [pinCode, setPinCode] = useState('1234');
   const [quotaIncluded, setQuotaIncluded] = useState(20);
   const [excessPolicy, setExcessPolicy] = useState<ExcessPolicy>('charge');
-  const [extraPhotoPrice, setExtraPhotoPrice] = useState(30);
+  const [extraPhotoPrice, setExtraPhotoPrice] = useState(25);
+  const [galleryClosureFee, setGalleryClosureFee] = useState(6.90);
+  const [platformCommissionRate, setPlatformCommissionRate] = useState(0.08);
+  const [paymentStatus, setPaymentStatus] = useState<'pending' | 'paid' | 'waived'>('pending');
 
   // Watermark protection settings
   const [watermarkEnabled, setWatermarkEnabled] = useState(true);
@@ -165,7 +168,10 @@ export const GalleryFormModal: React.FC<GalleryFormModalProps> = ({
       setPinCode(galleryToEdit.pinCode || '1234');
       setQuotaIncluded(galleryToEdit.quotaIncluded);
       setExcessPolicy(galleryToEdit.excessPolicy);
-      setExtraPhotoPrice(galleryToEdit.extraPhotoPrice || 30);
+      setExtraPhotoPrice(galleryToEdit.extraPhotoPrice ?? 25);
+      setGalleryClosureFee(galleryToEdit.galleryClosureFee ?? 6.90);
+      setPlatformCommissionRate(galleryToEdit.platformCommissionRate ?? 0.08);
+      setPaymentStatus(galleryToEdit.paymentStatus || 'pending');
       setWatermarkEnabled(galleryToEdit.watermarkEnabled);
       setWatermarkText(galleryToEdit.watermarkText || defaultText);
       setWatermarkPosition(galleryToEdit.watermarkPosition || defaultPosition);
@@ -192,7 +198,10 @@ export const GalleryFormModal: React.FC<GalleryFormModalProps> = ({
       setPinCode(Math.floor(1000 + Math.random() * 9000).toString());
       setQuotaIncluded(20);
       setExcessPolicy('charge');
-      setExtraPhotoPrice(session?.profile?.defaultExtraPrice || 30);
+      setExtraPhotoPrice(session?.profile?.defaultExtraPrice || 25);
+      setGalleryClosureFee(6.90);
+      setPlatformCommissionRate(0.08);
+      setPaymentStatus('pending');
       setWatermarkEnabled(true);
       setWatermarkText(defaultText);
       setWatermarkPosition(defaultPosition);
@@ -405,8 +414,12 @@ export const GalleryFormModal: React.FC<GalleryFormModalProps> = ({
         allowFreeVoterRegistration,
         voters: galleryToEdit?.voters || predefinedVoters,
         quotaIncluded: Number(quotaIncluded),
+        maxContractedPhotos: Number(quotaIncluded),
         excessPolicy,
         extraPhotoPrice: excessPolicy === 'charge' ? Number(extraPhotoPrice) : 0,
+        galleryClosureFee: Number(galleryClosureFee),
+        platformCommissionRate: Number(platformCommissionRate),
+        paymentStatus,
         watermarkEnabled,
         watermarkText: watermarkEnabled ? watermarkText : undefined,
         watermarkPosition: watermarkEnabled ? watermarkPosition : undefined,
@@ -609,14 +622,34 @@ export const GalleryFormModal: React.FC<GalleryFormModalProps> = ({
           </div>
 
           {excessPolicy === 'charge' && (
-            <Input
-              label="Preço por Foto Extra (R$) *"
-              type="number"
-              step="0.01"
-              value={extraPhotoPrice}
-              onChange={(e) => setExtraPhotoPrice(Number(e.target.value))}
-              error={formErrors.extraPhotoPrice}
-            />
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 border-t border-zinc-800/80 pt-3">
+              <Input
+                label="Preço por Foto Extra (R$) *"
+                type="number"
+                step="0.01"
+                value={extraPhotoPrice}
+                onChange={(e) => setExtraPhotoPrice(Number(e.target.value))}
+                error={formErrors.extraPhotoPrice}
+              />
+              <Input
+                label="Taxa de Encerramento (R$) *"
+                type="number"
+                step="0.01"
+                value={galleryClosureFee}
+                onChange={(e) => setGalleryClosureFee(Number(e.target.value))}
+                helperText="Cobrada do fotógrafo se não houver fotos extras."
+              />
+              <Input
+                label="Comissão da Plataforma (%) *"
+                type="number"
+                step="1"
+                min="0"
+                max="100"
+                value={Math.round(platformCommissionRate * 100)}
+                onChange={(e) => setPlatformCommissionRate(Number(e.target.value) / 100)}
+                helperText="Porcentagem de split retida nas fotos extras (Ex: 8%)."
+              />
+            </div>
           )}
         </div>
 
