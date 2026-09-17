@@ -262,12 +262,13 @@ export const GalleryFormModal: React.FC<GalleryFormModalProps> = ({
       fileList.map(async (file, idx) => {
         const blobUrl = URL.createObjectURL(file);
         const metadata = await extractExif(file);
+        const photoId = `upload-${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${idx}`;
         return {
-          id: `upload-${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${idx}`,
+          id: photoId,
           file,
           blobUrl,
           photo: {
-            id: `upload-${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${idx}`,
+            id: photoId,
             originalFileName: file.name,
             url: blobUrl,
             caption: file.name.replace(/\.[^/.]+$/, ''),

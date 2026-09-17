@@ -76,7 +76,7 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [copiedWithExt, setCopiedWithExt] = useState(false);
   const [copiedNoExt, setCopiedNoExt] = useState(false);
-  const [activeFilter, setActiveFilter] = useState<'consensus' | 'all_voted' | 'voter' | 'package' | 'extra' | 'commented'>('consensus');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'consensus' | 'all_voted' | 'voter' | 'package' | 'extra' | 'commented'>('all');
   const [selectedVoterIdFilter, setSelectedVoterIdFilter] = useState<string>('');
   const [isWatermarkModalOpen, setIsWatermarkModalOpen] = useState(false);
   const [isSyncingAdobe, setIsSyncingAdobe] = useState(false);
@@ -252,12 +252,13 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
       fileList.map(async (file, idx) => {
         const blobUrl = URL.createObjectURL(file);
         const metadata = await extractExif(file);
+        const photoId = `upload-${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${idx}`;
         return {
-          id: `upload-${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${idx}`,
+          id: photoId,
           file,
           blobUrl,
           photo: {
-            id: `upload-${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${idx}`,
+            id: photoId,
             originalFileName: file.name,
             url: blobUrl,
             caption: file.name.replace(/\.[^/.]+$/, ''),
@@ -353,12 +354,14 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
 
   // Determine current working export list based on active filter
   const getExportPhotos = (): Photo[] => {
+    if (activeFilter === 'all') return gallery.photos;
     if (activeFilter === 'consensus') return consensusPhotos;
     if (activeFilter === 'all_voted') return allVotedPhotos;
     if (activeFilter === 'voter') return voterPhotos;
     if (activeFilter === 'package') return packagePhotos;
     if (activeFilter === 'extra') return extraPhotos;
-    return consensusPhotos;
+    if (activeFilter === 'commented') return gallery.photos.filter((p) => (commentsMap[p.id] || []).length > 0);
+    return gallery.photos;
   };
 
   const handleCopyLightroom = (stripExt: boolean) => {
@@ -458,13 +461,14 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
 
   // Display photos grid
   const getDisplayedPhotos = () => {
+    if (activeFilter === 'all') return gallery.photos;
     if (activeFilter === 'consensus') return consensusPhotos;
     if (activeFilter === 'all_voted') return allVotedPhotos;
     if (activeFilter === 'voter') return voterPhotos;
     if (activeFilter === 'package') return packagePhotos;
     if (activeFilter === 'extra') return extraPhotos;
     if (activeFilter === 'commented') return gallery.photos.filter((p) => (commentsMap[p.id] || []).length > 0);
-    return consensusPhotos;
+    return gallery.photos;
   };
 
   const displayedPhotos = getDisplayedPhotos();
@@ -787,6 +791,16 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
       {/* Filter Tabs for Photos */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-zinc-800">
         <div className="flex flex-wrap items-center gap-1.5 p-1 bg-zinc-900 rounded-xl border border-zinc-800">
+          <button
+            onClick={() => setActiveFilter('all')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              activeFilter === 'all'
+                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30 font-semibold'
+                : 'text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            📷 Todas as Fotos ({gallery.photos.length})
+          </button>
           <button
             onClick={() => setActiveFilter('consensus')}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
