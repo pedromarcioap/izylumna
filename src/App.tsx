@@ -206,12 +206,12 @@ export default function App() {
 
   const handleUpdateGalleryFromClient = async (updated: Gallery) => {
     try {
-      const saved = await saveGalleryAsync(updated);
-      const updatedList = await getGalleriesAsync();
-      const finalGalleries = updatedList.some((g) => g.id === saved.id)
-        ? updatedList
-        : updatedList.map((g) => (g.id === saved.id ? saved : g));
-      setGalleries(finalGalleries);
+      // Immediately reflect updated gallery in React state to ensure smooth, flicker-free UI
+      setGalleries((prev) =>
+        prev.map((g) => (g.id === updated.id ? updated : g))
+      );
+      // Persist changes in storage/Supabase in background
+      await saveGalleryAsync(updated);
     } catch (e) {
       console.warn('Fallback update from client:', e);
     }

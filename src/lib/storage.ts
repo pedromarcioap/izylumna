@@ -238,6 +238,7 @@ function mapRowToGallery(row: any, photosRows: any[] = [], selectionRow: any = n
       comments: legacyComments,
       votes: rawVotes,
       commentsMap: rawCommentsMap,
+      ratingsMap: rawRatingsMap,
       voters: votersList,
       completedAt: approvedAt,
       status: isCompleted ? 'submitted' : 'pending'
