@@ -562,6 +562,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           <Button
                             variant="outline"
                             size="sm"
+                            onClick={() => onEditGallery(g)}
+                            className="text-xs bg-[#0A0714] border-white/10 text-zinc-300 hover:text-white"
+                            title="Editar configurações e regras da galeria"
+                          >
+                            <SlidersHorizontal className="w-3.5 h-3.5 mr-1 text-amber-400" />
+                            <span>Configurações</span>
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setGalleryToDelete(g)}
+                            className="text-xs bg-[#0A0714] border-red-500/20 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                            title="Excluir galeria com confirmação dupla"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
                             onClick={() => onOpenClientView(g.id)}
                             className="text-xs bg-[#0A0714] border-white/10 text-zinc-200 hover:text-white"
                           >
@@ -768,8 +787,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             setGalleryToDelete(null);
           }
         }}
-        title="Excluir Galeria de Fotos?"
-        description={`Tem certeza que deseja excluir "${galleryToDelete?.title}"? Esta ação removerá permanentemente as imagens e escolhas do cliente.`}
+        galleryTitle={galleryToDelete?.title || ''}
+        photoCount={galleryToDelete?.photos?.length || 0}
       />
     </div>
   );

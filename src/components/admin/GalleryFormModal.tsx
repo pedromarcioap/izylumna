@@ -1049,14 +1049,31 @@ export const GalleryFormModal: React.FC<GalleryFormModalProps> = ({
         </div>
 
         {/* Form Actions */}
-        <div className="flex items-center justify-end gap-3 pt-4 border-t border-zinc-800">
-          <Button type="button" variant="ghost" onClick={onClose}>
-            Cancelar
-          </Button>
-          <Button type="submit" variant="amber" className="font-semibold shadow-lg shadow-amber-500/20">
-            <Sparkles className="w-4 h-4 mr-1.5" />
-            <span>{galleryToEdit ? 'Salvar Alterações' : 'Criar Galeria Colaborativa'}</span>
-          </Button>
+        <div className="flex items-center justify-between gap-3 pt-4 border-t border-zinc-800">
+          {galleryToEdit && onDelete ? (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setIsDeleteModalOpen(true)}
+              className="bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border border-red-500/30 font-semibold"
+              title="Excluir esta galeria permanentemente com confirmação dupla"
+            >
+              <Trash2 className="w-4 h-4 mr-1.5" />
+              <span>Excluir Galeria</span>
+            </Button>
+          ) : (
+            <div />
+          )}
+
+          <div className="flex items-center gap-3">
+            <Button type="button" variant="ghost" onClick={onClose}>
+              Cancelar
+            </Button>
+            <Button type="submit" variant="amber" className="font-semibold shadow-lg shadow-amber-500/20">
+              <Sparkles className="w-4 h-4 mr-1.5" />
+              <span>{galleryToEdit ? 'Salvar Alterações' : 'Criar Galeria Colaborativa'}</span>
+            </Button>
+          </div>
         </div>
       </form>
 
