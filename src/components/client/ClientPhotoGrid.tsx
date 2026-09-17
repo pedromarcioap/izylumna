@@ -229,7 +229,11 @@ export const ClientPhotoGrid: React.FC<ClientPhotoGridProps> = ({
               </div>
 
               {/* Star Rating Selector (0 to 5 stars) */}
-              <div className="flex items-center justify-between pt-1 border-t border-brand-dark/30">
+              <div
+                className="flex items-center justify-between pt-1 border-t border-brand-dark/30"
+                onClick={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
+              >
                 <span className="text-[10px] text-walnut-400 font-medium">Avaliação:</span>
                 <StarRating
                   rating={photo.rating || 0}

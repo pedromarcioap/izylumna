@@ -33,6 +33,7 @@ export const StarRating: React.FC<StarRatingProps> = ({
 
   const handleStarClick = (starIndex: number, e: React.MouseEvent) => {
     e.stopPropagation();
+    e.preventDefault();
     if (readOnly || !onChange) return;
     // Clicking current active rating toggles it off (sets to 0)
     const newRating = rating === starIndex ? 0 : starIndex;
@@ -64,6 +65,12 @@ export const StarRating: React.FC<StarRatingProps> = ({
   return (
     <div
       className={`inline-flex items-center gap-1 ${className}`}
+      onClick={(e) => {
+        e.stopPropagation();
+      }}
+      onMouseDown={(e) => {
+        e.stopPropagation();
+      }}
       onMouseLeave={handleMouseLeave}
       role="radiogroup"
       aria-label={`Avaliação de 0 a ${maxStars} estrelas`}
@@ -79,6 +86,7 @@ export const StarRating: React.FC<StarRatingProps> = ({
               type="button"
               disabled={readOnly}
               onClick={(e) => handleStarClick(starValue, e)}
+              onMouseDown={(e) => e.stopPropagation()}
               onMouseEnter={() => handleMouseEnter(starValue)}
               className={`p-0.5 rounded transition-all duration-150 focus:outline-none focus-visible:ring-1 focus-visible:ring-[#FDBD00] ${
                 readOnly

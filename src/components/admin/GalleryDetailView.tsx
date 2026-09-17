@@ -52,6 +52,7 @@ export interface GalleryDetailViewProps {
   onBack: () => void;
   onOpenClientView: (galleryId: string) => void;
   onEditGallery: (gallery: Gallery) => void;
+  onUpdateGallery?: (gallery: Gallery) => void;
   onShowToast: (title: string, description?: string, type?: 'success' | 'info' | 'warning' | 'error') => void;
 }
 
@@ -60,9 +61,18 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
   onBack,
   onOpenClientView,
   onEditGallery,
+  onUpdateGallery,
   onShowToast
 }) => {
   const { user } = useAuth();
+
+  const handlePersistGallery = (updated: Gallery) => {
+    if (onUpdateGallery) {
+      onUpdateGallery(updated);
+    } else {
+      onEditGallery(updated);
+    }
+  };
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [copiedWithExt, setCopiedWithExt] = useState(false);
   const [copiedNoExt, setCopiedNoExt] = useState(false);
@@ -187,7 +197,7 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
   const handleResetAllVotes = async () => {
     try {
       const updated = await resetGalleryVotesAsync(gallery);
-      onEditGallery(updated);
+      handlePersistGallery(updated);
       setIsResetAllModalOpen(false);
       onShowToast(
         'Votação Zerada!',
@@ -203,7 +213,7 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
     if (!voterToReset) return;
     try {
       const updated = await resetVoterVotesAsync(gallery, voterToReset.id);
-      onEditGallery(updated);
+      handlePersistGallery(updated);
       onShowToast(
         'Votos do Votante Zerados!',
         `Todos os votos de ${voterToReset.name} foram removidos.`,
@@ -219,7 +229,7 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
     if (!photoToClear) return;
     try {
       const updated = await clearPhotoVotesAsync(gallery, photoToClear.id);
-      onEditGallery(updated);
+      handlePersistGallery(updated);
       onShowToast(
         'Votos da Foto Limpos!',
         `Votos da foto ${photoToClear.originalFileName} foram zerados.`,
@@ -292,7 +302,7 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
     const finalPhotos = currentPhotos.filter((p) => p.url && !p.url.startsWith('blob:'));
 
     // Perform ONE SINGLE CONSOLIDATED SAVE to Supabase after all batch uploads finish
-    onEditGallery({
+    handlePersistGallery({
       ...gallery,
       photos: finalPhotos,
       updatedAt: new Date().toISOString()
@@ -419,7 +429,7 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
   };
 
   const handleSimulateClosurePaid = () => {
-    onEditGallery({
+    handlePersistGallery({
       ...gallery,
       paymentStatus: 'paid',
       updatedAt: new Date().toISOString()
@@ -427,7 +437,7 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
     setIsClosureFeeModalOpen(false);
     onShowToast(
       'Taxa de Encerramento Quitada!',
-      'Exportação liberada com sucesso! Você já pode copiar para o Lightroom ou sincronizar na nuvem.',
+      'Exportação liberada com sucesso! Você já pode copiar para el Lightroom o sincronizar na nuvem.',
       'success'
     );
   };
@@ -435,7 +445,7 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
   const handleSetPhotoRating = async (photo: Photo, rating: number) => {
     try {
       const updated = await setPhotoRatingAsync(gallery, photo.id, rating);
-      onEditGallery(updated);
+      handlePersistGallery(updated);
       onShowToast(
         rating > 0 ? 'Avaliação Atualizada' : 'Avaliação Limpa',
         `Foto ${photo.originalFileName} classificada com ${rating}★`,
@@ -926,7 +936,11 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
                   </div>
 
                   {/* Photographer Star Rating Selector */}
-                  <div className="flex items-center justify-between pt-1 border-t border-zinc-800">
+                  <div
+                    className="flex items-center justify-between pt-1 border-t border-zinc-800"
+                    onClick={(e) => e.stopPropagation()}
+                    onMouseDown={(e) => e.stopPropagation()}
+                  >
                     <span className="text-[10px] text-zinc-400 font-medium">Estrelas:</span>
                     <StarRating
                       rating={photo.rating || 0}

@@ -307,6 +307,7 @@ export default function App() {
                   setGalleryToEdit(g);
                   setIsFormModalOpen(true);
                 }}
+                onUpdateGallery={handleUpdateGalleryFromClient}
                 onShowToast={showToast}
               />
             ) : activeSidebarItem === 'filters' ? (
