@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog } from '../ui/Dialog';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
@@ -55,6 +55,19 @@ export const PhotographerSettingsModal: React.FC<PhotographerSettingsModalProps>
   const [defaultExtraPrice, setDefaultExtraPrice] = useState(
     profile.defaultExtraPrice || 25
   );
+
+  useEffect(() => {
+    if (isOpen && profile) {
+      setStudioName(profile.studioName || '');
+      setPhone(profile.phone || '');
+      setPixKey(profile.pixKey || '');
+      setPixKeyType(profile.pixKeyType || 'cpf');
+      setDefaultWatermark(profile.defaultWatermarkText || 'PROVA • LUMINA STUDIO • PROVA');
+      setDefaultPosition(profile.defaultWatermarkPosition || 'both');
+      setDefaultOpacity(profile.defaultWatermarkOpacity ?? 0.25);
+      setDefaultExtraPrice(profile.defaultExtraPrice || 25);
+    }
+  }, [isOpen, profile]);
 
   const handleSaveStudio = (e: React.FormEvent) => {
     e.preventDefault();

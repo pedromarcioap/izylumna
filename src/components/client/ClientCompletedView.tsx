@@ -63,8 +63,15 @@ export const ClientCompletedView: React.FC<ClientCompletedViewProps> = ({
             </p>
           </div>
 
-          {/* Detailed Summary Card */}
-          <div className="p-4 rounded-xl bg-zinc-950/70 border border-zinc-800 text-left space-y-2 text-xs">
+          {/* Detailed Summary Card & Digital Receipt */}
+          <div className="p-4.5 rounded-xl bg-zinc-950/80 border border-zinc-800 text-left space-y-2.5 text-xs">
+            <div className="flex items-center justify-between pb-2 border-b border-zinc-800 font-bold">
+              <span className="text-zinc-300">Recibo Digital de Seleção</span>
+              <Badge variant={gallery.paymentStatus === 'paid' ? 'success' : 'secondary'} size="sm">
+                {gallery.paymentStatus === 'paid' ? '✓ PIX Confirmado & Quitado' : 'Seleção Registrada'}
+              </Badge>
+            </div>
+
             <div className="flex justify-between py-1 border-b border-zinc-850">
               <span className="text-zinc-400">Projeto / Ensaio:</span>
               <strong className="text-zinc-200 font-serif">{gallery.title}</strong>
@@ -86,12 +93,14 @@ export const ClientCompletedView: React.FC<ClientCompletedViewProps> = ({
                 </span>
               </div>
             )}
-            {gallery.clientSelection.completedAt && (
-              <div className="flex justify-between py-1 text-zinc-500">
-                <span>Data do envio:</span>
-                <span>{new Date(gallery.clientSelection.completedAt).toLocaleString('pt-BR')}</span>
-              </div>
-            )}
+            <div className="flex justify-between py-1 text-zinc-500">
+              <span>Data de Liquidação / Envio:</span>
+              <span className="font-mono">
+                {gallery.clientSelection?.completedAt
+                  ? new Date(gallery.clientSelection.completedAt).toLocaleString('pt-BR')
+                  : new Date().toLocaleString('pt-BR')}
+              </span>
+            </div>
           </div>
 
           {/* Action Buttons */}

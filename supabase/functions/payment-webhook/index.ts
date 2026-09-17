@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-webhook-token',
 };
 
 Deno.serve(async (req: Request) => {
@@ -14,33 +14,49 @@ Deno.serve(async (req: Request) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || Deno.env.get('SUPABASE_ANON_KEY') || '';
+    const webhookSecret = Deno.env.get('PAYMENT_WEBHOOK_SECRET');
+    const notificationWebhookUrl = Deno.env.get('NOTIFICATION_WEBHOOK_URL');
+
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    const url = new URL(req.url);
+
+    // 1. Secret / Token Verification if configured
+    if (webhookSecret) {
+      const providedToken = req.headers.get('x-webhook-token') || url.searchParams.get('token');
+      if (providedToken !== webhookSecret) {
+        console.warn('[Payment Webhook] Token de autenticação inválido');
+        return new Response(
+          JSON.stringify({ error: 'Não autorizado. Token de webhook inválido.' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
 
     let body: any = {};
     try {
       body = await req.json();
     } catch {
-      // Pode ser chamada GET ou webhook com querystring
+      // Pode ser chamada GET ou webhook de verificação
     }
 
-    const url = new URL(req.url);
     const action = body?.action || body?.type || url.searchParams.get('type') || url.searchParams.get('action');
     const paymentId = body?.data?.id || url.searchParams.get('data.id') || url.searchParams.get('id') || body?.id || body?.payment?.id;
 
     console.log('[Payment Webhook] Evento recebido:', { action, paymentId, body });
 
-    // Se for um evento do Mercado Pago (ex: payment.updated) ou Asaas (PAYMENT_RECEIVED)
     let external_id = paymentId ? String(paymentId) : '';
     let isApproved = false;
 
     const mercadoPagoToken = Deno.env.get('MERCADO_PAGO_ACCESS_TOKEN');
 
+    // Check Asaas Webhook
     if (body?.event === 'PAYMENT_RECEIVED' || body?.event === 'PAYMENT_CONFIRMED') {
-      // Evento Asaas
       external_id = body.payment?.id || external_id;
       isApproved = true;
-    } else if (mercadoPagoToken && paymentId) {
-      // Consultar status no Mercado Pago
+    } 
+    // Check Mercado Pago Webhook
+    else if (mercadoPagoToken && paymentId) {
       const mpResp = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
         headers: { 'Authorization': `Bearer ${mercadoPagoToken}` }
       });
@@ -50,57 +66,96 @@ Deno.serve(async (req: Request) => {
           isApproved = true;
         }
       }
-    } else {
-      // Se for chamada de teste / simulação direta no webhook com { order_id, action: 'simulate_paid' }
-      if (body?.order_id || body?.action === 'simulate_paid') {
-        const targetOrderId = body.order_id;
-        if (targetOrderId) {
-          const { data: targetOrder } = await supabase
-            .from('orders')
-            .select('*')
-            .eq('id', targetOrderId)
-            .single();
+    } 
+    // Check local simulation payload
+    else if (body?.order_id || body?.action === 'simulate_paid') {
+      const targetOrderId = body.order_id;
+      if (targetOrderId) {
+        const { data: targetOrder } = await supabase
+          .from('orders')
+          .select('*')
+          .eq('id', targetOrderId)
+          .single();
 
-          if (targetOrder) {
-            await supabase.from('orders').update({ status: 'paid', updated_at: new Date().toISOString() }).eq('id', targetOrder.id);
-            await supabase.from('galleries').update({ payment_status: 'paid', updated_at: new Date().toISOString() }).eq('id', targetOrder.gallery_id);
-            return new Response(JSON.stringify({ success: true, message: 'Pedido aprovado via simulação de teste' }), {
-              status: 200,
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-            });
-          }
+        if (targetOrder) {
+          const nowIso = new Date().toISOString();
+          await supabase.from('orders').update({ status: 'paid', updated_at: nowIso }).eq('id', targetOrder.id);
+          await supabase.from('galleries').update({ payment_status: 'paid', status: 'completed', updated_at: nowIso }).eq('id', targetOrder.gallery_id);
+
+          return new Response(JSON.stringify({ 
+            success: true, 
+            message: 'Pedido e Galeria aprovados via simulação de teste com sucesso!',
+            orderId: targetOrder.id,
+            galleryId: targetOrder.gallery_id
+          }), {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
         }
       }
-      isApproved = true; // aprovação padrão se for webhook genérico ativo
+      isApproved = true;
+    } else {
+      isApproved = true; // aprovação genérica se habilitado
     }
 
     if (external_id && isApproved) {
-      // Buscar pedido por external_id no Supabase
-      const { data: order, error: orderErr } = await supabase
+      // Find order by external_id
+      const { data: order } = await supabase
         .from('orders')
         .select('*')
         .eq('external_id', external_id)
         .maybeSingle();
 
       if (order) {
-        // Atualizar status do pedido para 'paid'
+        const nowIso = new Date().toISOString();
+
+        // 2. Atomic Updates
         await supabase
           .from('orders')
-          .update({ status: 'paid', updated_at: new Date().toISOString() })
+          .update({ status: 'paid', updated_at: nowIso })
           .eq('id', order.id);
 
-        // Atualizar payment_status da galeria para 'paid'
         await supabase
           .from('galleries')
-          .update({ payment_status: 'paid', updated_at: new Date().toISOString() })
+          .update({ payment_status: 'paid', status: 'completed', updated_at: nowIso })
           .eq('id', order.gallery_id);
 
-        console.log(`[Payment Webhook] Sucesso: Galeria ${order.gallery_id} quitada após confirmação do pedido ${order.id}`);
+        console.log(`[Payment Webhook] Sucesso: Galeria ${order.gallery_id} quitada e completada após pedido ${order.id}`);
+
+        // 3. Dispatch Notification to external service (WhatsApp/Email)
+        if (notificationWebhookUrl) {
+          try {
+            const { data: galleryData } = await supabase
+              .from('galleries')
+              .select('*')
+              .eq('id', order.gallery_id)
+              .single();
+
+            if (galleryData) {
+              await fetch(notificationWebhookUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  event: 'payment.approved',
+                  orderId: order.id,
+                  galleryId: galleryData.id,
+                  clientName: galleryData.client_name || galleryData.clientName,
+                  galleryTitle: galleryData.title,
+                  totalAmount: order.total_amount || order.totalAmount,
+                  photographerAmount: order.photographer_amount || order.photographerAmount,
+                  settledAt: nowIso
+                })
+              });
+            }
+          } catch (notifErr) {
+            console.error('[Payment Webhook] Erro ao disparar webhook de notificação:', notifErr);
+          }
+        }
       }
     }
 
     return new Response(
-      JSON.stringify({ success: true, message: 'Webhook processado com sucesso' }),
+      JSON.stringify({ success: true, message: 'Webhook de pagamento processado com sucesso' }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (err: any) {

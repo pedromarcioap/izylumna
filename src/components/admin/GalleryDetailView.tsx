@@ -1,15 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Gallery, Photo } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
+import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { getValidAdobeAccessToken, syncClientVotesToAdobe } from '../../lib/adobeLightroom';
 import {
   generateLightroomSelectionString,
-  downloadApprovalManifest,
   resetGalleryVotesAsync,
   resetVoterVotesAsync,
   clearPhotoVotesAsync,
   deleteVoteAsync
 } from '../../lib/storage';
+import { downloadApprovalManifest, generateFilenamesList } from '../../lib/exportUtils';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
@@ -87,6 +88,47 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
 
   const isExportUnlocked = gallery.paymentStatus === 'paid' || gallery.paymentStatus === 'waived';
   const closureFee = gallery.galleryClosureFee ?? 6.90;
+
+  // Supabase Realtime listener for Gallery & Order Payment Unlocks
+  useEffect(() => {
+    if (!isSupabaseConfigured || !supabase || !gallery?.id) return;
+
+    let galleryChannel: any = null;
+
+    galleryChannel = supabase
+      .channel(`gallery-payment-${gallery.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'galleries',
+          filter: `id=eq.${gallery.id}`
+        },
+        (payload: any) => {
+          if (payload?.new && payload.new.payment_status === 'paid' && gallery.paymentStatus !== 'paid') {
+            console.log('[Realtime Admin] Pagamento da Galeria Quitado com Sucesso!');
+            onEditGallery({
+              ...gallery,
+              paymentStatus: 'paid',
+              updatedAt: new Date().toISOString()
+            });
+            onShowToast(
+              'Exportação Liberada em Tempo Real!',
+              'O pagamento da galeria foi confirmado. Todas as opções de exportação estão liberadas.',
+              'success'
+            );
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      if (galleryChannel && supabase) {
+        supabase.removeChannel(galleryChannel);
+      }
+    };
+  }, [gallery.id, gallery.paymentStatus]);
 
   const handleSyncToAdobeCloud = async () => {
     if (!user) {

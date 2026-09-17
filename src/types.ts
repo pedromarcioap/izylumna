@@ -165,6 +165,35 @@ export interface Order {
   updatedAt?: string;
 }
 
+export interface WebhookPaymentPayload {
+  event: 'payment.approved' | 'payment.updated' | 'order.paid';
+  orderId: string;
+  externalId?: string;
+  status: 'paid' | 'approved' | 'pending' | 'failed';
+  totalAmount: number;
+  paidAt?: string;
+  signature?: string;
+}
+
+export interface NotificationPayload {
+  recipientType: 'photographer' | 'client';
+  recipientName: string;
+  recipientContact: string; // Phone (WhatsApp) or Email
+  channel: 'whatsapp' | 'email' | 'both';
+  galleryTitle: string;
+  orderId?: string;
+  amount?: number;
+  extraPhotosCount?: number;
+  message?: string;
+}
+
+export interface ExportOptions {
+  commaSeparated?: boolean;
+  includeExtension?: boolean;
+  filterByVoterId?: string;
+  onlyConsensus?: boolean;
+}
+
 // ==========================================
 // Adobe Lightroom Cloud Integration Models
 // ==========================================

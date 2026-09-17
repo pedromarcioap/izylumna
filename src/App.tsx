@@ -278,11 +278,12 @@ export default function App() {
                 <AdminDashboard
                   galleries={galleries}
                   photographerProfile={{
-                    name: profile?.full_name || 'Usuário Lumina',
-                    studioName: 'Lumina Proofing Studio',
-                    email: profile?.email || 'admin@lumina.com',
-                    phone: '',
-                    avatarUrl: profile?.avatar_url || ''
+                    ...photographerSession.profile,
+                    name: profile?.full_name || photographerSession.profile.name || 'Usuário Lumina',
+                    studioName: photographerSession.profile.studioName || 'Lumina Proofing Studio',
+                    email: profile?.email || photographerSession.profile.email || 'admin@lumina.com',
+                    phone: photographerSession.profile.phone || '',
+                    avatarUrl: profile?.avatar_url || photographerSession.profile.avatarUrl || ''
                   }}
                   onUpdateProfile={handleUpdateProfile}
                   onLogout={handleLogout}

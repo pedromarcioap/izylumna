@@ -74,8 +74,9 @@ export const ClientFinalizeModal: React.FC<ClientFinalizeModalProps> = ({
     let pollInterval: any = null;
 
     if (isSupabaseConfigured && supabase) {
+      const channelName = `order-approval-${pixData.orderId}`;
       channel = supabase
-        .channel(`order_status_${pixData.orderId}`)
+        .channel(channelName)
         .on(
           'postgres_changes',
           {
@@ -84,16 +85,19 @@ export const ClientFinalizeModal: React.FC<ClientFinalizeModalProps> = ({
             table: 'orders',
             filter: `id=eq.${pixData.orderId}`
           },
-          (payload) => {
-            if (payload.new && payload.new.status === 'paid') {
+          (payload: any) => {
+            if (payload?.new && (payload.new.status === 'paid' || payload.new.status === 'approved')) {
+              console.log('[Realtime] Pedido confirmado via evento postgres_changes:', payload.new);
               handlePaymentSuccess();
             }
           }
         )
-        .subscribe();
+        .subscribe((status: string) => {
+          console.log(`[Realtime Order Subscription Status]: ${status}`);
+        });
     }
 
-    // Polling fallback every 3.5s
+    // Fallback polling every 3s
     pollInterval = setInterval(async () => {
       if (isSupabaseConfigured && supabase && pixData.orderId) {
         const { data: order } = await supabase
@@ -102,15 +106,20 @@ export const ClientFinalizeModal: React.FC<ClientFinalizeModalProps> = ({
           .eq('id', pixData.orderId)
           .maybeSingle();
 
-        if (order && order.status === 'paid') {
+        if (order && (order.status === 'paid' || order.status === 'approved')) {
+          console.log('[Polling] Pedido pago confirmado via banco de dados!');
           handlePaymentSuccess();
         }
       }
-    }, 3500);
+    }, 3000);
 
     return () => {
-      if (channel && supabase) supabase.removeChannel(channel);
-      if (pollInterval) clearInterval(pollInterval);
+      if (channel && supabase) {
+        supabase.removeChannel(channel);
+      }
+      if (pollInterval) {
+        clearInterval(pollInterval);
+      }
     };
   }, [checkoutStep, pixData]);
 
