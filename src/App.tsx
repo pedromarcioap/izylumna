@@ -49,6 +49,7 @@ export default function App() {
   // Modal for creating/editing galleries
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [galleryToEdit, setGalleryToEdit] = useState<Gallery | null>(null);
+  const [settingsSubTab, setSettingsSubTab] = useState<'perfil' | 'team' | 'adobe' | 'pix'>('perfil');
 
   // Toasts
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -270,6 +271,7 @@ export default function App() {
         setActiveSidebarItem(item);
         setAdminSubView('list');
       }}
+      onNavigateToSettingsTab={(tab) => setSettingsSubTab(tab)}
       photographerProfile={photographerSession.profile}
       onLogout={handleLogout}
     >
@@ -309,6 +311,8 @@ export default function App() {
               />
             ) : activeSidebarItem === 'settings' ? (
               <StudioSettingsView
+                key={settingsSubTab}
+                initialTab={settingsSubTab}
                 onShowToast={showToast}
               />
             ) : (

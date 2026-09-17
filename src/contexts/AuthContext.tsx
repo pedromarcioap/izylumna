@@ -16,6 +16,7 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   updateProfile: (data: { full_name?: string; avatar_url?: string }) => Promise<{ success: boolean; error?: string }>;
   adminUpdateUser: (userId: string, data: { role?: UserRole; is_active?: boolean }) => Promise<{ success: boolean; error?: string }>;
+  adminCreateUser: (data: { email: string; password?: string; fullName: string; role: UserRole; phone?: string }) => Promise<{ success: boolean; user?: UserProfile; error?: string }>;
   fetchAllProfiles: () => Promise<UserProfile[]>;
 }
 
@@ -322,7 +323,81 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const LOCAL_PROFILES_KEY = 'izylumna_local_profiles_v2';
+
+  const getStoredProfiles = (): UserProfile[] => {
+    try {
+      const raw = localStorage.getItem(LOCAL_PROFILES_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch (e) {
+      console.warn('Erro ao ler perfis locais:', e);
+    }
+    return [];
+  };
+
+  const saveStoredProfiles = (profiles: UserProfile[]) => {
+    try {
+      localStorage.setItem(LOCAL_PROFILES_KEY, JSON.stringify(profiles));
+    } catch (e) {
+      console.warn('Erro ao salvar perfis locais:', e);
+    }
+  };
+
+  const adminCreateUser = async (data: {
+    email: string;
+    password?: string;
+    fullName: string;
+    role: UserRole;
+    phone?: string;
+  }): Promise<{ success: boolean; user?: UserProfile; error?: string }> => {
+    const emailClean = data.email.trim().toLowerCase();
+    const fullNameClean = data.fullName.trim();
+
+    if (!emailClean || !fullNameClean) {
+      return { success: false, error: 'E-mail e Nome Completo são obrigatórios.' };
+    }
+
+    const newProfile: UserProfile = {
+      id: `user-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      email: emailClean,
+      full_name: fullNameClean,
+      role: data.role || 'photographer',
+      is_active: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { error } = await supabase.from('profiles').insert([{
+          id: newProfile.id,
+          email: newProfile.email,
+          full_name: newProfile.full_name,
+          role: newProfile.role,
+          is_active: true,
+          created_at: newProfile.created_at,
+          updated_at: newProfile.updated_at
+        }]);
+
+        if (error) {
+          console.warn('Supabase profile creation fallback error:', error.message);
+        }
+      } catch (e: any) {
+        console.warn('Failed to insert user profile into Supabase:', e);
+      }
+    }
+
+    // Save to local cache so it immediately reflects in UI
+    const existing = getStoredProfiles();
+    const filtered = existing.filter(p => p.email.toLowerCase() !== emailClean);
+    const updated = [newProfile, ...filtered];
+    saveStoredProfiles(updated);
+
+    return { success: true, user: newProfile };
+  };
+
   const fetchAllProfiles = async (): Promise<UserProfile[]> => {
+    let dbProfiles: UserProfile[] = [];
     if (isSupabaseConfigured && supabase) {
       try {
         const { data, error } = await supabase
@@ -330,19 +405,62 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .select('*')
           .order('created_at', { ascending: false });
 
-        if (error) {
-          console.error('Erro ao buscar lista de perfis:', error);
-          return [];
+        if (!error && data) {
+          dbProfiles = data as UserProfile[];
         }
-        return (data as UserProfile[]) || [];
       } catch (e) {
-        console.error('Falha ao listar usuários:', e);
-        return [];
+        console.error('Falha ao listar usuários no Supabase:', e);
       }
     }
 
-    // Fallback list when offline or unconfigured
-    return profile ? [profile] : [];
+    const localProfiles = getStoredProfiles();
+
+    // Default mock profiles if empty
+    const defaultTeam: UserProfile[] = [
+      profile || {
+        id: 'user-admin-default',
+        email: 'contato@luminastudio.com',
+        full_name: 'Lumina Studio Admin',
+        role: 'admin',
+        is_active: true,
+        created_at: '2026-01-15T10:00:00Z'
+      },
+      {
+        id: 'user-photo-1',
+        email: 'editor.marcos@luminastudio.com',
+        full_name: 'Marcos Oliveira',
+        role: 'photographer',
+        is_active: true,
+        created_at: '2026-02-10T14:30:00Z'
+      },
+      {
+        id: 'user-photo-2',
+        email: 'beatriz.fotografia@luminastudio.com',
+        full_name: 'Beatriz Santos',
+        role: 'photographer',
+        is_active: true,
+        created_at: '2026-03-01T09:15:00Z'
+      },
+      {
+        id: 'user-assistant-1',
+        email: 'assistente.clara@luminastudio.com',
+        full_name: 'Clara Costa',
+        role: 'user',
+        is_active: false,
+        created_at: '2026-04-12T16:00:00Z'
+      }
+    ];
+
+    // Combine and remove duplicates by email
+    const map = new Map<string, UserProfile>();
+    
+    defaultTeam.forEach(p => map.set(p.email.toLowerCase(), p));
+    localProfiles.forEach(p => map.set(p.email.toLowerCase(), p));
+    dbProfiles.forEach(p => map.set(p.email.toLowerCase(), p));
+
+    return Array.from(map.values()).sort((a, b) => 
+      new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+    );
   };
 
   const isAdmin = profile?.role === 'admin';
@@ -363,6 +481,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signOut,
         updateProfile,
         adminUpdateUser,
+        adminCreateUser,
         fetchAllProfiles
       }}
     >

@@ -20,7 +20,11 @@ import {
   Lock,
   UserCheck,
   UserX,
-  AlertTriangle
+  AlertTriangle,
+  UserPlus,
+  X,
+  Mail,
+  Phone
 } from 'lucide-react';
 
 export interface UserManagementViewProps {
@@ -28,13 +32,24 @@ export interface UserManagementViewProps {
 }
 
 export const UserManagementView: React.FC<UserManagementViewProps> = ({ onShowToast }) => {
-  const { profile: currentUserProfile, adminUpdateUser, fetchAllProfiles } = useAuth();
+  const { profile: currentUserProfile, adminUpdateUser, adminCreateUser, fetchAllProfiles } = useAuth();
 
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [roleFilter, setRoleFilter] = useState<'all' | UserRole>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'suspended'>('all');
+
+  // Create User Form state
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [newUserData, setNewUserData] = useState({
+    fullName: '',
+    email: '',
+    phone: '',
+    password: '',
+    role: 'photographer' as UserRole
+  });
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -145,6 +160,44 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onShowTo
     }
   };
 
+  const handleCreateUserSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newUserData.fullName.trim() || !newUserData.email.trim()) {
+      onShowToast('Campos Obrigatórios', 'Preencha o Nome Completo e o E-mail.', 'warning');
+      return;
+    }
+
+    setIsSubmitting(true);
+    const res = await adminCreateUser({
+      fullName: newUserData.fullName,
+      email: newUserData.email,
+      password: newUserData.password || 'Mudar123!',
+      role: newUserData.role,
+      phone: newUserData.phone
+    });
+
+    setIsSubmitting(false);
+
+    if (res.success) {
+      onShowToast(
+        'Usuário Criado com Sucesso!',
+        `O membro "${newUserData.fullName}" foi adicionado com nível de ${newUserData.role === 'admin' ? 'Administrador' : newUserData.role === 'photographer' ? 'Fotógrafo' : 'Usuário'}.`,
+        'success'
+      );
+      setNewUserData({
+        fullName: '',
+        email: '',
+        phone: '',
+        password: '',
+        role: 'photographer'
+      });
+      setIsCreateModalOpen(false);
+      loadUsers();
+    } else {
+      onShowToast('Erro ao Criar Usuário', res.error || 'Falha ao cadastrar usuário.', 'error');
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Top Header Card */}
@@ -157,14 +210,26 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onShowTo
             </h2>
           </div>
           <p className="text-xs text-zinc-400 mt-1">
-            Controle de acesso por funções (RBAC), alteração de privilégios e suspensão de contas no Supabase.
+            Controle de acesso por funções (RBAC), criação de novos membros da equipe e suspensão de contas.
           </p>
         </div>
 
-        <Button variant="outline" size="sm" onClick={loadUsers} className="text-xs self-start md:self-auto">
-          <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isLoading ? 'animate-spin' : ''}`} />
-          <span>Atualizar Lista</span>
-        </Button>
+        <div className="flex items-center gap-2 self-start md:self-auto">
+          <Button variant="outline" size="sm" onClick={loadUsers} className="text-xs">
+            <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isLoading ? 'animate-spin' : ''}`} />
+            <span>Atualizar Lista</span>
+          </Button>
+
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => setIsCreateModalOpen(true)}
+            className="text-xs bg-gradient-to-r from-[#8300E9] to-[#7000C8] hover:brightness-110 text-white font-bold shadow-lg shadow-[#8300E9]/30"
+          >
+            <UserPlus className="w-3.5 h-3.5 mr-1.5" />
+            <span>Criar Novo Usuário</span>
+          </Button>
+        </div>
       </div>
 
       {/* Filters and Search Bar */}
@@ -388,6 +453,161 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onShowTo
           </div>
         </div>
       </Card>
+
+      {/* Modal: Criar Novo Usuário */}
+      {isCreateModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="relative w-full max-w-lg rounded-2xl bg-[#120E22] border border-white/10 shadow-2xl overflow-hidden p-6 space-y-5">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-4 border-b border-white/10">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-[#8300E9]/20 text-[#8300E9] border border-[#8300E9]/30">
+                  <UserPlus className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-serif font-bold text-lg text-white">Cadastrar Membro na Equipe</h3>
+                  <p className="text-xs text-zinc-400">Adicione dados de acesso e nível de permissão.</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsCreateModalOpen(false)}
+                className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/5 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Form */}
+            <form onSubmit={handleCreateUserSubmit} className="space-y-4 text-xs">
+              <div>
+                <label className="block text-zinc-300 font-medium mb-1.5">
+                  Nome Completo <span className="text-amber-400">*</span>
+                </label>
+                <Input
+                  required
+                  placeholder="Ex: Clara Ribeiro"
+                  value={newUserData.fullName}
+                  onChange={(e) => setNewUserData({ ...newUserData, fullName: e.target.value })}
+                  leftIcon={<User className="w-4 h-4" />}
+                />
+              </div>
+
+              <div>
+                <label className="block text-zinc-300 font-medium mb-1.5">
+                  E-mail de Acesso <span className="text-amber-400">*</span>
+                </label>
+                <Input
+                  required
+                  type="email"
+                  placeholder="exemplo@estudio.com"
+                  value={newUserData.email}
+                  onChange={(e) => setNewUserData({ ...newUserData, email: e.target.value })}
+                  leftIcon={<Mail className="w-4 h-4" />}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-zinc-300 font-medium mb-1.5">WhatsApp / Telefone</label>
+                  <Input
+                    placeholder="(11) 99999-9999"
+                    value={newUserData.phone}
+                    onChange={(e) => setNewUserData({ ...newUserData, phone: e.target.value })}
+                    leftIcon={<Phone className="w-4 h-4" />}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-zinc-300 font-medium mb-1.5">Senha Inicial</label>
+                  <Input
+                    type="password"
+                    placeholder="Deixe em branco p/ padrão"
+                    value={newUserData.password}
+                    onChange={(e) => setNewUserData({ ...newUserData, password: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-zinc-300 font-medium mb-1.5">
+                  Nível de Acesso (Função) <span className="text-amber-400">*</span>
+                </label>
+                <div className="grid grid-cols-3 gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setNewUserData({ ...newUserData, role: 'photographer' })}
+                    className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between ${
+                      newUserData.role === 'photographer'
+                        ? 'bg-[#8300E9]/20 border-[#8300E9] text-white ring-1 ring-[#8300E9]'
+                        : 'bg-[#0A0714] border-white/10 text-zinc-400 hover:text-zinc-200'
+                    }`}
+                  >
+                    <Camera className="w-4 h-4 text-purple-400 mb-1" />
+                    <span className="font-bold">Fotógrafo</span>
+                    <span className="text-[10px] text-zinc-400 leading-tight">Cria e edita galerias</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setNewUserData({ ...newUserData, role: 'admin' })}
+                    className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between ${
+                      newUserData.role === 'admin'
+                        ? 'bg-amber-500/20 border-amber-500 text-white ring-1 ring-amber-500'
+                        : 'bg-[#0A0714] border-white/10 text-zinc-400 hover:text-zinc-200'
+                    }`}
+                  >
+                    <ShieldCheck className="w-4 h-4 text-amber-400 mb-1" />
+                    <span className="font-bold">Admin</span>
+                    <span className="text-[10px] text-zinc-400 leading-tight">Acesso total ao estúdio</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setNewUserData({ ...newUserData, role: 'user' })}
+                    className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between ${
+                      newUserData.role === 'user'
+                        ? 'bg-blue-500/20 border-blue-500 text-white ring-1 ring-blue-500'
+                        : 'bg-[#0A0714] border-white/10 text-zinc-400 hover:text-zinc-200'
+                    }`}
+                  >
+                    <User className="w-4 h-4 text-blue-400 mb-1" />
+                    <span className="font-bold">Assistente</span>
+                    <span className="text-[10px] text-zinc-400 leading-tight">Apenas visualização</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Form Buttons */}
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/10">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsCreateModalOpen(false)}
+                  className="border-white/10 text-zinc-300 hover:bg-white/5"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="sm"
+                  disabled={isSubmitting}
+                  className="bg-gradient-to-r from-[#8300E9] to-[#7000C8] font-bold text-white shadow-lg shadow-[#8300E9]/30"
+                >
+                  {isSubmitting ? (
+                    <span className="flex items-center gap-1.5">
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Cadastrando...
+                    </span>
+                  ) : (
+                    'Confirmar e Cadastrar'
+                  )}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

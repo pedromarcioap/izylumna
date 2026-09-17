@@ -81,17 +81,54 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [galleryToDelete, setGalleryToDelete] = useState<Gallery | null>(null);
   const [watermarkGallery, setWatermarkGallery] = useState<Gallery | null>(null);
 
-  // Computations matching Image 1 KPI numbers
-  const totalGalleries = galleries.length || 14;
-  const awaitingSelectionCount = 6;
-  const completedCount = 8;
-  const totalExtrasBilled = 4850;
+  // Computations matching KPI numbers and dynamic filters
+  const totalGalleries = galleries.length;
+  const inProgressGalleries = galleries.filter(
+    (g) =>
+      g.status === 'awaiting_client' ||
+      g.clientSelection?.status === 'pending' ||
+      (g.voters && g.voters.length > 0) ||
+      (g.clientSelection?.votes && Object.keys(g.clientSelection.votes).length > 0)
+  );
+
+  const pendingExtrasGalleries = galleries.filter((g) => {
+    const selectedCount = g.clientSelection?.selectedPhotoIds?.length || 0;
+    return selectedCount > g.quotaIncluded && g.paymentStatus !== 'paid';
+  });
+
+  const readyLightroomGalleries = galleries.filter(
+    (g) => g.status === 'completed' || Boolean(g.adobeAlbumId)
+  );
+
+  const completedGalleries = galleries.filter((g) => g.status === 'completed');
 
   const filteredGalleries = galleries.filter((g) => {
     const matchesQuery =
       g.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       g.clientName.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesQuery;
+
+    if (!matchesQuery) return false;
+
+    if (statusFilter === 'in_progress') {
+      return (
+        g.status === 'awaiting_client' ||
+        g.clientSelection?.status === 'pending' ||
+        (g.voters && g.voters.length > 0) ||
+        (g.clientSelection?.votes && Object.keys(g.clientSelection.votes).length > 0)
+      );
+    }
+    if (statusFilter === 'pending_extras') {
+      const selectedCount = g.clientSelection?.selectedPhotoIds?.length || 0;
+      return selectedCount > g.quotaIncluded && g.paymentStatus !== 'paid';
+    }
+    if (statusFilter === 'ready_lightroom') {
+      return g.status === 'completed' || Boolean(g.adobeAlbumId);
+    }
+    if (statusFilter === 'completed') {
+      return g.status === 'completed';
+    }
+
+    return true;
   });
 
   const getClientGalleryUrl = (galleryId: string) => {
@@ -280,7 +317,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 : 'text-zinc-400 hover:text-white hover:bg-white/5'
             }`}
           >
-            Todos <span className="ml-1 text-[10px] font-mono opacity-80">14</span>
+            Todos <span className="ml-1 text-[10px] font-mono opacity-80">{totalGalleries}</span>
           </button>
 
           <button
@@ -291,7 +328,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 : 'text-zinc-400 hover:text-[#46BDC6] hover:bg-white/5'
             }`}
           >
-            Em Seleção <span className="ml-1 text-[10px] font-mono opacity-80">6</span>
+            Em Seleção / Votação <span className="ml-1 text-[10px] font-mono opacity-80">{inProgressGalleries.length}</span>
           </button>
 
           <button
@@ -302,7 +339,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 : 'text-zinc-400 hover:text-[#FDBD00] hover:bg-white/5'
             }`}
           >
-            Extras Pendentes <span className="ml-1 text-[10px] font-mono opacity-80">2</span>
+            Extras Pendentes <span className="ml-1 text-[10px] font-mono opacity-80">{pendingExtrasGalleries.length}</span>
           </button>
 
           <button
@@ -313,7 +350,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 : 'text-zinc-400 hover:text-white hover:bg-white/5'
             }`}
           >
-            Prontos p/ Lightroom <span className="ml-1 text-[10px] font-mono opacity-80">4</span>
+            Prontos p/ Lightroom <span className="ml-1 text-[10px] font-mono opacity-80">{readyLightroomGalleries.length}</span>
           </button>
 
           <button
@@ -324,7 +361,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 : 'text-zinc-400 hover:text-white hover:bg-white/5'
             }`}
           >
-            Finalizados
+            Finalizados <span className="ml-1 text-[10px] font-mono opacity-80">{completedGalleries.length}</span>
           </button>
         </div>
       </div>
@@ -333,244 +370,184 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* LEFT COLUMN: GALLERIES CARDS (2 COLUMNS SPAN) */}
         <div className="lg:col-span-2 space-y-4">
-          {/* GALLERY CARD 1: Casamento Marina & Guilherme (IN SELECTION) */}
-          <div className="p-5 rounded-2xl bg-[#120E22] border border-[#8300E9]/40 hover:border-[#8300E9] shadow-xl transition-all space-y-4">
-            <div className="flex flex-col sm:flex-row gap-5">
-              {/* Cover Thumbnail */}
-              <div className="relative w-full sm:w-48 h-40 rounded-xl overflow-hidden shrink-0 border border-white/10 group">
-                <SafeImage
-                  src="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=800&q=80"
-                  alt="Casamento Marina & Guilherme"
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-                <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between text-[10px] font-mono text-white">
-                  <span className="px-1.5 py-0.5 rounded bg-black/60 border border-white/20">
-                    420 RAWs
-                  </span>
-                  <span className="px-1.5 py-0.5 rounded bg-[#8300E9]/80 border border-purple-400/30 text-purple-200">
-                    ISO 100 • 85mm
-                  </span>
-                </div>
-              </div>
-
-              {/* Details & Status */}
-              <div className="flex-1 space-y-3 min-w-0">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-[#46BDC6] animate-pulse" />
-                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#46BDC6] px-2 py-0.5 rounded-full bg-[#46BDC6]/15 border border-[#46BDC6]/30">
-                      Em Seleção (Cliente Online Agora)
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs font-mono text-zinc-400">
-                    <span>ID #2488</span>
-                    <button
-                      onClick={() => handleCopyClientLink(galleries[0] || { id: '2488', title: 'Casamento Marina', pinCode: '8492' } as any)}
-                      className="flex items-center gap-1 px-2 py-0.5 rounded bg-[#0A0714] border border-white/10 text-zinc-300 hover:text-white hover:border-[#8300E9]"
-                    >
-                      <Lock className="w-3 h-3 text-[#46BDC6]" />
-                      <span>PIN: <strong>8492</strong></span>
-                      <Copy className="w-3 h-3 ml-0.5" />
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <h2 className="font-sans text-xl font-extrabold text-white">
-                    Casamento Marina & Guilherme
-                  </h2>
-                  <p className="text-xs text-zinc-400 mt-0.5">
-                    Igreja Santa Tereza + Espaço Bosque Real • Realizado em 18 de Outubro
-                  </p>
-                </div>
-
-                {/* Progress bar */}
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-zinc-400 text-[11px]">
-                      Progresso da Escolha (Contratado: <strong className="text-white">80</strong>)
-                    </span>
-                    <span className="font-mono font-bold text-white text-xs">
-                      <strong className="text-[#46BDC6]">92</strong> / 80 selecionadas
-                    </span>
-                  </div>
-                  <div className="h-2 w-full bg-[#0A0714] rounded-full overflow-hidden flex border border-white/10">
-                    <div className="h-full bg-gradient-to-r from-[#8300E9] via-[#46BDC6] to-[#FDBD00] w-[95%]" />
-                  </div>
-                </div>
-
-                {/* Extras Pending Box */}
-                <div className="p-2.5 rounded-xl bg-[#FDBD00]/10 border border-[#FDBD00]/30 flex items-center justify-between text-xs">
-                  <span className="text-[#FDBD00] font-bold flex items-center gap-1.5">
-                    🛒 +12 Fotos Extras Pendentes
-                  </span>
-                  <span className="text-[#FDBD00] font-mono font-extrabold text-sm">
-                    R$ 360,00
-                  </span>
-                </div>
-
-                {/* Actions */}
-                <div className="flex items-center justify-between pt-1">
-                  <span className="text-[11px] text-zinc-500 font-mono">
-                    Último clique há 2 min
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => onOpenClientView(galleries[0]?.id || '')}
-                      className="text-xs bg-[#0A0714] border-white/10 text-zinc-200 hover:text-white"
-                    >
-                      <Eye className="w-3.5 h-3.5 mr-1 text-[#46BDC6]" />
-                      <span>Abrir Visão do Cliente</span>
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => onViewGalleryDetails(galleries[0] || {} as any)}
-                      className="text-xs bg-[#1A142E] text-purple-200 border border-purple-500/40 hover:bg-purple-600 hover:text-white"
-                    >
-                      <span>Ver Seleção (92)</span>
-                    </Button>
-                  </div>
-                </div>
-              </div>
+          {filteredGalleries.length === 0 ? (
+            <div className="p-12 rounded-2xl bg-[#120E22] border border-white/10 text-center space-y-3">
+              <FolderKanban className="w-12 h-12 text-zinc-600 mx-auto" />
+              <h3 className="text-white font-bold text-base">Nenhuma coleção encontrada</h3>
+              <p className="text-zinc-400 text-xs max-w-sm mx-auto">
+                Não encontramos nenhuma coleção correspondente aos filtros aplicados ou à sua busca.
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setStatusFilter('all');
+                  setSearchQuery('');
+                }}
+                className="text-xs bg-[#0A0714] border-white/10 text-zinc-300"
+              >
+                Limpar Filtros
+              </Button>
             </div>
-          </div>
+          ) : (
+            filteredGalleries.map((g) => {
+              const selectedCount = g.clientSelection?.selectedPhotoIds?.length || 0;
+              const hasActiveVoting =
+                (g.voters && g.voters.length > 0) ||
+                (g.clientSelection?.votes && Object.keys(g.clientSelection.votes).length > 0);
+              const extraPhotosCount = Math.max(0, selectedCount - g.quotaIncluded);
+              const extraCost = extraPhotosCount * (g.extraPhotoPrice || 30);
+              const progressPercentage = Math.min(100, Math.round((selectedCount / (g.quotaIncluded || 1)) * 100));
 
-          {/* GALLERY CARD 2: Editorial Moda Autoral - Vl. 04 (COMPLETED & PIX CONFIRMED) */}
-          <div className="p-5 rounded-2xl bg-[#120E22] border border-white/10 hover:border-emerald-500/50 shadow-xl transition-all space-y-4">
-            <div className="flex flex-col sm:flex-row gap-5">
-              {/* Cover Thumbnail */}
-              <div className="relative w-full sm:w-48 h-40 rounded-xl overflow-hidden shrink-0 border border-white/10 group">
-                <SafeImage
-                  src="https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=800&q=80"
-                  alt="Editorial Moda Autoral"
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-                <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between text-[10px] font-mono text-white">
-                  <span className="px-1.5 py-0.5 rounded bg-black/60 border border-white/20">
-                    185 RAWs
-                  </span>
-                  <span className="px-1.5 py-0.5 rounded bg-cyan-600/80 border border-cyan-400/30 text-cyan-100">
-                    Hasselblad 50C
-                  </span>
-                </div>
-              </div>
+              return (
+                <div
+                  key={g.id}
+                  className={`p-5 rounded-2xl bg-[#120E22] border shadow-xl transition-all space-y-4 ${
+                    hasActiveVoting
+                      ? 'border-[#8300E9]/60 hover:border-[#8300E9]'
+                      : g.status === 'completed'
+                      ? 'border-emerald-500/30 hover:border-emerald-500/60'
+                      : 'border-white/10 hover:border-white/20'
+                  }`}
+                >
+                  <div className="flex flex-col sm:flex-row gap-5">
+                    {/* Cover Thumbnail */}
+                    <div className="relative w-full sm:w-48 h-40 rounded-xl overflow-hidden shrink-0 border border-white/10 group">
+                      <SafeImage
+                        src={g.coverPhotoUrl || (g.photos && g.photos[0]?.url) || 'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=800&q=80'}
+                        alt={g.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                      <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between text-[10px] font-mono text-white">
+                        <span className="px-1.5 py-0.5 rounded bg-black/60 border border-white/20">
+                          {g.photos?.length || 0} Fotos
+                        </span>
+                        {g.privacy === 'private' && (
+                          <span className="px-1.5 py-0.5 rounded bg-[#8300E9]/80 border border-purple-400/30 text-purple-200">
+                            PIN: {g.pinCode}
+                          </span>
+                        )}
+                      </div>
+                    </div>
 
-              {/* Details & Status */}
-              <div className="flex-1 space-y-3 min-w-0">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-400 px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30">
-                      ✓ Finalizado pelo Cliente
-                    </span>
-                    <span className="text-[10px] font-mono font-extrabold px-2 py-0.5 rounded-full bg-[#FDBD00] text-[#160F29]">
-                      PIX Confirmado R$ 525,00
-                    </span>
-                  </div>
-                  <span className="text-xs font-mono text-zinc-400">PIN: <strong>4410</strong></span>
-                </div>
+                    {/* Details & Status */}
+                    <div className="flex-1 space-y-3 min-w-0">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          {g.status === 'completed' ? (
+                            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-400 px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30">
+                              ✓ Finalizado pelo Cliente
+                            </span>
+                          ) : hasActiveVoting ? (
+                            <span className="flex items-center gap-1.5 text-[10px] font-mono font-bold uppercase tracking-wider text-purple-300 px-2 py-0.5 rounded-full bg-purple-500/20 border border-purple-500/30">
+                              <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse" />
+                              Votação Coletiva Em Aberto ({g.voters?.length || Object.keys(g.clientSelection?.votes || {}).length || 1} membros)
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1.5 text-[10px] font-mono font-bold uppercase tracking-wider text-[#46BDC6] px-2 py-0.5 rounded-full bg-[#46BDC6]/15 border border-[#46BDC6]/30">
+                              <span className="w-1.5 h-1.5 rounded-full bg-[#46BDC6] animate-pulse" />
+                              Em Seleção de Prova
+                            </span>
+                          )}
 
-                <div>
-                  <h2 className="font-sans text-xl font-extrabold text-white">
-                    Editorial Moda Autoral – Vl. 04
-                  </h2>
-                  <p className="text-xs text-zinc-400 mt-0.5">
-                    Cliente: Ateliê Lumini • 45 fotos escolhidas (30 pacote + 15 extras)
-                  </p>
-                </div>
+                          {g.paymentStatus === 'paid' && (
+                            <span className="text-[10px] font-mono font-extrabold px-2 py-0.5 rounded-full bg-[#FDBD00] text-[#160F29]">
+                              PIX Confirmado
+                            </span>
+                          )}
+                        </div>
 
-                {/* Lightroom Sync Banner */}
-                <div className="p-3 rounded-xl bg-[#1A142E] border border-purple-500/30 flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2">
-                    <RefreshCw className="w-4 h-4 text-[#46BDC6]" />
-                    <div>
-                      <strong className="text-white block">Catálogo Lightroom Vinculado</strong>
-                      <span className="text-[11px] text-zinc-400">Filtro de metadados pronto para download (.xmp)</span>
+                        <div className="flex items-center gap-2 text-xs font-mono text-zinc-400">
+                          <button
+                            onClick={() => handleCopyClientLink(g)}
+                            className="flex items-center gap-1 px-2 py-0.5 rounded bg-[#0A0714] border border-white/10 text-zinc-300 hover:text-white hover:border-[#8300E9] transition-colors"
+                            title="Copiar Link Seguro com PIN"
+                          >
+                            <Lock className="w-3 h-3 text-[#46BDC6]" />
+                            <span>PIN: <strong>{g.pinCode || '1234'}</strong></span>
+                            <Copy className="w-3 h-3 ml-0.5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div>
+                        <h2 className="font-sans text-xl font-extrabold text-white truncate">
+                          {g.title}
+                        </h2>
+                        <p className="text-xs text-zinc-400 mt-0.5 truncate">
+                          Cliente: <strong className="text-zinc-200">{g.clientName}</strong> • Data: {g.eventDate || 'Recente'}
+                        </p>
+                      </div>
+
+                      {/* Progress bar */}
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-zinc-400 text-[11px]">
+                            Progresso da Seleção (Contratado: <strong className="text-white">{g.quotaIncluded}</strong>)
+                          </span>
+                          <span className="font-mono font-bold text-white text-xs">
+                            <strong className="text-[#46BDC6]">{selectedCount}</strong> / {g.quotaIncluded} selecionadas
+                          </span>
+                        </div>
+                        <div className="h-2 w-full bg-[#0A0714] rounded-full overflow-hidden flex border border-white/10">
+                          <div
+                            className="h-full bg-gradient-to-r from-[#8300E9] via-[#46BDC6] to-[#FDBD00] transition-all duration-300"
+                            style={{ width: `${progressPercentage}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Extras Pending Box */}
+                      {extraPhotosCount > 0 && g.paymentStatus !== 'paid' && (
+                        <div className="p-2.5 rounded-xl bg-[#FDBD00]/10 border border-[#FDBD00]/30 flex items-center justify-between text-xs">
+                          <span className="text-[#FDBD00] font-bold flex items-center gap-1.5">
+                            🛒 +{extraPhotosCount} Fotos Extras Pendentes
+                          </span>
+                          <span className="text-[#FDBD00] font-mono font-extrabold text-sm">
+                            R$ {extraCost.toFixed(2).replace('.', ',')}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Actions */}
+                      <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleWhatsAppShare(g)}
+                            className="flex items-center gap-1 text-[11px] text-emerald-400 hover:text-emerald-300 font-mono transition-colors"
+                          >
+                            <MessageCircle className="w-3.5 h-3.5" />
+                            <span>WhatsApp</span>
+                          </button>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => onOpenClientView(g.id)}
+                            className="text-xs bg-[#0A0714] border-white/10 text-zinc-200 hover:text-white"
+                          >
+                            <Eye className="w-3.5 h-3.5 mr-1 text-[#46BDC6]" />
+                            <span>Visão Cliente</span>
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => onViewGalleryDetails(g)}
+                            className="text-xs bg-[#1A142E] text-purple-200 border border-purple-500/40 hover:bg-purple-600 hover:text-white"
+                          >
+                            <span>Ver Seleção ({selectedCount})</span>
+                          </Button>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <Button
-                    variant="cyan"
-                    size="sm"
-                    onClick={() => onShowToast('Sincronizando Lightroom', 'Enviando seleções de 45 fotos para a nuvem da Adobe...', 'success')}
-                    className="text-xs font-bold whitespace-nowrap shadow-md shadow-[#46BDC6]/20"
-                  >
-                    <Cloud className="w-3.5 h-3.5 mr-1" />
-                    <span>Sincronizar Cloud (45 fotos)</span>
-                  </Button>
                 </div>
-
-                <div className="flex items-center justify-between text-[11px] text-zinc-500 font-mono pt-1">
-                  <span>Aprovado por Camila V. às 10:42</span>
-                  <span>Coleção: Editorial_2025_Final</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* BOTTOM 2-GRID CARDS */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Small Card 1: Ensaio Gestante */}
-            <div className="p-4 rounded-2xl bg-[#120E22] border border-white/10 space-y-3 hover:border-purple-500/40 transition-all">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-[10px] font-mono font-bold uppercase text-zinc-400 px-2 py-0.5 rounded bg-white/5">
-                  ● Aguardando Acesso
-                </span>
-                <span className="font-mono text-xs text-[#46BDC6] font-bold">PIN: 2914</span>
-              </div>
-              <div>
-                <h3 className="font-bold text-white text-sm">Ensaio Gestante – Helena & Theo</h3>
-                <p className="text-[11px] text-zinc-400">210 fotos carregadas • Limite: 40 fotos</p>
-              </div>
-              <div className="p-2 rounded-lg bg-[#0A0714] border border-white/10 text-[11px] text-zinc-400">
-                Galerias enviadas ontem via e-mail • Nenhum acesso registrado
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleWhatsAppShare(galleries[0] || {} as any)}
-                className="w-full text-xs bg-[#0A0714] border-white/10 text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/30"
-              >
-                <MessageCircle className="w-3.5 h-3.5 mr-1.5" />
-                <span>Enviar WhatsApp com Link</span>
-              </Button>
-            </div>
-
-            {/* Small Card 2: Formatura Medicina */}
-            <div className="p-4 rounded-2xl bg-[#120E22] border border-white/10 space-y-3 hover:border-purple-500/40 transition-all">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-[10px] font-mono font-bold uppercase text-purple-300 px-2 py-0.5 rounded bg-purple-500/20 border border-purple-500/30">
-                  ● Multi-Usuários
-                </span>
-                <span className="font-mono text-xs text-zinc-400">PIN Coletivo</span>
-              </div>
-              <div>
-                <h3 className="font-bold text-white text-sm">Formatura Medicina Turma XLVIII</h3>
-                <p className="text-[11px] text-zinc-400">950 fotos totais • Limite cota: 150 fotos</p>
-              </div>
-              <div className="space-y-1">
-                <div className="flex items-center justify-between text-[11px]">
-                  <span className="text-zinc-400">Votos da Comissão (4 membros online)</span>
-                  <strong className="text-white font-mono">112 / 150</strong>
-                </div>
-                <div className="h-1.5 w-full bg-[#0A0714] rounded-full overflow-hidden flex border border-white/10">
-                  <div className="h-full bg-purple-500 w-[75%]" />
-                </div>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onShowToast('Moderando Votação', 'Abrindo mesa de mediação de votos da comissão...', 'info')}
-                className="w-full text-xs bg-[#0A0714] border-white/10 text-zinc-300 hover:text-white"
-              >
-                <Sliders className="w-3.5 h-3.5 mr-1.5 text-purple-400" />
-                <span>Moderar Votação</span>
-              </Button>
-            </div>
-          </div>
+              );
+            })
+          )}
         </div>
 
         {/* RIGHT COLUMN: WIDGETS (1/3 SPAN) */}
