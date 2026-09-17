@@ -8,8 +8,10 @@ import {
   resetGalleryVotesAsync,
   resetVoterVotesAsync,
   clearPhotoVotesAsync,
-  deleteVoteAsync
+  deleteVoteAsync,
+  setPhotoRatingAsync
 } from '../../lib/storage';
+import { StarRating } from '../common/StarRating';
 import { downloadApprovalManifest, generateFilenamesList } from '../../lib/exportUtils';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card';
 import { Button } from '../ui/Button';
@@ -428,6 +430,20 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
       'Exportação liberada com sucesso! Você já pode copiar para o Lightroom ou sincronizar na nuvem.',
       'success'
     );
+  };
+
+  const handleSetPhotoRating = async (photo: Photo, rating: number) => {
+    try {
+      const updated = await setPhotoRatingAsync(gallery, photo.id, rating);
+      onEditGallery(updated);
+      onShowToast(
+        rating > 0 ? 'Avaliação Atualizada' : 'Avaliação Limpa',
+        `Foto ${photo.originalFileName} classificada com ${rating}★`,
+        'success'
+      );
+    } catch (e) {
+      onShowToast('Erro ao Avaliar', 'Não foi possível atualizar a classificação.', 'error');
+    }
   };
 
   // Display photos grid
@@ -895,7 +911,7 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
 
                 <div className="p-3.5 space-y-2">
                   <div className="flex items-center justify-between gap-1">
-                    <span className="font-mono text-xs font-semibold text-zinc-200 truncate">
+                    <span className="font-mono text-xs font-semibold text-zinc-200 truncate" title={photo.originalFileName}>
                       {photo.originalFileName}
                     </span>
                     {votesList.length > 0 && (
@@ -907,6 +923,17 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
                         <Trash2 className="w-2.5 h-2.5" /> Limpar
                       </button>
                     )}
+                  </div>
+
+                  {/* Photographer Star Rating Selector */}
+                  <div className="flex items-center justify-between pt-1 border-t border-zinc-800">
+                    <span className="text-[10px] text-zinc-400 font-medium">Estrelas:</span>
+                    <StarRating
+                      rating={photo.rating || 0}
+                      size="sm"
+                      onChange={(newRating) => handleSetPhotoRating(photo, newRating)}
+                      showLabel
+                    />
                   </div>
 
                   {/* Voter Chips */}

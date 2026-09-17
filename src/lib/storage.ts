@@ -174,6 +174,7 @@ function mapRowToGallery(row: any, photosRows: any[] = [], selectionRow: any = n
       url: p.url || '',
       originalFileName: p.original_filename || p.originalFileName || '',
       isStarred: Boolean(p.is_starred ?? p.isStarred),
+      rating: typeof p.rating === 'number' ? p.rating : (typeof p.rating_val === 'number' ? p.rating_val : 0),
       metadata: p.metadata || null,
       votes: rawVotes[p.id] || [],
       commentsList: rawCommentsMap[p.id] || []
@@ -263,6 +264,7 @@ export async function syncPhotos(galleryId: string, photos: Photo[]): Promise<vo
       url: p.url,
       original_filename: p.originalFileName || (p as any).original_filename || '',
       is_starred: Boolean(p.isStarred ?? (p as any).is_starred),
+      rating: typeof p.rating === 'number' ? p.rating : 0,
       metadata: p.metadata || null
     }));
 
@@ -714,6 +716,53 @@ export async function resetGalleryVotesAsync(gallery: Gallery): Promise<Gallery>
         .eq('id', gallery.id);
     } catch (e) {
       console.warn('[Supabase Fallback] Error resetting gallery status in Supabase:', e);
+    }
+  }
+
+  return updatedGallery;
+}
+
+/**
+ * Sets or updates the 0-5 star rating of a photo within a gallery.
+ */
+export async function setPhotoRatingAsync(
+  gallery: Gallery,
+  photoId: string,
+  rating: number
+): Promise<Gallery> {
+  const sanitizedRating = Math.max(0, Math.min(5, Math.round(rating)));
+  const now = new Date().toISOString();
+
+  const updatedPhotos = gallery.photos.map((p) =>
+    p.id === photoId ? { ...p, rating: sanitizedRating } : p
+  );
+
+  const updatedGallery: Gallery = {
+    ...gallery,
+    photos: updatedPhotos,
+    updatedAt: now
+  };
+
+  // 1. Update local cache
+  const idx = cachedGalleries.findIndex((g) => g.id === gallery.id);
+  if (idx >= 0) {
+    cachedGalleries[idx] = updatedGallery;
+    updateLocalCache(cachedGalleries);
+  }
+
+  // 2. Persist rating to Supabase photos table if configured
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { error } = await supabase
+        .from('photos')
+        .update({ rating: sanitizedRating })
+        .eq('id', photoId);
+
+      if (error) {
+        console.warn('[Supabase Rating Warning] Could not update photo rating column:', error.message);
+      }
+    } catch (e) {
+      console.warn('[Supabase Fallback] Error persisting photo rating:', e);
     }
   }
 

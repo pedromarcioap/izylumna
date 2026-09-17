@@ -3,7 +3,8 @@ import { Gallery, Photo, GalleryVoter, PhotoVote } from '../../types';
 import { Watermark } from '../common/Watermark';
 import { SafeImage } from '../common/SafeImage';
 import { PhotoTechnicalDetails } from '../common/PhotoTechnicalDetails';
-import { Heart, Maximize2, MessageSquare, Sparkles, Users } from 'lucide-react';
+import { StarRating } from '../common/StarRating';
+import { Heart, Maximize2, MessageSquare, Sparkles, Users, Star } from 'lucide-react';
 import { Badge } from '../ui/Badge';
 
 export interface ClientPhotoGridProps {
@@ -14,6 +15,7 @@ export interface ClientPhotoGridProps {
   onToggleSelect: (photo: Photo) => void;
   onOpenLightbox: (index: number) => void;
   onOpenCommentModal: (photo: Photo) => void;
+  onSetRating?: (photo: Photo, rating: number) => void;
 }
 
 export const ClientPhotoGrid: React.FC<ClientPhotoGridProps> = ({
@@ -23,7 +25,8 @@ export const ClientPhotoGrid: React.FC<ClientPhotoGridProps> = ({
   isSubmitted,
   onToggleSelect,
   onOpenLightbox,
-  onOpenCommentModal
+  onOpenCommentModal,
+  onSetRating
 }) => {
   const threshold = gallery.consensusThreshold || 2;
   const votesMap = gallery.clientSelection.votes || {};
@@ -117,6 +120,17 @@ export const ClientPhotoGrid: React.FC<ClientPhotoGridProps> = ({
                     <span>{photoVotes.length} {photoVotes.length === 1 ? 'voto' : 'votos'}</span>
                   </Badge>
                 )}
+
+                {photo.rating && photo.rating > 0 ? (
+                  <Badge
+                    variant="amber"
+                    size="sm"
+                    className="font-mono font-extrabold shadow-lg backdrop-blur-md bg-walnut-950/80 text-[#FDBD00] border border-[#FDBD00]/50 gap-1"
+                  >
+                    <Star className="w-3 h-3 fill-current text-[#FDBD00]" />
+                    <span>{photo.rating}★</span>
+                  </Badge>
+                ) : null}
               </div>
 
               {/* Top Right: Heart Vote Button for Current Participant */}
@@ -191,7 +205,7 @@ export const ClientPhotoGrid: React.FC<ClientPhotoGridProps> = ({
             {/* Photo Footer: Filename, Voter Chips, & Comments preview */}
             <div className="p-3 bg-walnut-900 border-t border-brand-dark/40 flex flex-col justify-between gap-1.5 text-xs">
               <div className="flex items-center justify-between">
-                <span className="font-mono text-walnut-400 truncate max-w-[150px] text-[11px]">
+                <span className="font-mono text-walnut-400 truncate max-w-[130px] text-[11px]" title={photo.originalFileName}>
                   {photo.originalFileName}
                 </span>
 
@@ -212,6 +226,18 @@ export const ClientPhotoGrid: React.FC<ClientPhotoGridProps> = ({
                     </div>
                   </div>
                 )}
+              </div>
+
+              {/* Star Rating Selector (0 to 5 stars) */}
+              <div className="flex items-center justify-between pt-1 border-t border-brand-dark/30">
+                <span className="text-[10px] text-walnut-400 font-medium">Avaliação:</span>
+                <StarRating
+                  rating={photo.rating || 0}
+                  size="sm"
+                  readOnly={isSubmitted || !onSetRating}
+                  onChange={(newRating) => onSetRating && onSetRating(photo, newRating)}
+                  showLabel
+                />
               </div>
 
               {/* Display recent comments */}

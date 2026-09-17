@@ -12,7 +12,8 @@ import {
   addPhotoCommentAsync,
   deletePhotoCommentAsync,
   finalizeVoterSelectionAsync,
-  resetVoterVotesAsync
+  resetVoterVotesAsync,
+  setPhotoRatingAsync
 } from '../../lib/storage';
 import { Dialog } from '../ui/Dialog';
 import { Button } from '../ui/Button';
@@ -56,7 +57,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
   });
 
   const [isIdentityModalOpen, setIsIdentityModalOpen] = useState(false);
-  const [activeFilter, setActiveFilter] = useState<'all' | 'my_choices' | 'consensus' | 'commented'>('all');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'my_choices' | 'consensus' | 'commented' | 'rated' | '5stars'>('all');
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [commentPhoto, setCommentPhoto] = useState<Photo | null>(null);
   const [isFinalizeModalOpen, setIsFinalizeModalOpen] = useState(false);
@@ -132,6 +133,9 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
     (p) => (commentsMap[p.id] || []).length > 0
   ).length;
 
+  // Count rated photos
+  const ratedCount = gallery.photos.filter((p) => p.rating && p.rating > 0).length;
+
   const isSubmitted = currentVoter?.hasFinalized && !forceReviewMode;
 
   // Handle vote toggle for current voter
@@ -168,6 +172,23 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
       onShowToast('Voto Registrado!', `Voto em ${photo.originalFileName} adicionado por ${currentVoter.name}`, 'success');
     } else {
       onShowToast('Voto Removido', `Voto removido de ${photo.originalFileName}`, 'info');
+    }
+  };
+
+  // Set Star Rating (0-5 stars)
+  const handleSetRating = async (photo: Photo, rating: number) => {
+    try {
+      const updated = await setPhotoRatingAsync(gallery, photo.id, rating);
+      onUpdateGallery(updated);
+      onShowToast(
+        rating > 0 ? 'Foto Avaliada!' : 'Avaliação Removida',
+        rating > 0
+          ? `${photo.originalFileName} classificada com ${rating}★`
+          : `Classificação de ${photo.originalFileName} limpa.`,
+        'success'
+      );
+    } catch (e) {
+      onShowToast('Erro ao Avaliar', 'Não foi possível salvar a classificação.', 'error');
     }
   };
 
@@ -214,6 +235,12 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
       if (activeFilter === 'commented') {
         return (commentsMap[photo.id] || []).length > 0;
       }
+      if (activeFilter === 'rated') {
+        return Boolean(photo.rating && photo.rating > 0);
+      }
+      if (activeFilter === '5stars') {
+        return photo.rating === 5;
+      }
       return true;
     })
     .sort((a, b) => {
@@ -258,6 +285,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
         myVotesCount={myVotesCount}
         consensusCount={consensusCount}
         commentsCount={commentsCount}
+        ratedCount={ratedCount}
         activeFilter={activeFilter}
         onFilterChange={setActiveFilter}
         onOpenFinalizeModal={() => setIsFinalizeModalOpen(true)}
@@ -290,6 +318,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
           setLightboxIndex(overallIndex >= 0 ? overallIndex : 0);
         }}
         onOpenCommentModal={(photo) => setCommentPhoto(photo)}
+        onSetRating={handleSetRating}
       />
 
       {/* Lightbox */}
@@ -305,6 +334,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
           onNavigate={(newIdx) => setLightboxIndex(newIdx)}
           onToggleSelect={handleToggleSelect}
           onOpenCommentModal={(photo) => setCommentPhoto(photo)}
+          onSetRating={handleSetRating}
         />
       )}
 

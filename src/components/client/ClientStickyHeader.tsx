@@ -2,7 +2,7 @@ import React from 'react';
 import { Gallery, GalleryVoter } from '../../types';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
-import { Heart, CheckCheck, MessageSquare, Check, User, RefreshCw, Lock, Sparkles } from 'lucide-react';
+import { Heart, CheckCheck, MessageSquare, Check, User, RefreshCw, Lock, Sparkles, Star } from 'lucide-react';
 
 export interface ClientStickyHeaderProps {
   gallery: Gallery;
@@ -11,8 +11,9 @@ export interface ClientStickyHeaderProps {
   myVotesCount: number;
   consensusCount: number;
   commentsCount: number;
-  activeFilter: 'all' | 'my_choices' | 'consensus' | 'commented';
-  onFilterChange: (filter: 'all' | 'my_choices' | 'consensus' | 'commented') => void;
+  ratedCount?: number;
+  activeFilter: 'all' | 'my_choices' | 'consensus' | 'commented' | 'rated' | '5stars';
+  onFilterChange: (filter: 'all' | 'my_choices' | 'consensus' | 'commented' | 'rated' | '5stars') => void;
   onOpenFinalizeModal: () => void;
   isSubmitted: boolean;
   onResetMyVotes?: () => void;
@@ -25,6 +26,7 @@ export const ClientStickyHeader: React.FC<ClientStickyHeaderProps> = ({
   myVotesCount,
   consensusCount,
   commentsCount,
+  ratedCount = 0,
   activeFilter,
   onFilterChange,
   onOpenFinalizeModal,
@@ -222,7 +224,7 @@ export const ClientStickyHeader: React.FC<ClientStickyHeaderProps> = ({
 
         {/* Filter Pills */}
         <div className="flex items-center justify-between gap-2 pt-1">
-          <div className="flex items-center gap-1.5 overflow-x-auto">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
             <button
               onClick={() => onFilterChange('all')}
               className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${
@@ -257,6 +259,34 @@ export const ClientStickyHeader: React.FC<ClientStickyHeaderProps> = ({
               <Sparkles className="w-3.5 h-3.5" />
               <span>Consenso ({consensusCount})</span>
             </button>
+
+            {ratedCount > 0 && (
+              <button
+                onClick={() => onFilterChange('rated')}
+                className={`flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium transition-all ${
+                  activeFilter === 'rated'
+                    ? 'bg-amber-500 text-black font-extrabold shadow-md shadow-amber-500/30 border border-amber-400'
+                    : 'text-zinc-400 hover:text-amber-400 hover:bg-white/5'
+                }`}
+              >
+                <Star className="w-3.5 h-3.5 fill-current text-amber-400" />
+                <span>Avaliadas ({ratedCount})</span>
+              </button>
+            )}
+
+            {gallery.photos.some((p) => p.rating === 5) && (
+              <button
+                onClick={() => onFilterChange('5stars')}
+                className={`flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium transition-all ${
+                  activeFilter === '5stars'
+                    ? 'bg-amber-400 text-black font-extrabold shadow-md shadow-amber-400/40 border border-amber-300'
+                    : 'text-zinc-400 hover:text-amber-300 hover:bg-white/5'
+                }`}
+              >
+                <Star className="w-3.5 h-3.5 fill-current text-amber-300" />
+                <span>5 Estrelas ({gallery.photos.filter((p) => p.rating === 5).length})</span>
+              </button>
+            )}
 
             {commentsCount > 0 && (
               <button

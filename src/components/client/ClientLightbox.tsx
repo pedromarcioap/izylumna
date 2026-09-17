@@ -3,6 +3,7 @@ import { Gallery, Photo, GalleryVoter, PhotoVote, PhotoCommentItem } from '../..
 import { Watermark } from '../common/Watermark';
 import { SafeImage } from '../common/SafeImage';
 import { PhotoTechnicalDetails } from '../common/PhotoTechnicalDetails';
+import { StarRating } from '../common/StarRating';
 import { X, ChevronLeft, ChevronRight, Heart, MessageSquare, Sparkles, Users } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
@@ -18,6 +19,7 @@ export interface ClientLightboxProps {
   onNavigate: (index: number) => void;
   onToggleSelect: (photo: Photo) => void;
   onOpenCommentModal: (photo: Photo) => void;
+  onSetRating?: (photo: Photo, rating: number) => void;
 }
 
 export const ClientLightbox: React.FC<ClientLightboxProps> = ({
@@ -30,7 +32,8 @@ export const ClientLightbox: React.FC<ClientLightboxProps> = ({
   isSubmitted,
   onNavigate,
   onToggleSelect,
-  onOpenCommentModal
+  onOpenCommentModal,
+  onSetRating
 }) => {
   const currentPhoto = photos[currentIndex];
 
@@ -44,11 +47,16 @@ export const ClientLightbox: React.FC<ClientLightboxProps> = ({
         e.preventDefault();
         if (currentPhoto && !isSubmitted) onToggleSelect(currentPhoto);
       }
+      // Rating hotkeys: 0 to 5
+      if (/^[0-5]$/.test(e.key) && currentPhoto && !isSubmitted && onSetRating) {
+        e.preventDefault();
+        onSetRating(currentPhoto, parseInt(e.key, 10));
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, currentIndex, photos.length, currentPhoto, isSubmitted, onClose, onNavigate, onToggleSelect]);
+  }, [isOpen, currentIndex, photos.length, currentPhoto, isSubmitted, onClose, onNavigate, onToggleSelect, onSetRating]);
 
   if (!isOpen || !currentPhoto) return null;
 
@@ -77,7 +85,7 @@ export const ClientLightbox: React.FC<ClientLightboxProps> = ({
           <span className="font-mono text-xs sm:text-sm text-walnut-200 bg-walnut-800/80 px-3 py-1 rounded-full border border-brand-dark/40">
             Foto {currentIndex + 1} de {photos.length}
           </span>
-          <span className="font-mono text-xs text-walnut-400 hidden sm:inline-block">
+          <span className="font-mono text-xs text-walnut-400 hidden sm:inline-block truncate max-w-[200px]">
             {currentPhoto.originalFileName}
           </span>
           {isConsensus && (
@@ -89,6 +97,18 @@ export const ClientLightbox: React.FC<ClientLightboxProps> = ({
         </div>
 
         <div className="flex items-center gap-3">
+          {/* Photo Star Rating in Lightbox Top Bar */}
+          <div className="hidden md:flex items-center gap-2 bg-walnut-900/80 px-3 py-1.5 rounded-xl border border-brand-dark/50">
+            <span className="text-xs text-walnut-400 font-medium">Nota (0-5):</span>
+            <StarRating
+              rating={currentPhoto.rating || 0}
+              size="sm"
+              readOnly={isSubmitted || !onSetRating}
+              onChange={(newRating) => onSetRating && onSetRating(currentPhoto, newRating)}
+              showLabel
+            />
+          </div>
+
           {/* Photo EXIF Technical Details */}
           <PhotoTechnicalDetails
             metadata={currentPhoto.metadata}
@@ -158,7 +178,7 @@ export const ClientLightbox: React.FC<ClientLightboxProps> = ({
         </button>
       </div>
 
-      {/* Bottom Control Bar with EXIF Banner */}
+      {/* Bottom Control Bar with EXIF Banner & Rating Controls */}
       <div className="p-4 sm:p-6 bg-gradient-to-t from-walnut-950 via-walnut-900 to-transparent flex flex-col sm:flex-row items-center justify-between gap-4 z-30 border-t border-brand-dark/50">
         <div className="flex flex-col sm:flex-row items-center gap-3 text-center sm:text-left">
           <PhotoTechnicalDetails
@@ -169,8 +189,8 @@ export const ClientLightbox: React.FC<ClientLightboxProps> = ({
 
           <div className="space-y-0.5">
             {photoVotes.length > 0 ? (
-              <div className="flex items-center gap-2 text-xs text-brand-emerald font-medium justify-center sm:justify-start">
-                <Users className="w-4 h-4 text-brand-emerald" />
+              <div className="flex items-center gap-2 text-xs text-brand-cyan font-medium justify-center sm:justify-start">
+                <Users className="w-4 h-4 text-brand-cyan" />
                 <span>
                   Votado por:{' '}
                   <strong className="text-walnut-100 font-semibold">
@@ -183,15 +203,26 @@ export const ClientLightbox: React.FC<ClientLightboxProps> = ({
             )}
 
             {photoComments.length > 0 && (
-              <p className="text-xs text-brand-ochre italic">
+              <p className="text-xs text-brand-flame italic">
                 Última observação: &ldquo;{photoComments[photoComments.length - 1].text}&rdquo; ({photoComments[photoComments.length - 1].voterName})
               </p>
             )}
           </div>
         </div>
 
-        {/* Favorite / Vote Toggle in Lightbox */}
-        <div className="flex items-center gap-3">
+        {/* Favorite / Vote Toggle and Star Rating in Lightbox */}
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 bg-walnut-900/90 px-4 py-2 rounded-xl border border-brand-dark/60 shadow-inner">
+            <span className="text-xs text-walnut-300 font-medium hidden sm:inline">Avaliar:</span>
+            <StarRating
+              rating={currentPhoto.rating || 0}
+              size="md"
+              readOnly={isSubmitted || !onSetRating}
+              onChange={(newRating) => onSetRating && onSetRating(currentPhoto, newRating)}
+              showLabel
+            />
+          </div>
+
           <Button
             variant={hasVoted ? 'emerald' : 'outline'}
             size="lg"
