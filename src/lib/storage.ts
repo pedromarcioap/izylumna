@@ -58,26 +58,21 @@ function clearOldCacheKeys(): void {
 
 /**
  * Sanitizes gallery object for local storage to avoid QuotaExceededError.
- * Removes long Base64 Data URLs (data:image/...) from photos and cover photo.
+ * Removes temporary blob: URLs while preserving valid photo objects.
  */
 function sanitizeGalleryForCache(gallery: Gallery): Gallery {
   const isCoverInvalid =
     !gallery.coverPhotoUrl ||
-    gallery.coverPhotoUrl.startsWith('blob:') ||
-    gallery.coverPhotoUrl.startsWith('data:') ||
-    gallery.coverPhotoUrl.length > 500;
+    gallery.coverPhotoUrl.startsWith('blob:');
 
   const sanitizedCoverPhotoUrl = isCoverInvalid ? '' : gallery.coverPhotoUrl;
 
   const sanitizedPhotos = (gallery.photos || [])
-    .filter((p) => p.url && !p.url.startsWith('blob:') && !p.url.startsWith('data:'))
-    .map((p) => {
-      const isBase64 = p.url && (p.url.startsWith('data:') || p.url.length > 500);
-      return {
-        ...p,
-        url: isBase64 ? '' : p.url
-      };
-    });
+    .filter((p) => p.url && !p.url.startsWith('blob:'))
+    .map((p) => ({
+      ...p,
+      url: p.url || ''
+    }));
 
   return {
     ...gallery,
@@ -413,10 +408,25 @@ export async function getGalleriesAsync(): Promise<Gallery[]> {
       mapRowToGallery(g, photosByGallery[g.id] || [], selectionsByGallery[g.id] || null)
     );
 
-    // Merge local-only galleries created in fallback mode & mock galleries
+    // Merge local-only galleries & preserve local photos if DB photos query returned fewer photos
     const fallbackList = getGalleries();
     const mergedMap = new Map<string, Gallery>();
-    dbMappedGalleries.forEach((g) => mergedMap.set(g.id, g));
+
+    dbMappedGalleries.forEach((g) => {
+      const localGal = cachedGalleries.find((cg) => cg.id === g.id);
+      if (localGal && localGal.photos && localGal.photos.length > g.photos.length) {
+        const dbPhotoIds = new Set(g.photos.map((p) => p.id));
+        const extraLocalPhotos = localGal.photos.filter((lp) => lp.url && !dbPhotoIds.has(lp.id));
+        mergedMap.set(g.id, {
+          ...g,
+          photos: [...g.photos, ...extraLocalPhotos],
+          coverPhotoUrl: g.coverPhotoUrl || localGal.coverPhotoUrl
+        });
+      } else {
+        mergedMap.set(g.id, g);
+      }
+    });
+
     cachedGalleries.forEach((cg) => {
       if (!mergedMap.has(cg.id)) {
         mergedMap.set(cg.id, cg);

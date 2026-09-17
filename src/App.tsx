@@ -165,9 +165,22 @@ export default function App() {
       const saved = await saveGalleryAsync(gallery);
       const updatedList = await getGalleriesAsync();
 
-      const finalGalleries = updatedList.some((g) => g.id === saved.id)
-        ? updatedList
-        : [saved, ...updatedList];
+      const finalGalleries = updatedList.map((g) => {
+        if (g.id === saved.id) {
+          const savedPhotos = saved.photos || [];
+          const dbPhotos = g.photos || [];
+          return {
+            ...g,
+            photos: dbPhotos.length >= savedPhotos.length ? dbPhotos : savedPhotos,
+            coverPhotoUrl: g.coverPhotoUrl || saved.coverPhotoUrl
+          };
+        }
+        return g;
+      });
+
+      if (!finalGalleries.some((g) => g.id === saved.id)) {
+        finalGalleries.unshift(saved);
+      }
 
       setGalleries(finalGalleries);
       setSelectedGalleryId(saved.id);
