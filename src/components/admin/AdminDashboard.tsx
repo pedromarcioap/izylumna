@@ -81,6 +81,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [isAdobeImportOpen, setIsAdobeImportOpen] = useState(false);
   const [galleryToDelete, setGalleryToDelete] = useState<Gallery | null>(null);
   const [watermarkGallery, setWatermarkGallery] = useState<Gallery | null>(null);
+  const [copiedGalleryId, setCopiedGalleryId] = useState<string | null>(null);
 
   // Computations matching KPI numbers and dynamic filters
   const safeGalleries = Array.isArray(galleries) ? galleries : [];
@@ -151,6 +152,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const handleCopyClientLink = (gallery: Gallery) => {
     const url = getClientGalleryUrl(gallery.id);
     navigator.clipboard.writeText(url);
+    setCopiedGalleryId(gallery.id);
+    setTimeout(() => setCopiedGalleryId(null), 2000);
     onShowToast(
       'Link Copiado!',
       `Link seguro com PIN (${gallery.pinCode}) copiado para a área de transferência.`,
@@ -521,23 +524,37 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       )}
 
                       {/* Actions */}
-                      <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-                        <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+                        <div className="flex items-center gap-4">
                           <button
                             onClick={() => handleWhatsAppShare(g)}
-                            className="flex items-center gap-1 px-2 py-1 rounded bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/20 font-mono transition-all"
-                            title="Enviar link via WhatsApp"
+                            className="flex items-center gap-1.5 text-xs text-emerald-400 hover:text-emerald-300 font-medium transition-colors"
+                            title="Enviar via WhatsApp"
                           >
-                            <MessageCircle className="w-3.5 h-3.5" />
+                            <MessageCircle className="w-4 h-4" />
                             <span>WhatsApp</span>
                           </button>
+
                           <button
                             onClick={() => handleCopyClientLink(g)}
-                            className="flex items-center gap-1 px-2 py-1 rounded bg-[#46BDC6]/10 border border-[#46BDC6]/20 text-[11px] text-[#46BDC6] hover:text-white hover:bg-[#46BDC6]/20 font-mono transition-all"
+                            className={`flex items-center gap-1.5 text-xs font-medium transition-colors ${
+                              copiedGalleryId === g.id
+                                ? 'text-emerald-400 font-bold'
+                                : 'text-[#46BDC6] hover:text-white'
+                            }`}
                             title="Copiar link seguro do ensaio"
                           >
-                            <Copy className="w-3.5 h-3.5" />
-                            <span>Copiar Link</span>
+                            {copiedGalleryId === g.id ? (
+                              <>
+                                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                                <span>Copiado!</span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="w-4 h-4" />
+                                <span>Copiar Link</span>
+                              </>
+                            )}
                           </button>
                         </div>
 
