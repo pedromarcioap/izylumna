@@ -525,10 +525,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => handleWhatsAppShare(g)}
-                            className="flex items-center gap-1 text-[11px] text-emerald-400 hover:text-emerald-300 font-mono transition-colors"
+                            className="flex items-center gap-1 px-2 py-1 rounded bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/20 font-mono transition-all"
+                            title="Enviar link via WhatsApp"
                           >
                             <MessageCircle className="w-3.5 h-3.5" />
                             <span>WhatsApp</span>
+                          </button>
+                          <button
+                            onClick={() => handleCopyClientLink(g)}
+                            className="flex items-center gap-1 px-2 py-1 rounded bg-[#46BDC6]/10 border border-[#46BDC6]/20 text-[11px] text-[#46BDC6] hover:text-white hover:bg-[#46BDC6]/20 font-mono transition-all"
+                            title="Copiar link seguro do ensaio"
+                          >
+                            <Copy className="w-3.5 h-3.5" />
+                            <span>Copiar Link</span>
                           </button>
                         </div>
 
