@@ -100,6 +100,7 @@ export interface ClientSelectionData {
   // Collaborative Voting Extensions
   votes?: Record<string, PhotoVote[]>; // photoId -> list of votes
   commentsMap?: Record<string, PhotoCommentItem[]>; // photoId -> list of comments
+  ratingsMap?: Record<string, number>; // photoId -> star rating (0-5)
   voters?: GalleryVoter[]; // Active registered voters
 }
 

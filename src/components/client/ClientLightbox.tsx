@@ -1,10 +1,10 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Gallery, Photo, GalleryVoter, PhotoVote, PhotoCommentItem } from '../../types';
 import { Watermark } from '../common/Watermark';
 import { SafeImage } from '../common/SafeImage';
 import { PhotoTechnicalDetails } from '../common/PhotoTechnicalDetails';
 import { StarRating } from '../common/StarRating';
-import { X, ChevronLeft, ChevronRight, Heart, MessageSquare, Sparkles, Users } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Heart, MessageSquare, Sparkles, Users, ZoomIn, ZoomOut, Check, XCircle } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 
@@ -36,19 +36,64 @@ export const ClientLightbox: React.FC<ClientLightboxProps> = ({
   onSetRating
 }) => {
   const currentPhoto = photos[currentIndex];
+  const [isZoomed, setIsZoomed] = useState(false);
 
+  // Reset zoom state on photo change
+  useEffect(() => {
+    setIsZoomed(false);
+  }, [currentIndex]);
+
+  const threshold = gallery.consensusThreshold || 2;
+  const votesMap = gallery.clientSelection.votes || {};
+  const photoVotes: PhotoVote[] = currentPhoto?.votes?.length
+    ? currentPhoto.votes
+    : votesMap[currentPhoto?.id || ''] || [];
+
+  const hasVoted = photoVotes.some((v) => v.voterId === currentVoter?.id);
+  const isConsensus = photoVotes.length >= threshold;
+
+  const commentsMap = gallery.clientSelection.commentsMap || {};
+  const photoComments: PhotoCommentItem[] = currentPhoto?.commentsList?.length
+    ? currentPhoto.commentsList
+    : commentsMap[currentPhoto?.id || ''] || [];
+
+  // Hotkeys handling: 1-5 (stars), 0 (clear rating), P (pick photo), X (reject photo), Space (zoom toggle)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!isOpen) return;
-      if (e.key === 'Escape') onClose();
-      if (e.key === 'ArrowRight') onNavigate((currentIndex + 1) % photos.length);
-      if (e.key === 'ArrowLeft') onNavigate((currentIndex - 1 + photos.length) % photos.length);
-      if (e.key === ' ') {
-        e.preventDefault();
-        if (currentPhoto && !isSubmitted) onToggleSelect(currentPhoto);
+      if (!isOpen || !currentPhoto) return;
+
+      // Ignore when typing inside input or textarea
+      const target = e.target as HTMLElement;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+        return;
       }
-      // Rating hotkeys: 0 to 5
-      if (/^[0-5]$/.test(e.key) && currentPhoto && !isSubmitted && onSetRating) {
+
+      if (e.key === 'Escape') {
+        onClose();
+      } else if (e.key === 'ArrowRight') {
+        setIsZoomed(false);
+        onNavigate((currentIndex + 1) % photos.length);
+      } else if (e.key === 'ArrowLeft') {
+        setIsZoomed(false);
+        onNavigate((currentIndex - 1 + photos.length) % photos.length);
+      } else if (e.key === ' ' || e.code === 'Space') {
+        // Zoom hotkey: Espaço
+        e.preventDefault();
+        setIsZoomed((prev) => !prev);
+      } else if ((e.key === 'p' || e.key === 'P') && !isSubmitted) {
+        // Pick Photo hotkey: P
+        e.preventDefault();
+        if (!hasVoted) {
+          onToggleSelect(currentPhoto);
+        }
+      } else if ((e.key === 'x' || e.key === 'X') && !isSubmitted) {
+        // Reject Photo hotkey: X
+        e.preventDefault();
+        if (hasVoted) {
+          onToggleSelect(currentPhoto);
+        }
+      } else if (/^[0-5]$/.test(e.key) && !isSubmitted && onSetRating) {
+        // Rating hotkeys: 1 to 5 (and 0 to clear)
         e.preventDefault();
         onSetRating(currentPhoto, parseInt(e.key, 10));
       }
@@ -56,23 +101,9 @@ export const ClientLightbox: React.FC<ClientLightboxProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, currentIndex, photos.length, currentPhoto, isSubmitted, onClose, onNavigate, onToggleSelect, onSetRating]);
+  }, [isOpen, currentIndex, photos.length, currentPhoto, isSubmitted, hasVoted, onClose, onNavigate, onToggleSelect, onSetRating]);
 
   if (!isOpen || !currentPhoto) return null;
-
-  const threshold = gallery.consensusThreshold || 2;
-  const votesMap = gallery.clientSelection.votes || {};
-  const photoVotes: PhotoVote[] = currentPhoto.votes?.length
-    ? currentPhoto.votes
-    : votesMap[currentPhoto.id] || [];
-
-  const hasVoted = photoVotes.some((v) => v.voterId === currentVoter?.id);
-  const isConsensus = photoVotes.length >= threshold;
-
-  const commentsMap = gallery.clientSelection.commentsMap || {};
-  const photoComments: PhotoCommentItem[] = currentPhoto.commentsList?.length
-    ? currentPhoto.commentsList
-    : commentsMap[currentPhoto.id] || [];
 
   return (
     <div
@@ -80,12 +111,12 @@ export const ClientLightbox: React.FC<ClientLightboxProps> = ({
       onContextMenu={(e) => e.preventDefault()}
     >
       {/* Top Header Controls */}
-      <div className="flex items-center justify-between p-4 sm:p-6 z-30 bg-gradient-to-b from-walnut-950 to-transparent">
+      <div className="flex items-center justify-between p-4 sm:p-6 z-30 bg-gradient-to-b from-walnut-950 via-walnut-950/80 to-transparent">
         <div className="flex items-center gap-3">
           <span className="font-mono text-xs sm:text-sm text-walnut-200 bg-walnut-800/80 px-3 py-1 rounded-full border border-brand-dark/40">
             Foto {currentIndex + 1} de {photos.length}
           </span>
-          <span className="font-mono text-xs text-walnut-400 hidden sm:inline-block truncate max-w-[200px]">
+          <span className="font-mono text-xs text-walnut-400 hidden sm:inline-block truncate max-w-[180px]">
             {currentPhoto.originalFileName}
           </span>
           {isConsensus && (
@@ -94,6 +125,22 @@ export const ClientLightbox: React.FC<ClientLightboxProps> = ({
               <span>Consenso ({photoVotes.length} Votos)</span>
             </Badge>
           )}
+        </div>
+
+        {/* Center/Right Hotkeys Legend Banner */}
+        <div className="hidden lg:flex items-center gap-2.5 text-[11px] font-mono text-walnut-300 bg-walnut-900/90 px-3 py-1 rounded-xl border border-brand-dark/50 shadow-md">
+          <span className="text-walnut-400 font-bold uppercase tracking-wider text-[9px]">Atalhos:</span>
+          <span className="bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded font-bold">1-5</span>
+          <span className="text-walnut-300">Estrelas</span>
+          <span className="text-walnut-600">•</span>
+          <span className="bg-brand-cyan/20 text-brand-cyan px-1.5 py-0.5 rounded font-bold">P</span>
+          <span className="text-walnut-300">Pick</span>
+          <span className="text-walnut-600">•</span>
+          <span className="bg-red-500/20 text-red-300 px-1.5 py-0.5 rounded font-bold">X</span>
+          <span className="text-walnut-300">Rejeitar</span>
+          <span className="text-walnut-600">•</span>
+          <span className="bg-white/20 text-white px-1.5 py-0.5 rounded font-bold">Espaço</span>
+          <span className="text-walnut-300">Zoom</span>
         </div>
 
         <div className="flex items-center gap-3">
@@ -138,25 +185,48 @@ export const ClientLightbox: React.FC<ClientLightboxProps> = ({
         </div>
       </div>
 
-      {/* Main Image Area with Previous/Next controls */}
+      {/* Main Image Area with Previous/Next controls and Zoom Overlay */}
       <div className="relative flex-1 flex items-center justify-center p-4 min-h-0 overflow-hidden">
         {/* Previous button */}
         <button
-          onClick={() => onNavigate((currentIndex - 1 + photos.length) % photos.length)}
+          onClick={() => {
+            setIsZoomed(false);
+            onNavigate((currentIndex - 1 + photos.length) % photos.length);
+          }}
           className="absolute left-4 z-30 p-3 rounded-full bg-walnut-900/80 hover:bg-walnut-800 text-walnut-100 border border-brand-dark/50 transition-all active:scale-95 shadow-lg"
           aria-label="Foto anterior"
         >
           <ChevronLeft className="w-6 h-6" />
         </button>
 
-        {/* The Photo Container with Watermark */}
-        <div className="relative max-h-full max-w-full flex items-center justify-center">
+        {/* Floating Zoom Indicator Badge */}
+        {isZoomed && (
+          <div className="absolute top-4 z-40 px-4 py-1.5 rounded-full bg-walnut-950/90 border border-brand-cyan/70 text-brand-cyan text-xs font-mono font-bold flex items-center gap-2 shadow-2xl backdrop-blur-md animate-in fade-in">
+            <ZoomIn className="w-4 h-4 animate-pulse" />
+            <span>ZOOM ATIVO (Pressione Espaço ou clique na foto para sair)</span>
+          </div>
+        )}
+
+        {/* The Photo Container with Watermark and Interactive Zoom */}
+        <div
+          onClick={() => setIsZoomed((prev) => !prev)}
+          className={`relative max-h-full max-w-full flex items-center justify-center transition-all duration-300 ${
+            isZoomed
+              ? 'cursor-zoom-out overflow-auto max-h-[85vh] max-w-[95vw]'
+              : 'cursor-zoom-in'
+          }`}
+          title={isZoomed ? 'Clique para reduzir (Sair do Zoom)' : 'Clique ou pressione Espaço para Zoom 200%'}
+        >
           <SafeImage
             src={currentPhoto.url}
             alt={currentPhoto.caption || currentPhoto.originalFileName}
             fallbackText={currentPhoto.originalFileName}
             draggable={false}
-            className="max-h-[72vh] sm:max-h-[78vh] max-w-[90vw] object-contain rounded-lg shadow-2xl protected-photo pointer-events-none"
+            className={`transition-transform duration-300 rounded-lg shadow-2xl protected-photo select-none ${
+              isZoomed
+                ? 'scale-[2] sm:scale-[2.4] my-24 mx-auto shadow-black/80'
+                : 'max-h-[72vh] sm:max-h-[78vh] max-w-[90vw] object-contain'
+            }`}
           />
 
           {/* Watermark overlay */}
@@ -170,7 +240,10 @@ export const ClientLightbox: React.FC<ClientLightboxProps> = ({
 
         {/* Next button */}
         <button
-          onClick={() => onNavigate((currentIndex + 1) % photos.length)}
+          onClick={() => {
+            setIsZoomed(false);
+            onNavigate((currentIndex + 1) % photos.length);
+          }}
           className="absolute right-4 z-30 p-3 rounded-full bg-walnut-900/80 hover:bg-walnut-800 text-walnut-100 border border-brand-dark/50 transition-all active:scale-95 shadow-lg"
           aria-label="Próxima foto"
         >
@@ -213,7 +286,7 @@ export const ClientLightbox: React.FC<ClientLightboxProps> = ({
         {/* Favorite / Vote Toggle and Star Rating in Lightbox */}
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2 bg-walnut-900/90 px-4 py-2 rounded-xl border border-brand-dark/60 shadow-inner">
-            <span className="text-xs text-walnut-300 font-medium hidden sm:inline">Avaliar:</span>
+            <span className="text-xs text-walnut-300 font-medium hidden sm:inline">Avaliar (1-5):</span>
             <StarRating
               rating={currentPhoto.rating || 0}
               size="md"
@@ -231,7 +304,7 @@ export const ClientLightbox: React.FC<ClientLightboxProps> = ({
             className="text-sm px-6 font-semibold shadow-lg"
           >
             <Heart className={`w-5 h-5 mr-2 ${hasVoted ? 'fill-current' : ''}`} />
-            <span>{hasVoted ? 'Voto Registrado (Remover)' : 'Votar Nesta Foto'}</span>
+            <span>{hasVoted ? 'Voto Registrado (P / X)' : 'Votar Nesta Foto (P)'}</span>
           </Button>
         </div>
       </div>

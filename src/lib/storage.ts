@@ -166,6 +166,7 @@ export function generateUniquePin(existingPins: string[] = []): string {
 function mapRowToGallery(row: any, photosRows: any[] = [], selectionRow: any = null): Gallery {
   const rawVotes: Record<string, PhotoVote[]> = selectionRow?.votes || {};
   const rawCommentsMap: Record<string, PhotoCommentItem[]> = selectionRow?.comments_map || {};
+  const rawRatingsMap: Record<string, number> = selectionRow?.ratings_map || selectionRow?.ratingsMap || selectionRow?.ratings || {};
 
   const photos: Photo[] = (photosRows || [])
     .filter((p: any) => p.url && !p.url.startsWith('blob:'))
@@ -174,7 +175,11 @@ function mapRowToGallery(row: any, photosRows: any[] = [], selectionRow: any = n
       url: p.url || '',
       originalFileName: p.original_filename || p.originalFileName || '',
       isStarred: Boolean(p.is_starred ?? p.isStarred),
-      rating: typeof p.rating === 'number' ? p.rating : (typeof p.rating_val === 'number' ? p.rating_val : 0),
+      rating: (typeof p.rating === 'number' && p.rating > 0)
+        ? p.rating
+        : (typeof p.rating_val === 'number' && p.rating_val > 0)
+        ? p.rating_val
+        : (typeof rawRatingsMap[p.id] === 'number' ? rawRatingsMap[p.id] : 0),
       metadata: p.metadata || null,
       votes: rawVotes[p.id] || [],
       commentsList: rawCommentsMap[p.id] || []
@@ -312,6 +317,7 @@ export async function saveClientSelection(
     comments: clientSelection?.comments || {},
     votes: clientSelection?.votes || {},
     comments_map: clientSelection?.commentsMap || {},
+    ratings_map: clientSelection?.ratingsMap || {},
     voters: Array.isArray(voters || clientSelection?.voters)
       ? (voters || clientSelection?.voters)
       : [],
@@ -737,29 +743,48 @@ export async function setPhotoRatingAsync(
     p.id === photoId ? { ...p, rating: sanitizedRating } : p
   );
 
+  const updatedRatingsMap: Record<string, number> = {
+    ...(gallery.clientSelection?.ratingsMap || {})
+  };
+  if (sanitizedRating > 0) {
+    updatedRatingsMap[photoId] = sanitizedRating;
+  } else {
+    delete updatedRatingsMap[photoId];
+  }
+
   const updatedGallery: Gallery = {
     ...gallery,
     photos: updatedPhotos,
+    clientSelection: {
+      ...(gallery.clientSelection || { selectedPhotoIds: [], comments: {}, status: 'pending' }),
+      ratingsMap: updatedRatingsMap
+    },
     updatedAt: now
   };
 
-  // 1. Update local cache
+  // 1. Update local memory cache & LocalStorage
   const idx = cachedGalleries.findIndex((g) => g.id === gallery.id);
   if (idx >= 0) {
     cachedGalleries[idx] = updatedGallery;
-    updateLocalCache(cachedGalleries);
+  } else {
+    cachedGalleries.push(updatedGallery);
   }
+  updateLocalCache(cachedGalleries);
 
-  // 2. Persist rating to Supabase photos table if configured
+  // 2. Persist to Supabase
   if (isSupabaseConfigured && supabase) {
     try {
+      // Save to client_selections (ratings_map)
+      await saveClientSelection(gallery.id, updatedGallery.clientSelection);
+
+      // Save directly to photos table if column exists
       const { error } = await supabase
         .from('photos')
         .update({ rating: sanitizedRating })
         .eq('id', photoId);
 
       if (error) {
-        console.warn('[Supabase Rating Warning] Could not update photo rating column:', error.message);
+        console.warn('[Supabase Rating Notice] photos table rating column update skipped:', error.message);
       }
     } catch (e) {
       console.warn('[Supabase Fallback] Error persisting photo rating:', e);
