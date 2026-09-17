@@ -22,6 +22,7 @@ import { uploadPhotoFile, uploadPhotosInBatches } from '../../lib/photoUpload';
 import { extractExif } from '../../lib/exif';
 import { PhotoTechnicalDetails } from '../common/PhotoTechnicalDetails';
 import { WatermarkSettingsModal } from './WatermarkSettingsModal';
+import { DeleteConfirmModal } from '../common/DeleteConfirmModal';
 import {
   ArrowLeft,
   Copy,
@@ -52,6 +53,7 @@ export interface GalleryDetailViewProps {
   onBack: () => void;
   onOpenClientView: (galleryId: string) => void;
   onEditGallery: (gallery: Gallery) => void;
+  onDeleteGallery?: (galleryId: string) => void;
   onUpdateGallery?: (gallery: Gallery) => void;
   onShowToast: (title: string, description?: string, type?: 'success' | 'info' | 'warning' | 'error') => void;
 }
@@ -61,9 +63,11 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
   onBack,
   onOpenClientView,
   onEditGallery,
+  onDeleteGallery,
   onUpdateGallery,
   onShowToast
 }) => {
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const { user } = useAuth();
 
   const handlePersistGallery = (updated: Gallery) => {
@@ -526,6 +530,18 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
             <SlidersHorizontal className="w-3.5 h-3.5" />
             <span>Configurações & Regras</span>
           </Button>
+          {onDeleteGallery && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsDeleteModalOpen(true)}
+              className="text-red-400 border-red-500/30 hover:bg-red-500/10 hover:text-red-300"
+              title="Excluir esta galeria permanentemente com confirmação dupla"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Excluir Galeria</span>
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"
@@ -1221,6 +1237,21 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
           </div>
         </div>
       </Dialog>
+
+      {/* Gallery Delete Confirmation Modal */}
+      {onDeleteGallery && (
+        <DeleteConfirmModal
+          isOpen={isDeleteModalOpen}
+          onClose={() => setIsDeleteModalOpen(false)}
+          onConfirm={() => {
+            onDeleteGallery(gallery.id);
+            setIsDeleteModalOpen(false);
+            onBack();
+          }}
+          galleryTitle={gallery.title}
+          photoCount={gallery.photos?.length || 0}
+        />
+      )}
     </div>
   );
 };

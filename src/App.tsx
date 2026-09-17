@@ -320,6 +320,7 @@ export default function App() {
                   setGalleryToEdit(g);
                   setIsFormModalOpen(true);
                 }}
+                onDeleteGallery={handleDeleteGallery}
                 onUpdateGallery={handleUpdateGalleryFromClient}
                 onShowToast={showToast}
               />
@@ -415,6 +416,7 @@ export default function App() {
           setGalleryToEdit(null);
         }}
         onSave={handleSaveGallery}
+        onDelete={handleDeleteGallery}
         galleryToEdit={galleryToEdit}
       />
 

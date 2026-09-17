@@ -9,6 +9,7 @@ import { Watermark } from '../common/Watermark';
 import { uploadPhotoFile, uploadPhotosInBatches } from '../../lib/photoUpload';
 import { extractExif } from '../../lib/exif';
 import { getPhotographerSession } from '../../lib/auth';
+import { DeleteConfirmModal } from '../common/DeleteConfirmModal';
 import {
   Upload,
   Plus,
@@ -35,6 +36,7 @@ export interface GalleryFormModalProps {
   onClose: () => void;
   galleryToEdit?: Gallery | null;
   onSave: (gallery: Gallery) => void;
+  onDelete?: (galleryId: string) => void;
 }
 
 const SAMPLE_PHOTO_PRESETS = [
@@ -114,8 +116,10 @@ export const GalleryFormModal: React.FC<GalleryFormModalProps> = ({
   isOpen,
   onClose,
   galleryToEdit,
-  onSave
+  onSave,
+  onDelete
 }) => {
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [clientName, setClientName] = useState('');
   const [clientEmail, setClientEmail] = useState('');
@@ -1009,6 +1013,39 @@ export const GalleryFormModal: React.FC<GalleryFormModalProps> = ({
               ))}
             </div>
           )}
+
+          {/* Danger Zone - Delete Gallery */}
+          {galleryToEdit && (
+            <div className="rounded-xl border border-red-500/25 bg-red-500/5 p-4 space-y-3 mt-6">
+              <div className="flex items-center justify-between border-b border-red-500/20 pb-2">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-red-400 flex items-center gap-1.5">
+                  <ShieldAlert className="w-4 h-4 text-red-400" />
+                  <span>Zona de Perigo — Excluir Galeria</span>
+                </h3>
+                <Badge variant="danger" size="sm">Ação Irreversível</Badge>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+                <div className="space-y-0.5">
+                  <span className="text-xs font-semibold text-zinc-200 block">
+                    Excluir esta galeria permanentemente?
+                  </span>
+                  <p className="text-[11px] text-zinc-400">
+                    Isso removerá todas as {photos.length} foto(s), seleções e votos do cliente. Requer confirmação dupla.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsDeleteModalOpen(true)}
+                  className="bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border border-red-500/30 shrink-0 font-semibold"
+                >
+                  <Trash2 className="w-4 h-4 mr-1.5" />
+                  <span>Excluir Galeria</span>
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Form Actions */}
@@ -1022,6 +1059,20 @@ export const GalleryFormModal: React.FC<GalleryFormModalProps> = ({
           </Button>
         </div>
       </form>
+
+      <DeleteConfirmModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={() => {
+          if (galleryToEdit && onDelete) {
+            onDelete(galleryToEdit.id);
+          }
+          setIsDeleteModalOpen(false);
+          onClose();
+        }}
+        galleryTitle={galleryToEdit?.title || title}
+        photoCount={photos.length}
+      />
     </Dialog>
   );
 };
