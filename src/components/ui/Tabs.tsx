@@ -35,7 +35,7 @@ export const Tabs: React.FC<TabsProps> = ({
               size === 'sm' ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'
             } ${
               isActive
-                ? 'bg-brand-primary text-white shadow-sm shadow-[#01743F]/30 border border-brand-primary/60 font-semibold'
+                ? 'bg-brand-primary text-white shadow-sm shadow-[#8300E9]/30 border border-brand-primary/60 font-semibold'
                 : 'text-walnut-400 hover:text-walnut-100 hover:bg-brand-primary/10 border border-transparent'
             }`}
           >
@@ -44,7 +44,7 @@ export const Tabs: React.FC<TabsProps> = ({
             {tab.count !== undefined && (
               <span
                 className={`ml-1 px-1.5 py-0.5 text-[11px] rounded-full font-mono font-medium ${
-                  isActive ? 'bg-brand-emerald text-white' : 'bg-walnut-700 text-walnut-300'
+                  isActive ? 'bg-brand-cyan text-white' : 'bg-walnut-700 text-walnut-300'
                 }`}
               >
                 {tab.count}

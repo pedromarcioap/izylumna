@@ -3,7 +3,7 @@ import React from 'react';
 export interface ProgressProps {
   value: number; // e.g. current selected count
   max: number; // quota limit
-  color?: 'default' | 'amber' | 'emerald' | 'rose' | 'primary';
+  color?: 'default' | 'amber' | 'cyan' | 'rose' | 'primary';
   className?: string;
   showExcessIndicator?: boolean;
 }
@@ -23,10 +23,10 @@ export const Progress: React.FC<ProgressProps> = ({
         <div
           className={`h-full transition-all duration-300 rounded-full ${
             isExcess
-              ? 'bg-gradient-to-r from-brand-ochre to-brand-accent'
+              ? 'bg-gradient-to-r from-brand-flame to-brand-accent'
               : percentage === 100
-              ? 'bg-brand-emerald shadow-sm shadow-[#4CB963]/30'
-              : 'bg-gradient-to-r from-brand-primary to-brand-emerald'
+              ? 'bg-brand-cyan shadow-sm shadow-[#46BDC6]/30'
+              : 'bg-gradient-to-r from-brand-primary to-brand-cyan'
           }`}
           style={{ width: `${percentage}%` }}
         />

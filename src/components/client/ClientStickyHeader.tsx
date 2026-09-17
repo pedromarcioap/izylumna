@@ -43,10 +43,10 @@ export const ClientStickyHeader: React.FC<ClientStickyHeaderProps> = ({
     if (gallery.excessPolicy === 'charge') {
       if (extraCount > 0) {
         return (
-          <span className="text-brand-ochre font-medium">
+          <span className="text-brand-flame font-medium">
             <strong className="text-walnut-100 font-mono">{myVotesCount} votos por você</strong> — {quota} no pacote +{' '}
-            <strong className="text-brand-ochre font-mono">{extraCount} extras</strong>{' '}
-            <span className="text-brand-ochre font-bold">(+ R$ {extraTotal.toFixed(2)})</span>
+            <strong className="text-brand-flame font-mono">{extraCount} extras</strong>{' '}
+            <span className="text-brand-flame font-bold">(+ R$ {extraTotal.toFixed(2)})</span>
           </span>
         );
       }
@@ -54,7 +54,7 @@ export const ClientStickyHeader: React.FC<ClientStickyHeaderProps> = ({
         <span className="text-walnut-300">
           <strong className="text-walnut-100 font-mono">{myVotesCount}</strong> de{' '}
           <strong className="text-walnut-200 font-mono">{quota}</strong> inclusas no pacote
-          {myVotesCount === quota && <span className="text-brand-emerald font-semibold ml-1.5">(Cota atingida)</span>}
+          {myVotesCount === quota && <span className="text-brand-cyan font-semibold ml-1.5">(Cota atingida)</span>}
         </span>
       );
     }
@@ -104,13 +104,13 @@ export const ClientStickyHeader: React.FC<ClientStickyHeaderProps> = ({
       <div className="bg-gradient-to-r from-brand-primary/20 via-walnut-800 to-walnut-900 border-b border-brand-primary/30 px-4 sm:px-6 lg:px-8 py-2">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-6 h-6 rounded-full bg-brand-primary text-white border border-brand-emerald/40 font-bold flex items-center justify-center text-[11px] shrink-0">
+            <div className="w-6 h-6 rounded-full bg-brand-primary text-white border border-brand-cyan/40 font-bold flex items-center justify-center text-[11px] shrink-0">
               {currentVoter?.name ? currentVoter.name.slice(0, 2).toUpperCase() : <User className="w-3.5 h-3.5" />}
             </div>
             <span className="text-walnut-200 truncate">
-              Votando como: <strong className="text-brand-emerald font-semibold">{currentVoter?.name || 'Participante'}</strong>
+              Votando como: <strong className="text-brand-cyan font-semibold">{currentVoter?.name || 'Participante'}</strong>
               {currentVoter?.isDecisionMaker && (
-                <span className="ml-1.5 text-[10px] bg-brand-accent text-brand-dark font-extrabold px-1.5 py-0.5 rounded border border-[#4F3926]/30">
+                <span className="ml-1.5 text-[10px] bg-brand-accent text-brand-dark font-extrabold px-1.5 py-0.5 rounded border border-[#160F29]/30">
                   Tomador Principal
                 </span>
               )}
@@ -132,7 +132,7 @@ export const ClientStickyHeader: React.FC<ClientStickyHeaderProps> = ({
             <button
               type="button"
               onClick={onChangeVoter}
-              className="flex items-center text-[11px] text-walnut-400 hover:text-brand-emerald transition-colors font-medium hover:underline"
+              className="flex items-center text-[11px] text-walnut-400 hover:text-brand-cyan transition-colors font-medium hover:underline"
             >
               <RefreshCw className="w-3 h-3 mr-1" />
               Alternar participante
@@ -160,7 +160,7 @@ export const ClientStickyHeader: React.FC<ClientStickyHeaderProps> = ({
             <div className="text-xs text-walnut-400 mt-0.5 flex items-center gap-2">
               <span>Cliente: <strong className="text-walnut-200">{gallery.clientName}</strong></span>
               <span className="text-walnut-600">•</span>
-              <span className="text-brand-emerald font-medium">
+              <span className="text-brand-cyan font-medium">
                 🎯 {consensusCount} fotos em consenso ({threshold}+ votos)
               </span>
             </div>
@@ -177,14 +177,14 @@ export const ClientStickyHeader: React.FC<ClientStickyHeaderProps> = ({
               </div>
             </div>
 
-            {/* Finalize Button - Primary Turf Green CTA */}
+            {/* Finalize Button - Primary Ultra Violet CTA */}
             {!currentVoter?.hasFinalized ? (
               <Button
                 variant="primary"
                 size="md"
                 onClick={onOpenFinalizeModal}
                 disabled={myVotesCount === 0}
-                className="shadow-lg shadow-[#01743F]/25 whitespace-nowrap"
+                className="shadow-lg shadow-[#8300E9]/25 whitespace-nowrap"
               >
                 <CheckCheck className="w-4 h-4" />
                 <span>Finalizar Minha Seleção</span>
@@ -194,7 +194,7 @@ export const ClientStickyHeader: React.FC<ClientStickyHeaderProps> = ({
               </Button>
             ) : (
               <Button
-                variant="emerald"
+                variant="cyan"
                 size="md"
                 onClick={onOpenFinalizeModal}
                 className="text-xs"
@@ -212,10 +212,10 @@ export const ClientStickyHeader: React.FC<ClientStickyHeaderProps> = ({
             <div
               className={`h-full transition-all duration-300 ${
                 extraCount > 0
-                  ? 'bg-brand-ochre'
+                  ? 'bg-brand-flame'
                   : myVotesCount === quota
-                  ? 'bg-brand-emerald'
-                  : 'bg-gradient-to-r from-brand-primary to-brand-emerald'
+                  ? 'bg-brand-cyan'
+                  : 'bg-gradient-to-r from-brand-primary to-brand-cyan'
               }`}
               style={{ width: `${progressPercent}%` }}
             />
@@ -240,8 +240,8 @@ export const ClientStickyHeader: React.FC<ClientStickyHeaderProps> = ({
               onClick={() => onFilterChange('my_choices')}
               className={`flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium transition-all ${
                 activeFilter === 'my_choices'
-                  ? 'bg-brand-emerald text-white font-semibold shadow-sm'
-                  : 'text-walnut-400 hover:text-brand-emerald hover:bg-walnut-800'
+                  ? 'bg-brand-cyan text-white font-semibold shadow-sm'
+                  : 'text-walnut-400 hover:text-brand-cyan hover:bg-walnut-800'
               }`}
             >
               <Heart className="w-3.5 h-3.5 fill-current" />
@@ -252,7 +252,7 @@ export const ClientStickyHeader: React.FC<ClientStickyHeaderProps> = ({
               onClick={() => onFilterChange('consensus')}
               className={`flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium transition-all ${
                 activeFilter === 'consensus'
-                  ? 'bg-brand-accent text-brand-dark font-extrabold shadow-sm border border-[#4F3926]/30'
+                  ? 'bg-brand-accent text-brand-dark font-extrabold shadow-sm border border-[#160F29]/30'
                   : 'text-walnut-400 hover:text-brand-accent hover:bg-walnut-800'
               }`}
             >
@@ -265,8 +265,8 @@ export const ClientStickyHeader: React.FC<ClientStickyHeaderProps> = ({
                 onClick={() => onFilterChange('commented')}
                 className={`flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-medium transition-all ${
                   activeFilter === 'commented'
-                    ? 'bg-brand-ochre text-white font-semibold shadow-sm'
-                    : 'text-walnut-400 hover:text-brand-ochre hover:bg-walnut-800'
+                    ? 'bg-brand-flame text-white font-semibold shadow-sm'
+                    : 'text-walnut-400 hover:text-brand-flame hover:bg-walnut-800'
                 }`}
               >
                 <MessageSquare className="w-3.5 h-3.5 fill-current" />

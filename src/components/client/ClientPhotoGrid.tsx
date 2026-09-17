@@ -60,9 +60,9 @@ export const ClientPhotoGrid: React.FC<ClientPhotoGridProps> = ({
             onContextMenu={(e) => e.preventDefault()}
             className={`group relative rounded-2xl overflow-hidden bg-walnut-900 border transition-all duration-300 flex flex-col justify-between ${
               isConsensus
-                ? 'border-brand-accent shadow-xl shadow-[#FEF600]/10 ring-2 ring-brand-accent/60'
+                ? 'border-brand-accent shadow-xl shadow-[#FDBD00]/10 ring-2 ring-brand-accent/60'
                 : hasVoted
-                ? 'border-brand-emerald shadow-lg shadow-[#4CB963]/20 ring-1 ring-brand-emerald/40'
+                ? 'border-brand-cyan shadow-lg shadow-[#46BDC6]/20 ring-1 ring-brand-cyan/40'
                 : 'border-brand-dark/40 hover:border-brand-primary/60 shadow-lg shadow-black/40'
             }`}
           >
@@ -109,9 +109,9 @@ export const ClientPhotoGrid: React.FC<ClientPhotoGridProps> = ({
 
                 {!isConsensus && photoVotes.length > 0 && (
                   <Badge
-                    variant="success"
+                    variant="cyan"
                     size="sm"
-                    className="font-mono font-bold shadow-lg backdrop-blur-md bg-brand-emerald text-white border-brand-emerald/60 gap-1"
+                    className="font-mono font-bold shadow-lg backdrop-blur-md bg-brand-cyan text-white border-brand-cyan/60 gap-1"
                   >
                     <Heart className="w-3 h-3 fill-current" />
                     <span>{photoVotes.length} {photoVotes.length === 1 ? 'voto' : 'votos'}</span>
@@ -130,7 +130,7 @@ export const ClientPhotoGrid: React.FC<ClientPhotoGridProps> = ({
                   }}
                   className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 shadow-lg backdrop-blur-md active:scale-90 ${
                     hasVoted
-                      ? 'bg-brand-emerald text-white shadow-[#4CB963]/40 ring-2 ring-white/70'
+                      ? 'bg-brand-cyan text-white shadow-[#46BDC6]/40 ring-2 ring-white/70'
                       : 'bg-walnut-950/70 text-white/80 hover:text-white hover:bg-walnut-900 border border-white/20'
                   }`}
                   aria-label={hasVoted ? 'Remover voto' : 'Votar nesta foto'}
@@ -160,14 +160,14 @@ export const ClientPhotoGrid: React.FC<ClientPhotoGridProps> = ({
                   }}
                   className={`p-2 rounded-full backdrop-blur-md transition-all relative ${
                     photoComments.length > 0
-                      ? 'bg-brand-ochre text-white shadow-md shadow-brand-ochre/30'
+                      ? 'bg-brand-flame text-white shadow-md shadow-brand-flame/30'
                       : 'bg-walnut-950/70 text-white/80 hover:text-white hover:bg-walnut-900 border border-white/20'
                   }`}
                   title={photoComments.length > 0 ? 'Ver observações da foto' : 'Adicionar comentário'}
                 >
                   <MessageSquare className={`w-4 h-4 ${photoComments.length > 0 ? 'fill-current' : ''}`} />
                   {photoComments.length > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-brand-ochre text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                    <span className="absolute -top-1 -right-1 bg-brand-flame text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
                       {photoComments.length}
                     </span>
                   )}
@@ -203,7 +203,7 @@ export const ClientPhotoGrid: React.FC<ClientPhotoGridProps> = ({
                       {photoVotes.map((v, i) => (
                         <div
                           key={v.voterId || i}
-                          className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-brand-primary text-white border border-brand-emerald/40 font-bold text-[9px] shadow-xs"
+                          className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-brand-primary text-white border border-brand-cyan/40 font-bold text-[9px] shadow-xs"
                           title={`Votado por: ${v.voterName}`}
                         >
                           {v.voterName.slice(0, 1).toUpperCase()}
@@ -218,13 +218,13 @@ export const ClientPhotoGrid: React.FC<ClientPhotoGridProps> = ({
               {photoComments.length > 0 && (
                 <div
                   onClick={() => onOpenCommentModal(photo)}
-                  className="mt-1 p-2 rounded-lg bg-walnut-950/60 border border-brand-ochre/30 text-walnut-200 text-[11px] leading-snug cursor-pointer hover:bg-walnut-950 transition-colors space-y-1"
+                  className="mt-1 p-2 rounded-lg bg-walnut-950/60 border border-brand-flame/30 text-walnut-200 text-[11px] leading-snug cursor-pointer hover:bg-walnut-950 transition-colors space-y-1"
                 >
-                  <span className="font-semibold text-brand-ochre block text-[9px] uppercase tracking-wider">
+                  <span className="font-semibold text-brand-flame block text-[9px] uppercase tracking-wider">
                     {photoComments.length} {photoComments.length === 1 ? 'Comentário:' : 'Comentários:'}
                   </span>
                   <p className="line-clamp-2 italic text-walnut-300">
-                    <strong className="text-brand-ochre font-semibold">{photoComments[photoComments.length - 1].voterName}:</strong> &ldquo;{photoComments[photoComments.length - 1].text}&rdquo;
+                    <strong className="text-brand-flame font-semibold">{photoComments[photoComments.length - 1].voterName}:</strong> &ldquo;{photoComments[photoComments.length - 1].text}&rdquo;
                   </p>
                 </div>
               )}

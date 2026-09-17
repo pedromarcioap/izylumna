@@ -73,8 +73,6 @@ export const ClientAuthPin: React.FC<ClientAuthPinProps> = ({ gallery, allGaller
     } catch (err) {
       setError(true);
       setErrorMessage('Erro ao validar o PIN. Tente novamente.');
-    } finally {
-      setIsVerifying(false);
     }
   };
 
@@ -103,12 +101,12 @@ export const ClientAuthPin: React.FC<ClientAuthPinProps> = ({ gallery, allGaller
       <Card className="max-w-md w-full border-brand-dark/50 bg-walnut-900 shadow-2xl shadow-black/80 backdrop-blur-xl">
         <CardContent className="p-6 sm:p-8 text-center space-y-6">
           {/* Lock Icon Emblem */}
-          <div className="mx-auto w-16 h-16 rounded-2xl bg-brand-primary/15 border border-brand-emerald/40 flex items-center justify-center text-brand-emerald shadow-inner">
-            <Lock className="w-8 h-8" />
+          <div className="mx-auto w-16 h-16 rounded-2xl bg-brand-primary/15 border border-brand-cyan/40 flex items-center justify-center text-brand-cyan shadow-inner">
+            <Lock className="w-8 h-8 text-brand-primary" />
           </div>
 
           <div className="space-y-2">
-            <span className="text-[11px] uppercase tracking-widest font-mono bg-brand-accent text-brand-dark font-extrabold px-2.5 py-0.5 rounded border border-[#4F3926]/30 inline-block">
+            <span className="text-[11px] uppercase tracking-widest font-mono bg-brand-accent text-brand-dark font-extrabold px-2.5 py-0.5 rounded border border-[#160F29]/30 inline-block">
               Acesso Exclusivo Por PIN
             </span>
             <h2 className="font-serif text-2xl font-bold text-walnut-100">
@@ -145,7 +143,7 @@ export const ClientAuthPin: React.FC<ClientAuthPinProps> = ({ gallery, allGaller
             {/* Stylized Visual Digit Slots */}
             <div
               onClick={focusInput}
-              className="cursor-pointer group flex items-center justify-center gap-2 sm:gap-3 py-3 px-3 rounded-2xl bg-walnut-950/90 border border-brand-dark/50 hover:border-brand-emerald/40 transition-all select-none"
+              className="cursor-pointer group flex items-center justify-center gap-2 sm:gap-3 py-3 px-3 rounded-2xl bg-walnut-950/90 border border-brand-dark/50 hover:border-brand-cyan/40 transition-all select-none"
             >
               {Array.from({ length: pinLength }).map((_, idx) => {
                 const digit = pinDigits[idx];
@@ -159,9 +157,9 @@ export const ClientAuthPin: React.FC<ClientAuthPinProps> = ({ gallery, allGaller
                       error
                         ? 'border-red-500/80 bg-red-500/10 text-red-400'
                         : isFocused
-                        ? 'border-brand-emerald bg-brand-emerald/15 text-brand-emerald ring-2 ring-brand-emerald/30 animate-pulse'
+                        ? 'border-brand-cyan bg-brand-cyan/15 text-brand-cyan ring-2 ring-brand-cyan/30 animate-pulse'
                         : isFilled
-                        ? 'border-brand-emerald/50 bg-walnut-900 text-walnut-100'
+                        ? 'border-brand-cyan/50 bg-walnut-900 text-walnut-100'
                         : 'border-walnut-800 bg-walnut-900/40 text-walnut-600'
                     }`}
                   >
@@ -188,9 +186,9 @@ export const ClientAuthPin: React.FC<ClientAuthPinProps> = ({ gallery, allGaller
             <button
               type="button"
               onClick={focusInput}
-              className="inline-flex items-center justify-center gap-1.5 text-[11px] text-brand-emerald hover:underline font-medium focus:outline-none"
+              className="inline-flex items-center justify-center gap-1.5 text-[11px] text-brand-cyan hover:underline font-medium focus:outline-none"
             >
-              <KeyRound className="w-3.5 h-3.5 text-brand-emerald" />
+              <KeyRound className="w-3.5 h-3.5 text-brand-cyan" />
               <span>Toque aqui para abrir o teclado do iPhone/Celular</span>
             </button>
 
@@ -207,7 +205,7 @@ export const ClientAuthPin: React.FC<ClientAuthPinProps> = ({ gallery, allGaller
                   key={num}
                   type="button"
                   onClick={() => handleNumPadPress(num)}
-                  className="py-3 text-xl font-bold font-mono rounded-xl bg-walnut-950/90 border border-brand-dark/40 text-walnut-100 hover:bg-brand-primary/20 hover:border-brand-emerald/50 active:scale-95 transition-all shadow-sm"
+                  className="py-3 text-xl font-bold font-mono rounded-xl bg-walnut-950/90 border border-brand-dark/40 text-walnut-100 hover:bg-brand-primary/20 hover:border-brand-cyan/50 active:scale-95 transition-all shadow-sm"
                 >
                   {num}
                 </button>
@@ -222,13 +220,13 @@ export const ClientAuthPin: React.FC<ClientAuthPinProps> = ({ gallery, allGaller
               <button
                 type="button"
                 onClick={() => handleNumPadPress('0')}
-                className="py-3 text-xl font-bold font-mono rounded-xl bg-walnut-950/90 border border-brand-dark/40 text-walnut-100 hover:bg-brand-primary/20 hover:border-brand-emerald/50 active:scale-95 transition-all shadow-sm"
+                className="py-3 text-xl font-bold font-mono rounded-xl bg-walnut-950/90 border border-brand-dark/40 text-walnut-100 hover:bg-brand-primary/20 hover:border-brand-cyan/50 active:scale-95 transition-all shadow-sm"
               >
                 0
               </button>
               <button
                 type="button"
-                onClick={handleNumPadBackspace}
+                onClick={() => handleNumPadBackspace}
                 className="py-3 flex items-center justify-center rounded-xl bg-walnut-950/60 border border-brand-dark/40 text-walnut-400 hover:text-walnut-200 hover:bg-walnut-900 active:scale-95 transition-all"
                 title="Apagar último dígito"
               >
@@ -240,7 +238,7 @@ export const ClientAuthPin: React.FC<ClientAuthPinProps> = ({ gallery, allGaller
               type="submit"
               variant="primary"
               size="lg"
-              className="w-full text-sm font-semibold shadow-lg shadow-[#01743F]/25 mt-4"
+              className="w-full text-sm font-semibold shadow-lg shadow-[#8300E9]/25 mt-4"
               disabled={pinInput.length < 4 || isVerifying}
             >
               <span>{isVerifying ? 'Verificando...' : 'Acessar Meu Ensaio'}</span>

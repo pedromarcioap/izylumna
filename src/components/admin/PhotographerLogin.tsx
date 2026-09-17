@@ -106,13 +106,13 @@ export const PhotographerLogin: React.FC<PhotographerLoginProps> = ({
         <CardContent className="p-8 sm:p-10 space-y-6">
           {/* Header & Emblem */}
           <div className="text-center space-y-3">
-            <div className="mx-auto w-16 h-16 rounded-2xl bg-brand-primary/15 border border-brand-emerald/40 flex items-center justify-center text-brand-emerald shadow-inner">
-              <Lock className="w-8 h-8" />
+            <div className="mx-auto w-16 h-16 rounded-2xl bg-brand-primary/15 border border-brand-cyan/40 flex items-center justify-center text-brand-cyan shadow-inner">
+              <Lock className="w-8 h-8 text-brand-primary" />
             </div>
 
             <div>
-              <span className="text-[11px] uppercase tracking-widest font-mono bg-brand-accent text-brand-dark font-extrabold px-2.5 py-0.5 rounded border border-[#4F3926]/30 inline-flex items-center gap-1.5">
-                <ShieldCheck className="w-3.5 h-3.5" />
+              <span className="text-[11px] uppercase tracking-widest font-mono bg-brand-accent text-brand-dark font-extrabold px-2.5 py-0.5 rounded border border-[#160F29]/30 inline-flex items-center gap-1.5">
+                <ShieldCheck className="w-3.5 h-3.5 text-brand-dark" />
                 <span>Autenticação Oficial Supabase Auth</span>
               </span>
               <h1 className="font-serif text-2xl font-bold text-walnut-100 mt-2">
@@ -139,7 +139,7 @@ export const PhotographerLogin: React.FC<PhotographerLoginProps> = ({
                   : 'text-walnut-400 hover:text-walnut-200'
               }`}
             >
-              <Lock className="w-3.5 h-3.5 text-brand-emerald" />
+              <Lock className="w-3.5 h-3.5 text-brand-cyan" />
               <span>Entrar</span>
             </button>
 
@@ -156,7 +156,7 @@ export const PhotographerLogin: React.FC<PhotographerLoginProps> = ({
                   : 'text-walnut-400 hover:text-walnut-200'
               }`}
             >
-              <UserPlus className="w-3.5 h-3.5 text-brand-emerald" />
+              <UserPlus className="w-3.5 h-3.5 text-brand-cyan" />
               <span>Criar Conta</span>
             </button>
           </div>
@@ -256,7 +256,7 @@ export const PhotographerLogin: React.FC<PhotographerLoginProps> = ({
                 <button
                   type="button"
                   onClick={handleFillDemoCreds}
-                  className="text-brand-emerald hover:text-brand-emerald/80 underline font-medium text-[11px]"
+                  className="text-brand-cyan hover:text-brand-cyan/80 underline font-medium text-[11px]"
                 >
                   Preencher Exemplo
                 </button>
@@ -271,7 +271,7 @@ export const PhotographerLogin: React.FC<PhotographerLoginProps> = ({
             )}
 
             {successMessage && (
-              <div className="p-3 rounded-xl bg-brand-emerald/15 border border-brand-emerald/40 text-xs text-brand-emerald flex items-center gap-2 animate-in fade-in">
+              <div className="p-3 rounded-xl bg-brand-cyan/15 border border-brand-cyan/40 text-xs text-brand-cyan flex items-center gap-2 animate-in fade-in">
                 <CheckCircle2 className="w-4 h-4 shrink-0" />
                 <span>{successMessage}</span>
               </div>
@@ -281,7 +281,7 @@ export const PhotographerLogin: React.FC<PhotographerLoginProps> = ({
               type="submit"
               variant="primary"
               size="lg"
-              className="w-full text-sm font-semibold shadow-lg shadow-[#01743F]/25"
+              className="w-full text-sm font-semibold shadow-lg shadow-[#8300E9]/25"
               disabled={isLoading || !email.trim() || !password}
             >
               <span>
@@ -302,7 +302,7 @@ export const PhotographerLogin: React.FC<PhotographerLoginProps> = ({
               onClick={onReturnToClient}
               className="text-xs text-walnut-400 hover:text-walnut-200 transition-colors inline-flex items-center gap-1.5"
             >
-              <UserCheck className="w-3.5 h-3.5 text-brand-emerald" />
+              <UserCheck className="w-3.5 h-3.5 text-brand-cyan" />
               <span>Você é um cliente? Ir para o <strong>Portal de Aprovação por PIN</strong></span>
             </button>
           </div>
