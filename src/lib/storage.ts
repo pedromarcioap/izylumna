@@ -9,6 +9,7 @@ import {
   Order
 } from '../types';
 import { supabase, isSupabaseConfigured } from './supabase';
+import { INITIAL_GALLERIES } from '../mockData';
 
 const LOCAL_CACHE_KEY = 'izylumna_supabase_galleries_cache_v2';
 const PROFILE_CACHE_KEY = 'izylumna_supabase_profile_cache_v2';
@@ -23,12 +24,16 @@ try {
   if (local) {
     cachedGalleries = JSON.parse(local);
   }
+  if (!Array.isArray(cachedGalleries) || cachedGalleries.length === 0) {
+    cachedGalleries = INITIAL_GALLERIES;
+  }
   const localProf = localStorage.getItem(PROFILE_CACHE_KEY);
   if (localProf) {
     cachedProfile = JSON.parse(localProf);
   }
 } catch (e) {
   console.warn('Failed to parse local cache:', e);
+  cachedGalleries = INITIAL_GALLERIES;
 }
 
 function clearOldCacheKeys(): void {
@@ -369,7 +374,7 @@ export async function getGalleriesAsync(): Promise<Gallery[]> {
     }
 
     if (dbGalleries.length === 0) {
-      return cachedGalleries;
+      return cachedGalleries.length > 0 ? cachedGalleries : getGalleries();
     }
 
     const galleryIds = dbGalleries.map((g) => g.id);
@@ -399,12 +404,18 @@ export async function getGalleriesAsync(): Promise<Gallery[]> {
       mapRowToGallery(g, photosByGallery[g.id] || [], selectionsByGallery[g.id] || null)
     );
 
-    // Merge local-only galleries created in fallback mode
+    // Merge local-only galleries created in fallback mode & mock galleries
+    const fallbackList = getGalleries();
     const mergedMap = new Map<string, Gallery>();
     dbMappedGalleries.forEach((g) => mergedMap.set(g.id, g));
     cachedGalleries.forEach((cg) => {
       if (!mergedMap.has(cg.id)) {
         mergedMap.set(cg.id, cg);
+      }
+    });
+    fallbackList.forEach((fg) => {
+      if (!mergedMap.has(fg.id)) {
+        mergedMap.set(fg.id, fg);
       }
     });
 
@@ -418,7 +429,7 @@ export async function getGalleriesAsync(): Promise<Gallery[]> {
 }
 
 export function getGalleries(): Gallery[] {
-  return cachedGalleries;
+  return cachedGalleries.length > 0 ? cachedGalleries : INITIAL_GALLERIES;
 }
 
 export function getGalleryById(id: string): Gallery | undefined {

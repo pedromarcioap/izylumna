@@ -45,7 +45,8 @@ import {
   HardDrive,
   RefreshCw,
   Sliders,
-  ExternalLink
+  ExternalLink,
+  FolderKanban
 } from 'lucide-react';
 
 export interface AdminDashboardProps {
@@ -82,30 +83,38 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [watermarkGallery, setWatermarkGallery] = useState<Gallery | null>(null);
 
   // Computations matching KPI numbers and dynamic filters
-  const totalGalleries = galleries.length;
-  const inProgressGalleries = galleries.filter(
+  const safeGalleries = Array.isArray(galleries) ? galleries : [];
+  const totalGalleries = safeGalleries.length;
+  const inProgressGalleries = safeGalleries.filter(
     (g) =>
-      g.status === 'awaiting_client' ||
-      g.clientSelection?.status === 'pending' ||
-      (g.voters && g.voters.length > 0) ||
-      (g.clientSelection?.votes && Object.keys(g.clientSelection.votes).length > 0)
+      g &&
+      (g.status === 'awaiting_client' ||
+        g.clientSelection?.status === 'pending' ||
+        (Array.isArray(g.voters) && g.voters.length > 0) ||
+        (g.clientSelection?.votes && Object.keys(g.clientSelection.votes).length > 0))
   );
 
-  const pendingExtrasGalleries = galleries.filter((g) => {
+  const pendingExtrasGalleries = safeGalleries.filter((g) => {
+    if (!g) return false;
     const selectedCount = g.clientSelection?.selectedPhotoIds?.length || 0;
-    return selectedCount > g.quotaIncluded && g.paymentStatus !== 'paid';
+    const quotaIncluded = typeof g.quotaIncluded === 'number' ? g.quotaIncluded : 0;
+    return selectedCount > quotaIncluded && g.paymentStatus !== 'paid';
   });
 
-  const readyLightroomGalleries = galleries.filter(
-    (g) => g.status === 'completed' || Boolean(g.adobeAlbumId)
+  const readyLightroomGalleries = safeGalleries.filter(
+    (g) => g && (g.status === 'completed' || Boolean(g.adobeAlbumId))
   );
 
-  const completedGalleries = galleries.filter((g) => g.status === 'completed');
+  const completedGalleries = safeGalleries.filter((g) => g && g.status === 'completed');
 
-  const filteredGalleries = galleries.filter((g) => {
+  const filteredGalleries = safeGalleries.filter((g) => {
+    if (!g) return false;
+    const title = g.title || '';
+    const clientName = g.clientName || '';
+    const query = searchQuery || '';
     const matchesQuery =
-      g.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      g.clientName.toLowerCase().includes(searchQuery.toLowerCase());
+      title.toLowerCase().includes(query.toLowerCase()) ||
+      clientName.toLowerCase().includes(query.toLowerCase());
 
     if (!matchesQuery) return false;
 
@@ -113,13 +122,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       return (
         g.status === 'awaiting_client' ||
         g.clientSelection?.status === 'pending' ||
-        (g.voters && g.voters.length > 0) ||
+        (Array.isArray(g.voters) && g.voters.length > 0) ||
         (g.clientSelection?.votes && Object.keys(g.clientSelection.votes).length > 0)
       );
     }
     if (statusFilter === 'pending_extras') {
       const selectedCount = g.clientSelection?.selectedPhotoIds?.length || 0;
-      return selectedCount > g.quotaIncluded && g.paymentStatus !== 'paid';
+      const quotaIncluded = typeof g.quotaIncluded === 'number' ? g.quotaIncluded : 0;
+      return selectedCount > quotaIncluded && g.paymentStatus !== 'paid';
     }
     if (statusFilter === 'ready_lightroom') {
       return g.status === 'completed' || Boolean(g.adobeAlbumId);
