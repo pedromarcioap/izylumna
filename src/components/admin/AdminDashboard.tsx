@@ -22,17 +22,9 @@ import {
   SlidersHorizontal,
   Eye,
   Trash2,
-  Copy,
-  ExternalLink,
-  CheckCircle2,
-  Clock,
-  Sparkles,
-  DollarSign,
-  Ban,
   Share2,
   FileCheck,
   ShieldCheck,
-  KeyRound,
   LogOut,
   BarChart3,
   Users,
@@ -40,7 +32,10 @@ import {
   MessageCircle,
   Mail,
   Phone,
-  Cloud
+  Cloud,
+  Sparkles,
+  DollarSign,
+  Ban
 } from 'lucide-react';
 
 export interface AdminDashboardProps {
@@ -68,7 +63,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onOpenClientView,
   onShowToast
 }) => {
-  const { user, profile: userProfile, isAdmin } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [dashboardTab, setDashboardTab] = useState<'galleries' | 'financial' | 'clients' | 'users'>('galleries');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'awaiting_client' | 'completed' | 'draft'>('all');
@@ -77,13 +72,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [galleryToDelete, setGalleryToDelete] = useState<Gallery | null>(null);
   const [watermarkGallery, setWatermarkGallery] = useState<Gallery | null>(null);
 
-
   // Metrics computation
   const totalGalleries = galleries.length;
   const awaitingCount = galleries.filter((g) => g.status === 'awaiting_client').length;
   const completedCount = galleries.filter((g) => g.status === 'completed').length;
-  
-  // Total extra billed from charge policy galleries
+
   const totalExtrasBilled = galleries.reduce((acc, g) => {
     if (g.excessPolicy === 'charge') {
       const selectedCount = g.clientSelection.selectedPhotoIds.length;
@@ -116,7 +109,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     navigator.clipboard.writeText(url);
     onShowToast(
       'Link de Acesso Copiado!',
-      `Link direto com PIN para "${gallery.title}". Acesso exclusivo por PIN (sem necessidade de conta Google).`,
+      `Link direto para "${gallery.title}". Acesso seguro por PIN exclusivo.`,
       'success'
     );
   };
@@ -124,7 +117,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const handleWhatsAppShare = (gallery: Gallery) => {
     const url = getClientGalleryUrl(gallery.id);
     const pinInfo = gallery.privacy === 'private' ? `\n🔑 PIN de acesso exclusivo: ${gallery.pinCode}` : '';
-    const message = `Olá, ${gallery.clientName}! Sua galeria de fotos "${gallery.title}" está disponível para seleção!\n\n🔗 Acesse o link: ${url}${pinInfo}\n\n(Acesso direto por PIN. Não é necessário criar conta nem fazer login no Google).`;
+    const message = `Olá, ${gallery.clientName}! Sua galeria de fotos "${gallery.title}" está disponível para seleção!\n\n🔗 Acesse o link: ${url}${pinInfo}\n\n(Acesso direto por PIN sem necessidade de senha extensa).`;
     const encoded = encodeURIComponent(message);
     window.open(`https://wa.me/${gallery.clientPhone ? gallery.clientPhone.replace(/\D/g, '') : ''}?text=${encoded}`, '_blank');
   };
@@ -132,7 +125,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const getPolicyBadge = (gallery: Gallery) => {
     if (gallery.excessPolicy === 'block') {
       return (
-        <Badge variant="default" size="sm" className="gap-1 bg-zinc-800/80 text-zinc-300">
+        <Badge variant="default" size="sm" className="gap-1 bg-zinc-900 text-zinc-300 border-zinc-700">
           <Ban className="w-3 h-3 text-red-400" />
           <span>Bloqueio Rígido ({gallery.quotaIncluded})</span>
         </Badge>
@@ -149,15 +142,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     return (
       <Badge variant="info" size="sm" className="gap-1">
         <Sparkles className="w-3 h-3" />
-        <span>Aprovação Pura (Sem Custo)</span>
+        <span>Aprovação Pura</span>
       </Badge>
     );
   };
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto pb-16">
-      {/* Photographer Profile & Management Status Header */}
-      <div className="p-5 sm:p-6 rounded-2xl bg-gradient-to-r from-zinc-900 via-zinc-900/90 to-zinc-950 border border-zinc-800 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-5">
+      {/* Photographer Studio Header Card */}
+      <div className="p-6 rounded-2xl bg-[#140F24]/90 border border-white/10 shadow-2xl backdrop-blur-xl flex flex-col md:flex-row md:items-center justify-between gap-5">
         <div className="flex items-center gap-4">
           <div className="relative">
             {photographerProfile.avatarUrl ? (
@@ -168,69 +161,70 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   e.currentTarget.onerror = null;
                   e.currentTarget.src = PLACEHOLDER_IMAGE;
                 }}
-                className="w-14 h-14 rounded-2xl object-cover border-2 border-amber-500/40 shadow-md"
+                className="w-14 h-14 rounded-2xl object-cover border-2 border-[#8300E9] shadow-lg shadow-[#8300E9]/30"
               />
             ) : (
-              <div className="w-14 h-14 rounded-2xl bg-amber-500/20 border-2 border-amber-500/40 flex items-center justify-center text-amber-400 font-bold text-xl">
+              <div className="w-14 h-14 rounded-2xl bg-[#8300E9]/20 border-2 border-[#8300E9] flex items-center justify-center text-[#8300E9] dark:text-purple-300 font-bold text-xl">
                 {photographerProfile.name.charAt(0)}
               </div>
             )}
-            <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-zinc-900 shadow" title="Fotógrafo Conectado" />
+            <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-[#46BDC6] border-2 border-[#0A0714] shadow" title="Estúdio Autenticado" />
           </div>
 
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="font-serif text-xl sm:text-2xl font-bold text-zinc-100 tracking-tight">
+              <h1 className="font-sans text-xl sm:text-2xl font-extrabold text-white tracking-tight">
                 {photographerProfile.name}
               </h1>
-              <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-mono font-medium">
-                <ShieldCheck className="w-3 h-3" />
+              <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#46BDC6]/15 text-[#46BDC6] border border-[#46BDC6]/30 text-[10px] font-mono font-bold uppercase">
+                <ShieldCheck className="w-3 h-3 text-[#46BDC6]" />
                 <span>Autenticado</span>
               </span>
             </div>
-            <p className="text-xs text-zinc-400 mt-0.5">
-              <strong className="text-amber-400 font-medium">{photographerProfile.studioName}</strong> • {photographerProfile.email}
+            <p className="text-xs text-zinc-400 mt-1">
+              <strong className="text-[#46BDC6] font-semibold">{photographerProfile.studioName}</strong> • {photographerProfile.email}
             </p>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+        {/* Studio Actions in 1-Click */}
+        <div className="flex flex-wrap items-center gap-2.5">
           <Button
             variant="outline"
             size="sm"
             onClick={() => setIsSettingsOpen(true)}
-            className="text-xs"
+            className="text-xs border-white/10 text-zinc-300 hover:bg-white/5"
           >
             <Settings className="w-3.5 h-3.5 mr-1 text-zinc-400" />
-            <span>Configurações & Senha</span>
+            <span>Perfil & Configurações</span>
           </Button>
 
           <Button
             variant="outline"
             size="sm"
             onClick={() => setIsAdobeImportOpen(true)}
-            className="text-xs border-amber-500/30 text-amber-300 hover:bg-amber-500/10"
-            title="Importar álbuns e fotos diretamente da sua conta Adobe Lightroom Cloud"
+            className="text-xs border-[#46BDC6]/30 text-[#46BDC6] hover:bg-[#46BDC6]/10"
+            title="Importar álbuns do Adobe Lightroom Cloud"
           >
-            <Cloud className="w-3.5 h-3.5 mr-1 text-amber-400" />
-            <span>Importar do Lightroom</span>
+            <Cloud className="w-3.5 h-3.5 mr-1 text-[#46BDC6]" />
+            <span>Lightroom Cloud</span>
           </Button>
 
           <Button
-            variant="amber"
+            variant="primary"
             size="sm"
             onClick={onCreateGallery}
-            className="text-xs shadow-lg shadow-amber-500/20"
+            className="text-xs font-semibold shadow-lg shadow-[#8300E9]/30"
           >
             <Plus className="w-4 h-4 mr-1" />
-            <span>Criar Nova Galeria</span>
+            <span>Novo Ensaio</span>
           </Button>
 
           <Button
             variant="ghost"
             size="sm"
             onClick={onLogout}
-            title="Encerrar sessão segura do fotógrafo"
+            title="Encerrar sessão"
             className="text-xs text-zinc-400 hover:text-red-400 hover:bg-red-500/10"
           >
             <LogOut className="w-3.5 h-3.5 mr-1" />
@@ -239,42 +233,42 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       </div>
 
-      {/* Dashboard Section Navigation Tabs */}
-      <div className="flex items-center gap-2 border-b border-zinc-800 pb-2 overflow-x-auto">
+      {/* Navigation Tabs */}
+      <div className="flex items-center gap-2 border-b border-white/10 pb-2 overflow-x-auto">
         <button
           onClick={() => setDashboardTab('galleries')}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap ${
             dashboardTab === 'galleries'
-              ? 'bg-zinc-800 text-amber-400 border border-zinc-700/80 shadow-sm'
-              : 'text-zinc-400 hover:text-zinc-200'
+              ? 'bg-[#8300E9] text-white shadow-md shadow-[#8300E9]/30 border border-[#8300E9]'
+              : 'text-zinc-400 hover:text-white hover:bg-white/5'
           }`}
         >
           <ImageIcon className="w-4 h-4" />
-          <span>Galerias & Ensaios ({totalGalleries})</span>
+          <span>Ensaios & Galerias ({totalGalleries})</span>
         </button>
 
         <button
           onClick={() => setDashboardTab('financial')}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap ${
             dashboardTab === 'financial'
-              ? 'bg-zinc-800 text-amber-400 border border-zinc-700/80 shadow-sm'
-              : 'text-zinc-400 hover:text-zinc-200'
+              ? 'bg-[#8300E9] text-white shadow-md shadow-[#8300E9]/30 border border-[#8300E9]'
+              : 'text-zinc-400 hover:text-white hover:bg-white/5'
           }`}
         >
           <BarChart3 className="w-4 h-4" />
-          <span>Relatório de Faturamento & Cotas</span>
+          <span>Faturamento & Cotas</span>
         </button>
 
         <button
           onClick={() => setDashboardTab('clients')}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap ${
             dashboardTab === 'clients'
-              ? 'bg-zinc-800 text-amber-400 border border-zinc-700/80 shadow-sm'
-              : 'text-zinc-400 hover:text-zinc-200'
+              ? 'bg-[#8300E9] text-white shadow-md shadow-[#8300E9]/30 border border-[#8300E9]'
+              : 'text-zinc-400 hover:text-white hover:bg-white/5'
           }`}
         >
           <Users className="w-4 h-4" />
-          <span>Diretório de Clientes & Links</span>
+          <span>Clientes & Envio em 1 Clique</span>
         </button>
 
         {isAdmin && (
@@ -282,60 +276,60 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             onClick={() => setDashboardTab('users')}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap ${
               dashboardTab === 'users'
-                ? 'bg-zinc-800 text-amber-400 border border-zinc-700/80 shadow-sm'
-                : 'text-zinc-400 hover:text-zinc-200'
+                ? 'bg-[#8300E9] text-white shadow-md shadow-[#8300E9]/30 border border-[#8300E9]'
+                : 'text-zinc-400 hover:text-white hover:bg-white/5'
             }`}
           >
-            <ShieldCheck className="w-4 h-4 text-amber-400" />
-            <span>Gestão de Usuários & RBAC</span>
+            <ShieldCheck className="w-4 h-4 text-[#46BDC6]" />
+            <span>Gestão RBAC</span>
           </button>
         )}
       </div>
 
-      {/* Metrics Row */}
+      {/* Studio Metrics Overview */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="bg-zinc-900/50">
+        <Card className="bg-[#140F24]/80 border-white/10 backdrop-blur-xl">
           <CardContent className="p-5">
-            <span className="text-xs font-medium text-zinc-400">Total de Galerias</span>
+            <span className="text-xs font-medium text-zinc-400">Total de Ensaios</span>
             <div className="mt-2 flex items-baseline gap-2">
-              <span className="text-3xl font-bold font-mono text-zinc-100">{totalGalleries}</span>
-              <span className="text-xs text-zinc-500">ensaios</span>
+              <span className="text-3xl font-bold font-mono text-white">{totalGalleries}</span>
+              <span className="text-xs text-zinc-400">projetos</span>
             </div>
-            <p className="text-xs text-zinc-500 mt-1">{totalPhotosCataloged} fotos no catálogo geral</p>
+            <p className="text-xs text-zinc-400 mt-1">{totalPhotosCataloged} fotos catalogadas</p>
           </CardContent>
         </Card>
 
-        <Card className="bg-zinc-900/50">
+        <Card className="bg-[#140F24]/80 border-white/10 backdrop-blur-xl">
           <CardContent className="p-5">
-            <span className="text-xs font-medium text-amber-400/90">Aguardando Cliente</span>
+            <span className="text-xs font-medium text-[#FDBD00]">Em Seleção de Cliente</span>
             <div className="mt-2 flex items-baseline gap-2">
-              <span className="text-3xl font-bold font-mono text-amber-400">{awaitingCount}</span>
-              <span className="text-xs text-zinc-500">em seleção</span>
+              <span className="text-3xl font-bold font-mono text-[#FDBD00]">{awaitingCount}</span>
+              <span className="text-xs text-zinc-400">em andamento</span>
             </div>
-            <p className="text-xs text-zinc-500 mt-1">Clientes escolhendo fotos</p>
+            <p className="text-xs text-zinc-400 mt-1">Aguardando aprovação do cliente</p>
           </CardContent>
         </Card>
 
-        <Card className="bg-zinc-900/50">
+        <Card className="bg-[#140F24]/80 border-white/10 backdrop-blur-xl">
           <CardContent className="p-5">
-            <span className="text-xs font-medium text-emerald-400/90">Seleções Concluídas</span>
+            <span className="text-xs font-medium text-[#46BDC6]">Seleções Concluídas</span>
             <div className="mt-2 flex items-baseline gap-2">
-              <span className="text-3xl font-bold font-mono text-emerald-400">{completedCount}</span>
-              <span className="text-xs text-zinc-500">prontas</span>
+              <span className="text-3xl font-bold font-mono text-[#46BDC6]">{completedCount}</span>
+              <span className="text-xs text-zinc-400">aprovadas</span>
             </div>
-            <p className="text-xs text-zinc-500 mt-1">Aprovadas para pós-produção</p>
+            <p className="text-xs text-zinc-400 mt-1">Prontas para exportar no Lightroom</p>
           </CardContent>
         </Card>
 
-        <Card className="bg-zinc-900/50">
+        <Card className="bg-[#140F24]/80 border-white/10 backdrop-blur-xl">
           <CardContent className="p-5">
-            <span className="text-xs font-medium text-amber-300">Receita de Fotos Extras</span>
+            <span className="text-xs font-medium text-emerald-400">Receita em Fotos Extras</span>
             <div className="mt-2 flex items-baseline gap-1">
-              <span className="text-3xl font-bold font-mono text-emerald-300">
+              <span className="text-3xl font-bold font-mono text-emerald-400">
                 R$ {totalExtrasBilled.toFixed(2)}
               </span>
             </div>
-            <p className="text-xs text-zinc-500 mt-1">{totalPhotosSelected} fotos aprovadas no total</p>
+            <p className="text-xs text-zinc-400 mt-1">{totalPhotosSelected} fotos aprovadas</p>
           </CardContent>
         </Card>
       </div>
@@ -347,19 +341,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
             <div className="relative max-w-sm w-full">
               <Input
-                placeholder="Buscar por cliente ou título..."
+                placeholder="Buscar cliente ou nome do ensaio..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 leftIcon={<Search className="w-4 h-4" />}
               />
             </div>
 
-            <div className="flex items-center gap-1.5 p-1 bg-zinc-900/80 rounded-xl border border-zinc-800 self-start sm:self-auto overflow-x-auto max-w-full">
+            <div className="flex items-center gap-1.5 p-1 bg-[#0A0714] rounded-xl border border-white/10 self-start sm:self-auto overflow-x-auto max-w-full">
               <button
                 onClick={() => setStatusFilter('all')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                   statusFilter === 'all'
-                    ? 'bg-zinc-800 text-zinc-100 font-semibold'
+                    ? 'bg-[#8300E9] text-white font-semibold'
                     : 'text-zinc-400 hover:text-zinc-200'
                 }`}
               >
@@ -369,7 +363,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 onClick={() => setStatusFilter('awaiting_client')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                   statusFilter === 'awaiting_client'
-                    ? 'bg-zinc-800 text-amber-400 font-semibold'
+                    ? 'bg-[#FDBD00] text-[#160F29] font-bold'
                     : 'text-zinc-400 hover:text-zinc-200'
                 }`}
               >
@@ -379,7 +373,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 onClick={() => setStatusFilter('completed')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                   statusFilter === 'completed'
-                    ? 'bg-zinc-800 text-emerald-400 font-semibold'
+                    ? 'bg-[#46BDC6] text-[#160F29] font-bold'
                     : 'text-zinc-400 hover:text-zinc-200'
                 }`}
               >
@@ -400,17 +394,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
           {/* Galleries Grid */}
           {filteredGalleries.length === 0 ? (
-            <div className="text-center py-20 px-4 rounded-2xl border border-zinc-850 bg-zinc-900/20">
+            <div className="text-center py-20 px-4 rounded-2xl border border-white/10 bg-[#140F24]/50 backdrop-blur-xl">
               <ImageIcon className="w-12 h-12 mx-auto text-zinc-600 mb-3" />
-              <h3 className="text-lg font-semibold text-zinc-300">Nenhuma galeria encontrada</h3>
-              <p className="text-sm text-zinc-500 mt-1 max-w-md mx-auto">
+              <h3 className="text-lg font-semibold text-zinc-200">Nenhum ensaio encontrado</h3>
+              <p className="text-sm text-zinc-400 mt-1 max-w-md mx-auto">
                 {searchQuery
                   ? 'Tente ajustar os termos de busca ou filtros aplicados.'
-                  : 'Clique em "Criar Nova Galeria" para publicar seu primeiro ensaio.'}
+                  : 'Clique em "Novo Ensaio" para publicar sua primeira galeria de clientes.'}
               </p>
-              <Button variant="outline" size="sm" onClick={onCreateGallery} className="mt-4">
+              <Button variant="primary" size="sm" onClick={onCreateGallery} className="mt-4 shadow-lg shadow-[#8300E9]/30">
                 <Plus className="w-4 h-4 mr-1" />
-                <span>Criar Galeria Agora</span>
+                <span>Criar Novo Ensaio</span>
               </Button>
             </div>
           ) : (
@@ -424,27 +418,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 return (
                   <Card
                     key={gallery.id}
-                    className="group flex flex-col transition-all duration-300 hover:border-zinc-700/80 hover:shadow-2xl hover:shadow-amber-500/5"
+                    className="group flex flex-col transition-all duration-300 border-white/10 bg-[#140F24]/90 hover:border-[#8300E9]/60 hover:shadow-2xl hover:shadow-[#8300E9]/15 backdrop-blur-xl"
                   >
                     {/* Cover Image & Badges */}
-                    <div className="relative aspect-16/10 bg-zinc-950 overflow-hidden">
+                    <div className="relative aspect-16/10 bg-[#0A0714] overflow-hidden rounded-t-2xl">
                       <SafeImage
                         src={gallery.coverPhotoUrl}
                         alt={gallery.title}
                         fallbackText={gallery.title}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 protected-photo"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/20 to-transparent" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#140F24] via-[#140F24]/20 to-transparent" />
 
                       {/* Privacy Badge */}
                       <div className="absolute top-3 left-3 flex items-center gap-1.5">
                         {gallery.privacy === 'private' ? (
-                          <Badge variant="default" size="sm" className="bg-black/70 backdrop-blur-md text-amber-300 border-amber-500/30 gap-1 font-mono">
-                            <Lock className="w-3 h-3" />
+                          <Badge variant="default" size="sm" className="bg-black/75 backdrop-blur-md text-[#FDBD00] border border-[#FDBD00]/30 gap-1 font-mono">
+                            <Lock className="w-3 h-3 text-[#FDBD00]" />
                             <span>PIN: {gallery.pinCode}</span>
                           </Badge>
                         ) : (
-                          <Badge variant="secondary" size="sm" className="bg-black/70 backdrop-blur-md text-zinc-300 gap-1">
+                          <Badge variant="secondary" size="sm" className="bg-black/75 backdrop-blur-md text-zinc-300 gap-1">
                             <Globe className="w-3 h-3" />
                             <span>Pública</span>
                           </Badge>
@@ -473,8 +467,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
                       {/* Photo Count tag */}
                       <div className="absolute bottom-3 left-3 flex items-center gap-2">
-                        <span className="text-xs font-mono font-medium px-2 py-0.5 rounded bg-black/70 backdrop-blur-md text-zinc-300 border border-white/10">
-                          {gallery.photos.length} fotos no catálogo
+                        <span className="text-[11px] font-mono font-semibold px-2.5 py-0.5 rounded-lg bg-black/80 backdrop-blur-md text-zinc-200 border border-white/10">
+                          {gallery.photos.length} fotos
                         </span>
                       </div>
                     </div>
@@ -483,7 +477,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
                       <div>
                         <div className="flex items-start justify-between gap-2">
-                          <h3 className="font-serif text-lg font-bold text-zinc-100 group-hover:text-amber-300 transition-colors line-clamp-1">
+                          <h3 className="font-sans text-lg font-extrabold text-white group-hover:text-[#46BDC6] transition-colors line-clamp-1">
                             {gallery.title}
                           </h3>
                         </div>
@@ -492,8 +486,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           <strong className="text-zinc-200">{gallery.clientName}</strong>
                         </p>
 
-                        <div className="flex items-center gap-2 mt-3 text-xs text-zinc-500">
-                          <Calendar className="w-3.5 h-3.5" />
+                        <div className="flex items-center gap-2 mt-2 text-xs text-zinc-400">
+                          <Calendar className="w-3.5 h-3.5 text-[#8300E9]" />
                           <span>{new Date(gallery.eventDate).toLocaleDateString('pt-BR')}</span>
                         </div>
 
@@ -503,23 +497,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         </div>
 
                         {/* Selection Progress bar */}
-                        <div className="mt-4 p-3 rounded-xl bg-zinc-950/60 border border-zinc-800/80 space-y-2">
+                        <div className="mt-4 p-3 rounded-xl bg-[#0A0714] border border-white/10 space-y-2">
                           <div className="flex items-center justify-between text-xs">
-                            <span className="text-zinc-400">Progresso da Seleção:</span>
-                            <span className="font-mono font-semibold text-zinc-200">
-                              {selectedCount} de {quota} contratadas
+                            <span className="text-zinc-400">Progresso de Seleção:</span>
+                            <span className="font-mono font-bold text-zinc-200">
+                              {selectedCount} / {quota} contratadas
                             </span>
                           </div>
 
-                          {/* Bar */}
                           <div className="h-1.5 w-full bg-zinc-800 rounded-full overflow-hidden">
                             <div
                               className={`h-full transition-all duration-300 ${
                                 extraCount > 0
-                                  ? 'bg-amber-400'
+                                  ? 'bg-[#FDBD00]'
                                   : selectedCount === quota
-                                  ? 'bg-emerald-400'
-                                  : 'bg-zinc-300'
+                                  ? 'bg-[#46BDC6]'
+                                  : 'bg-[#8300E9]'
                               }`}
                               style={{
                                 width: `${Math.min(100, Math.round((selectedCount / quota) * 100))}%`
@@ -528,37 +521,37 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           </div>
 
                           {extraCount > 0 && (
-                            <p className="text-[11px] text-amber-300/90 font-medium">
+                            <p className="text-[11px] text-[#FDBD00] font-semibold">
                               +{extraCount} {extraCount === 1 ? 'foto excedente' : 'fotos excedentes'}
                               {gallery.excessPolicy === 'charge'
                                 ? ` (+ R$ ${(extraCount * gallery.extraPhotoPrice).toFixed(2)})`
-                                : ' (autorizadas para pós)'}
+                                : ''}
                             </p>
                           )}
                         </div>
                       </div>
 
-                      {/* Actions Grid */}
-                      <div className="pt-2 border-t border-zinc-800/60 flex flex-col gap-2">
+                      {/* Direct 3-Click Action Grid */}
+                      <div className="pt-2 border-t border-white/10 flex flex-col gap-2">
                         <div className="grid grid-cols-2 gap-2">
                           <Button
-                            variant="amber"
+                            variant="primary"
                             size="sm"
                             onClick={() => onViewGalleryDetails(gallery)}
-                            className="w-full text-xs"
+                            className="w-full text-xs font-semibold"
                           >
                             <FileCheck className="w-3.5 h-3.5" />
                             <span>Ver Seleção</span>
                           </Button>
 
                           <Button
-                            variant="secondary"
+                            variant="outline"
                             size="sm"
                             onClick={() => onOpenClientView(gallery.id)}
-                            className="w-full text-xs"
+                            className="w-full text-xs border-white/10 text-zinc-200 hover:bg-white/5"
                           >
                             <Eye className="w-3.5 h-3.5" />
-                            <span>Ver Cliente</span>
+                            <span>Visão Cliente</span>
                           </Button>
                         </div>
 
@@ -566,15 +559,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           <div className="flex items-center gap-2">
                             <button
                               onClick={() => handleCopyClientLink(gallery)}
-                              className="flex items-center gap-1 text-[11px] text-zinc-400 hover:text-zinc-200 transition-colors p-1"
+                              className="flex items-center gap-1 text-[11px] text-zinc-400 hover:text-white transition-colors p-1"
                               title="Copiar link direto do cliente"
                             >
-                              <Share2 className="w-3 h-3 text-amber-400" />
+                              <Share2 className="w-3 h-3 text-[#46BDC6]" />
                               <span>Link</span>
                             </button>
                             <button
                               onClick={() => handleWhatsAppShare(gallery)}
-                              className="flex items-center gap-1 text-[11px] text-emerald-400 hover:text-emerald-300 transition-colors p-1"
+                              className="flex items-center gap-1 text-[11px] text-[#46BDC6] hover:text-[#46BDC6]/80 transition-colors p-1 font-medium"
                               title="Enviar por WhatsApp"
                             >
                               <MessageCircle className="w-3 h-3" />
@@ -585,14 +578,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           <div className="flex items-center gap-1">
                             <button
                               onClick={() => setWatermarkGallery(gallery)}
-                              className="p-1.5 text-zinc-400 hover:text-amber-400 hover:bg-amber-500/10 rounded transition-colors"
-                              title="Editar Marca d'Água"
+                              className="p-1.5 text-zinc-400 hover:text-[#8300E9] hover:bg-[#8300E9]/10 rounded transition-colors"
+                              title="Marca d'Água"
                             >
                               <ShieldCheck className="w-3.5 h-3.5" />
                             </button>
                             <button
                               onClick={() => onEditGallery(gallery)}
-                              className="p-1.5 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded transition-colors"
+                              className="p-1.5 text-zinc-400 hover:text-white hover:bg-white/5 rounded transition-colors"
                               title="Editar galeria"
                             >
                               <SlidersHorizontal className="w-3.5 h-3.5" />
@@ -616,47 +609,46 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {/* TAB 2: FINANCIAL & QUOTA AUDIT REPORT */}
+      {/* TAB 2: FINANCIAL & QUOTA AUDIT */}
       {dashboardTab === 'financial' && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <Card className="bg-zinc-900/60 p-5">
+            <Card className="bg-[#140F24]/80 border-white/10 backdrop-blur-xl p-5">
               <span className="text-xs text-zinc-400">Total Faturado em Extras</span>
               <div className="text-3xl font-mono font-bold text-emerald-400 mt-2">
                 R$ {totalExtrasBilled.toFixed(2)}
               </div>
-              <p className="text-xs text-zinc-500 mt-1">Apenas ensaios com política de cobrança</p>
+              <p className="text-xs text-zinc-400 mt-1">Geração de receita em ensaios com cotas</p>
             </Card>
 
-            <Card className="bg-zinc-900/60 p-5">
-              <span className="text-xs text-zinc-400">Taxa de Conversão de Aprovação</span>
-              <div className="text-3xl font-mono font-bold text-amber-400 mt-2">
+            <Card className="bg-[#140F24]/80 border-white/10 backdrop-blur-xl p-5">
+              <span className="text-xs text-zinc-400">Taxa de Conclusão</span>
+              <div className="text-3xl font-mono font-bold text-[#46BDC6] mt-2">
                 {totalGalleries > 0 ? Math.round((completedCount / totalGalleries) * 100) : 0}%
               </div>
-              <p className="text-xs text-zinc-500 mt-1">{completedCount} de {totalGalleries} ensaios concluídos</p>
+              <p className="text-xs text-zinc-400 mt-1">{completedCount} de {totalGalleries} aprovadas</p>
             </Card>
 
-            <Card className="bg-zinc-900/60 p-5">
-              <span className="text-xs text-zinc-400">Total de Fotos Selecionadas</span>
-              <div className="text-3xl font-mono font-bold text-zinc-100 mt-2">
+            <Card className="bg-[#140F24]/80 border-white/10 backdrop-blur-xl p-5">
+              <span className="text-xs text-zinc-400">Fotos Aprovadas no Total</span>
+              <div className="text-3xl font-mono font-bold text-white mt-2">
                 {totalPhotosSelected}
               </div>
-              <p className="text-xs text-zinc-500 mt-1">De um catálogo total de {totalPhotosCataloged} fotos</p>
+              <p className="text-xs text-zinc-400 mt-1">De {totalPhotosCataloged} fotos publicadas</p>
             </Card>
           </div>
 
-          {/* Detailed Table */}
-          <Card className="bg-zinc-900/60 overflow-hidden">
-            <div className="p-5 border-b border-zinc-800 flex items-center justify-between">
+          <Card className="bg-[#140F24]/80 border-white/10 backdrop-blur-xl overflow-hidden">
+            <div className="p-5 border-b border-white/10 flex items-center justify-between">
               <div>
-                <h3 className="font-semibold text-zinc-100">Demonstrativo por Ensaio & Faturamento</h3>
-                <p className="text-xs text-zinc-400 mt-0.5">Auditoria detalhada de fotos inclusas, extras e receita gerada por cliente.</p>
+                <h3 className="font-bold text-white">Relatório de Faturamento por Cliente</h3>
+                <p className="text-xs text-zinc-400 mt-0.5">Detalhamento de fotos contratadas vs selecionadas e total a receber.</p>
               </div>
             </div>
 
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
-                <thead className="bg-zinc-950/80 text-zinc-400 uppercase tracking-wider font-mono border-b border-zinc-800">
+                <thead className="bg-[#0A0714] text-zinc-400 uppercase tracking-wider font-mono border-b border-white/10">
                   <tr>
                     <th className="py-3 px-4">Projeto / Cliente</th>
                     <th className="py-3 px-4">Data Ensaio</th>
@@ -667,16 +659,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     <th className="py-3 px-4 text-center">Status</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-800/60">
+                <tbody className="divide-y divide-white/10">
                   {galleries.map((g) => {
                     const selCount = g.clientSelection.selectedPhotoIds.length;
                     const extras = Math.max(0, selCount - g.quotaIncluded);
                     const billed = g.excessPolicy === 'charge' ? extras * g.extraPhotoPrice : 0;
 
                     return (
-                      <tr key={g.id} className="hover:bg-zinc-800/30 transition-colors">
+                      <tr key={g.id} className="hover:bg-white/5 transition-colors">
                         <td className="py-3.5 px-4">
-                          <div className="font-semibold text-zinc-200">{g.title}</div>
+                          <div className="font-semibold text-white">{g.title}</div>
                           <div className="text-[11px] text-zinc-400">{g.clientName}</div>
                         </td>
                         <td className="py-3.5 px-4 font-mono text-zinc-400">
@@ -686,11 +678,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           {getPolicyBadge(g)}
                         </td>
                         <td className="py-3.5 px-4 text-center font-mono">
-                          <span className="text-zinc-200 font-semibold">{selCount}</span> / {g.quotaIncluded}
+                          <span className="text-white font-bold">{selCount}</span> / {g.quotaIncluded}
                         </td>
                         <td className="py-3.5 px-4 text-center font-mono">
                           {extras > 0 ? (
-                            <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-bold">
+                            <span className="px-2 py-0.5 rounded bg-[#FDBD00]/20 text-[#FDBD00] font-bold">
                               +{extras}
                             </span>
                           ) : (
@@ -718,24 +710,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {/* TAB 3: CLIENT DIRECTORY & ACCESS LINKS */}
+      {/* TAB 3: CLIENT DIRECTORY & WHATSAPP */}
       {dashboardTab === 'clients' && (
         <div className="space-y-4">
-          <Card className="bg-zinc-900/60 overflow-hidden">
-            <div className="p-5 border-b border-zinc-800 flex items-center justify-between">
+          <Card className="bg-[#140F24]/80 border-white/10 backdrop-blur-xl overflow-hidden">
+            <div className="p-5 border-b border-white/10 flex items-center justify-between">
               <div>
-                <h3 className="font-semibold text-zinc-100">Diretório de Clientes & Acessos Diretos</h3>
-                <p className="text-xs text-zinc-400 mt-0.5">Envie links e PINs diretamente para os clientes pelo WhatsApp ou e-mail.</p>
+                <h3 className="font-bold text-white">Diretório de Clientes & Envio em 1 Clique</h3>
+                <p className="text-xs text-zinc-400 mt-0.5">Dispare acessos com PIN direto pelo WhatsApp ou copie os links formatados.</p>
               </div>
             </div>
 
-            <div className="divide-y divide-zinc-800/60">
+            <div className="divide-y divide-white/10">
               {galleries.map((g) => (
-                <div key={g.id} className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-zinc-800/20 transition-colors">
+                <div key={g.id} className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-white/5 transition-colors">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-zinc-100">{g.clientName}</span>
-                      <span className="text-xs text-zinc-400 font-serif">({g.title})</span>
+                      <span className="font-bold text-white text-sm">{g.clientName}</span>
+                      <span className="text-xs text-zinc-400 font-sans">({g.title})</span>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-4 text-xs text-zinc-400">
@@ -752,7 +744,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         </span>
                       )}
                       {g.privacy === 'private' && (
-                        <span className="font-mono text-amber-400 font-semibold px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/20">
+                        <span className="font-mono text-[#FDBD00] font-semibold px-2 py-0.5 rounded bg-[#FDBD00]/10 border border-[#FDBD00]/20">
                           PIN: {g.pinCode}
                         </span>
                       )}
@@ -764,9 +756,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       variant="outline"
                       size="sm"
                       onClick={() => handleCopyClientLink(g)}
-                      className="text-xs"
+                      className="text-xs border-white/10 text-zinc-200"
                     >
-                      <Share2 className="w-3.5 h-3.5 mr-1 text-amber-400" />
+                      <Share2 className="w-3.5 h-3.5 mr-1 text-[#46BDC6]" />
                       <span>Copiar Link</span>
                     </Button>
 
@@ -774,20 +766,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       variant="secondary"
                       size="sm"
                       onClick={() => handleWhatsAppShare(g)}
-                      className="text-xs text-emerald-400 hover:text-emerald-300"
+                      className="text-xs bg-[#46BDC6]/15 border-[#46BDC6]/30 text-[#46BDC6] hover:bg-[#46BDC6]/25 font-semibold"
                     >
                       <MessageCircle className="w-3.5 h-3.5 mr-1" />
                       <span>WhatsApp</span>
                     </Button>
 
                     <Button
-                      variant="amber"
+                      variant="primary"
                       size="sm"
                       onClick={() => onOpenClientView(g.id)}
                       className="text-xs"
                     >
                       <Eye className="w-3.5 h-3.5 mr-1" />
-                      <span>Visualizar Portal</span>
+                      <span>Ver Portal</span>
                     </Button>
                   </div>
                 </div>

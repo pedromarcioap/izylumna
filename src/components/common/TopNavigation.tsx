@@ -1,8 +1,9 @@
 import React from 'react';
-import { Camera, ShieldCheck, UserCheck, RefreshCw, Lock, LogOut } from 'lucide-react';
+import { ShieldCheck, UserCheck, RefreshCw, Lock, LogOut, PlusCircle } from 'lucide-react';
 import { Gallery, PhotographerProfile } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { sanitizeImageUrl, PLACEHOLDER_IMAGE } from '../../lib/utils';
+import { LumnaLogo } from './LumnaLogo';
 
 export interface TopNavigationProps {
   currentRole: 'admin' | 'client';
@@ -14,6 +15,7 @@ export interface TopNavigationProps {
   isPhotographerAuthenticated: boolean;
   photographerProfile?: PhotographerProfile;
   onLogout?: () => void;
+  onCreateGallery?: () => void;
 }
 
 export const TopNavigation: React.FC<TopNavigationProps> = ({
@@ -25,7 +27,8 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({
   onResetData,
   isPhotographerAuthenticated,
   photographerProfile,
-  onLogout
+  onLogout,
+  onCreateGallery
 }) => {
   const { user, profile, signOut } = useAuth();
   const activeGallery = galleries.find((g) => g.id === activeGalleryId);
@@ -38,91 +41,87 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-brand-dark/40 bg-walnut-900/95 backdrop-blur-xl">
+    <header className="sticky top-0 z-40 w-full border-b border-white/10 bg-[#0A0714]/95 backdrop-blur-xl transition-colors">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          {/* Brand & Studio Identity (Ultra Violet #8300E9 as dominant primary header element) */}
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-brand-primary text-white border border-brand-cyan/40 flex items-center justify-center shadow-md shadow-[#8300E9]/30 shrink-0">
-              <Camera className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-serif text-lg tracking-wide text-walnut-100 font-bold">
-                  IZY LUMNA
-                </span>
-                <span className="text-[10px] uppercase font-mono tracking-widest px-2 py-0.5 rounded bg-brand-accent text-brand-dark font-extrabold border border-[#160F29]/20">
-                  Proofing Studio
-                </span>
-              </div>
-              <p className="text-[11px] text-walnut-400 hidden sm:block">
-                Seleção & Aprovação de Fotos Profissional
-              </p>
-            </div>
+        <div className="flex items-center justify-between h-16 gap-4">
+          {/* Brand Identity with LumnaLogo (Dark Cinema Variant) */}
+          <div className="flex items-center gap-3 shrink-0 cursor-pointer" onClick={() => onRoleChange('admin')}>
+            <LumnaLogo variant="dark" size="md" showSubtitle={true} />
           </div>
 
-          {/* Center / Role Mode Switcher */}
-          <div className="flex items-center gap-1.5 bg-walnut-950/80 p-1 rounded-xl border border-brand-dark/50">
-            <button
-              onClick={() => onRoleChange('admin')}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                currentRole === 'admin'
-                  ? 'bg-brand-primary text-white font-semibold shadow-md shadow-[#8300E9]/25 border border-brand-primary/60'
-                  : 'text-walnut-400 hover:text-walnut-100 hover:bg-walnut-800'
-              }`}
-            >
-              {isAuthenticated ? (
-                <ShieldCheck className="w-3.5 h-3.5 text-brand-cyan" />
-              ) : (
-                <Lock className="w-3.5 h-3.5 text-brand-flame" />
-              )}
-              <span>Painel do Fotógrafo</span>
-              {!isAuthenticated && (
-                <span className="hidden sm:inline-block text-[10px] text-brand-flame font-mono">
-                  (Restrito)
-                </span>
-              )}
-            </button>
+          {/* Center Role Mode Switcher & 1-Click Quick Actions */}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 bg-[#140F24]/90 p-1 rounded-xl border border-white/10 shadow-inner">
+              <button
+                onClick={() => onRoleChange('admin')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  currentRole === 'admin'
+                    ? 'bg-[#8300E9] text-white font-semibold shadow-md shadow-[#8300E9]/30 border border-[#8300E9]'
+                    : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                {isAuthenticated ? (
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#46BDC6]" />
+                ) : (
+                  <Lock className="w-3.5 h-3.5 text-[#F94713]" />
+                )}
+                <span>Fotógrafo</span>
+              </button>
 
-            <button
-              onClick={() => onRoleChange('client')}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                currentRole === 'client'
-                  ? 'bg-brand-cyan text-white font-semibold shadow-md shadow-[#46BDC6]/25 border border-brand-cyan/60'
-                  : 'text-walnut-400 hover:text-walnut-100 hover:bg-walnut-800'
-              }`}
-            >
-              <UserCheck className="w-3.5 h-3.5" />
-              <span>Portal do Cliente</span>
-              {activeGallery && (
-                <span className="hidden md:inline-block max-w-[100px] truncate text-[10px] opacity-90">
-                  ({activeGallery.clientName.split(' ')[0]})
-                </span>
-              )}
-            </button>
+              <button
+                onClick={() => onRoleChange('client')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  currentRole === 'client'
+                    ? 'bg-[#46BDC6] text-[#160F29] font-bold shadow-md shadow-[#46BDC6]/30 border border-[#46BDC6]'
+                    : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <UserCheck className="w-3.5 h-3.5" />
+                <span>Cliente</span>
+                {activeGallery && (
+                  <span className="hidden md:inline-block max-w-[90px] truncate text-[10px] opacity-90 font-mono">
+                    ({activeGallery.clientName.split(' ')[0]})
+                  </span>
+                )}
+              </button>
+            </div>
+
+            {/* Direct 1-Click Action: Create Gallery shortcut for Admin */}
+            {currentRole === 'admin' && isAuthenticated && onCreateGallery && (
+              <button
+                onClick={onCreateGallery}
+                title="Criar novo ensaio em 1 clique"
+                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#8300E9]/20 hover:bg-[#8300E9]/30 text-[#8300E9] dark:text-purple-300 text-xs font-semibold border border-[#8300E9]/40 transition-all active:scale-95"
+              >
+                <PlusCircle className="w-3.5 h-3.5 text-[#8300E9]" />
+                <span>Novo Ensaio</span>
+              </button>
+            )}
           </div>
 
           {/* Right Actions */}
           <div className="flex items-center gap-3">
-            {/* Gallery Selector dropdown when in client view or quick access */}
-            <div className="hidden lg:flex items-center gap-2">
-              <span className="text-xs text-walnut-400">Ensaio ativo:</span>
-              <select
-                value={activeGalleryId || ''}
-                onChange={(e) => onSelectGallery(e.target.value)}
-                className="bg-walnut-800 border border-brand-dark/50 text-walnut-200 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-brand-primary max-w-[200px] truncate"
-              >
-                {galleries.map((g) => (
-                  <option key={g.id} value={g.id}>
-                    {g.title}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {/* Gallery Selector dropdown */}
+            {galleries.length > 0 && (
+              <div className="hidden lg:flex items-center gap-2">
+                <span className="text-xs text-zinc-400">Ensaio:</span>
+                <select
+                  value={activeGalleryId || ''}
+                  onChange={(e) => onSelectGallery(e.target.value)}
+                  className="bg-[#140F24] border border-white/10 text-zinc-200 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-[#8300E9] max-w-[180px] truncate"
+                >
+                  {galleries.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
-            {/* Profile Avatar & User Pill */}
+            {/* User Profile Pill */}
             {profile && (
-              <div className="hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-xl bg-walnut-800 border border-brand-dark/50">
+              <div className="hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-xl bg-[#140F24] border border-white/10">
                 {profile.avatar_url ? (
                   <img
                     src={sanitizeImageUrl(profile.avatar_url)}
@@ -131,18 +130,15 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({
                       e.currentTarget.onerror = null;
                       e.currentTarget.src = PLACEHOLDER_IMAGE;
                     }}
-                    className="w-6 h-6 rounded-full object-cover border border-brand-cyan/40"
+                    className="w-6 h-6 rounded-full object-cover border border-[#46BDC6]/50"
                   />
                 ) : (
-                  <div className="w-6 h-6 rounded-full bg-brand-primary text-white flex items-center justify-center text-[10px] font-bold">
+                  <div className="w-6 h-6 rounded-full bg-[#8300E9] text-white flex items-center justify-center text-[10px] font-bold">
                     {(profile.full_name || profile.email).charAt(0).toUpperCase()}
                   </div>
                 )}
-                <span className="text-xs text-walnut-200 max-w-[120px] truncate font-medium">
+                <span className="text-xs text-zinc-200 max-w-[110px] truncate font-medium">
                   {profile.full_name || profile.email.split('@')[0]}
-                </span>
-                <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-brand-cyan/15 text-brand-cyan uppercase font-semibold border border-brand-cyan/30">
-                  {profile.role}
                 </span>
               </div>
             )}
@@ -152,18 +148,18 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({
               <button
                 onClick={handleUserLogout}
                 title="Encerrar sessão"
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-walnut-400 hover:text-red-400 hover:bg-walnut-800 transition-colors"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-zinc-400 hover:text-red-400 hover:bg-white/5 transition-colors"
               >
                 <LogOut className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Sair</span>
               </button>
             )}
 
-            {/* Quick test data reset */}
+            {/* Refresh / Sync status indicator */}
             <button
               onClick={onResetData}
               title="Sincronização com Supabase"
-              className="p-2 text-walnut-400 hover:text-walnut-100 hover:bg-walnut-800 rounded-lg transition-colors"
+              className="p-2 text-zinc-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
             >
               <RefreshCw className="w-4 h-4" />
             </button>

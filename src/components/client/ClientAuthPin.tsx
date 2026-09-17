@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Gallery } from '../../types';
 import { Card, CardContent } from '../ui/Card';
 import { Button } from '../ui/Button';
+import { LumnaLogo } from '../common/LumnaLogo';
 import { Lock, ArrowRight, Eye, EyeOff, Delete, KeyRound } from 'lucide-react';
 import { getGalleryByPinAsync } from '../../lib/storage';
 
@@ -42,14 +43,12 @@ export const ClientAuthPin: React.FC<ClientAuthPinProps> = ({ gallery, allGaller
     setError(false);
 
     try {
-      // 1. Direct match with currently focused gallery
       if (cleanPin === gallery.pinCode) {
         setIsVerifying(false);
         onUnlock(gallery);
         return;
       }
 
-      // 2. Check local memory array of galleries
       const localMatch = allGalleries.find((g) => g.pinCode === cleanPin);
       if (localMatch) {
         setIsVerifying(false);
@@ -57,7 +56,6 @@ export const ClientAuthPin: React.FC<ClientAuthPinProps> = ({ gallery, allGaller
         return;
       }
 
-      // 3. Query Supabase database by unique PIN
       const dbMatch = await getGalleryByPinAsync(cleanPin);
       if (dbMatch) {
         setIsVerifying(false);
@@ -65,7 +63,6 @@ export const ClientAuthPin: React.FC<ClientAuthPinProps> = ({ gallery, allGaller
         return;
       }
 
-      // PIN not found
       setError(true);
       setErrorMessage(`Nenhuma galeria encontrada com o PIN "${cleanPin}". Verifique com seu fotógrafo.`);
       setPinInput('');
@@ -97,29 +94,29 @@ export const ClientAuthPin: React.FC<ClientAuthPinProps> = ({ gallery, allGaller
   const pinDigits = pinInput.split('');
 
   return (
-    <div className="min-h-[75vh] flex items-center justify-center p-4">
-      <Card className="max-w-md w-full border-brand-dark/50 bg-walnut-900 shadow-2xl shadow-black/80 backdrop-blur-xl">
+    <div className="min-h-[80vh] flex items-center justify-center p-4">
+      <Card className="max-w-md w-full border-white/10 bg-[#140F24]/90 shadow-2xl shadow-black/90 backdrop-blur-2xl">
         <CardContent className="p-6 sm:p-8 text-center space-y-6">
-          {/* Lock Icon Emblem */}
-          <div className="mx-auto w-16 h-16 rounded-2xl bg-brand-primary/15 border border-brand-cyan/40 flex items-center justify-center text-brand-cyan shadow-inner">
-            <Lock className="w-8 h-8 text-brand-primary" />
-          </div>
+          {/* Logo & Emblem */}
+          <div className="flex flex-col items-center space-y-4">
+            <LumnaLogo variant="dark" layout="vertical" size="lg" showBadge={false} />
 
-          <div className="space-y-2">
-            <span className="text-[11px] uppercase tracking-widest font-mono bg-brand-accent text-brand-dark font-extrabold px-2.5 py-0.5 rounded border border-[#160F29]/30 inline-block">
-              Acesso Exclusivo Por PIN
-            </span>
-            <h2 className="font-serif text-2xl font-bold text-walnut-100">
-              {gallery.title}
-            </h2>
-            <p className="text-xs text-walnut-400 leading-relaxed">
-              Olá, <strong className="text-walnut-200">{gallery.clientName}</strong>! Digite seu código PIN exclusivo de 4 dígitos para acessar e selecionar suas fotos.
-            </p>
+            <div className="space-y-1 pt-2">
+              <span className="text-[10px] uppercase tracking-widest font-mono bg-[#8300E9]/20 text-[#8300E9] dark:text-purple-300 font-bold px-3 py-1 rounded-full border border-[#8300E9]/30 inline-flex items-center gap-1.5">
+                <Lock className="w-3 h-3 text-[#46BDC6]" />
+                <span>Portal de Seleção do Cliente</span>
+              </span>
+              <h2 className="font-sans text-2xl font-extrabold text-white pt-2">
+                {gallery.title}
+              </h2>
+              <p className="text-xs text-zinc-400 max-w-xs mx-auto leading-relaxed">
+                Olá, <strong className="text-[#46BDC6]">{gallery.clientName}</strong>! Digite seu código PIN de 4 dígitos enviado pelo fotógrafo.
+              </p>
+            </div>
           </div>
 
           {/* PIN Input Form */}
           <form onSubmit={handleVerify} className="space-y-4 pt-1">
-            {/* Real HTML Input: type="tel" + inputMode="numeric" + autoComplete="one-time-code" for iOS Safari compatibility */}
             <input
               ref={inputRef}
               type="tel"
@@ -143,7 +140,7 @@ export const ClientAuthPin: React.FC<ClientAuthPinProps> = ({ gallery, allGaller
             {/* Stylized Visual Digit Slots */}
             <div
               onClick={focusInput}
-              className="cursor-pointer group flex items-center justify-center gap-2 sm:gap-3 py-3 px-3 rounded-2xl bg-walnut-950/90 border border-brand-dark/50 hover:border-brand-cyan/40 transition-all select-none"
+              className="cursor-pointer group flex items-center justify-center gap-2 sm:gap-3 py-3 px-3 rounded-2xl bg-[#0A0714] border border-white/10 hover:border-[#8300E9]/60 transition-all select-none"
             >
               {Array.from({ length: pinLength }).map((_, idx) => {
                 const digit = pinDigits[idx];
@@ -157,10 +154,10 @@ export const ClientAuthPin: React.FC<ClientAuthPinProps> = ({ gallery, allGaller
                       error
                         ? 'border-red-500/80 bg-red-500/10 text-red-400'
                         : isFocused
-                        ? 'border-brand-cyan bg-brand-cyan/15 text-brand-cyan ring-2 ring-brand-cyan/30 animate-pulse'
+                        ? 'border-[#46BDC6] bg-[#46BDC6]/15 text-[#46BDC6] ring-2 ring-[#46BDC6]/30 animate-pulse'
                         : isFilled
-                        ? 'border-brand-cyan/50 bg-walnut-900 text-walnut-100'
-                        : 'border-walnut-800 bg-walnut-900/40 text-walnut-600'
+                        ? 'border-[#8300E9]/60 bg-[#140F24] text-white'
+                        : 'border-white/10 bg-[#0A0714] text-zinc-600'
                     }`}
                   >
                     {isFilled ? (showPin ? digit : '•') : ''}
@@ -175,37 +172,37 @@ export const ClientAuthPin: React.FC<ClientAuthPinProps> = ({ gallery, allGaller
                   e.stopPropagation();
                   setShowPin(!showPin);
                 }}
-                className="ml-1 p-2 text-walnut-400 hover:text-walnut-200 transition-colors rounded-lg focus:outline-none"
+                className="ml-1 p-2 text-zinc-400 hover:text-white transition-colors rounded-lg focus:outline-none"
                 title={showPin ? 'Ocultar dígitos' : 'Mostrar dígitos'}
               >
                 {showPin ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </button>
             </div>
 
-            {/* Hint to tap for native keyboard */}
+            {/* Tap hint for mobile Safari */}
             <button
               type="button"
               onClick={focusInput}
-              className="inline-flex items-center justify-center gap-1.5 text-[11px] text-brand-cyan hover:underline font-medium focus:outline-none"
+              className="inline-flex items-center justify-center gap-1.5 text-[11px] text-[#46BDC6] hover:underline font-medium focus:outline-none"
             >
-              <KeyRound className="w-3.5 h-3.5 text-brand-cyan" />
-              <span>Toque aqui para abrir o teclado do iPhone/Celular</span>
+              <KeyRound className="w-3.5 h-3.5 text-[#46BDC6]" />
+              <span>Toque aqui para abrir o teclado do celular</span>
             </button>
 
             {error && (
-              <p className="text-xs text-red-400 font-medium animate-shake px-2">
+              <p className="text-xs text-red-400 font-medium px-2">
                 {errorMessage || 'PIN incorreto. Verifique o código e tente novamente.'}
               </p>
             )}
 
-            {/* Touch-Friendly On-Screen NumPad for Mobile / iPhone */}
+            {/* Mobile NumPad */}
             <div className="grid grid-cols-3 gap-2 max-w-xs mx-auto pt-2">
               {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((num) => (
                 <button
                   key={num}
                   type="button"
                   onClick={() => handleNumPadPress(num)}
-                  className="py-3 text-xl font-bold font-mono rounded-xl bg-walnut-950/90 border border-brand-dark/40 text-walnut-100 hover:bg-brand-primary/20 hover:border-brand-cyan/50 active:scale-95 transition-all shadow-sm"
+                  className="py-3 text-xl font-bold font-mono rounded-xl bg-[#0A0714] border border-white/10 text-white hover:bg-[#8300E9]/30 hover:border-[#8300E9]/50 active:scale-95 transition-all shadow-sm"
                 >
                   {num}
                 </button>
@@ -213,21 +210,21 @@ export const ClientAuthPin: React.FC<ClientAuthPinProps> = ({ gallery, allGaller
               <button
                 type="button"
                 onClick={handleNumPadClear}
-                className="py-3 text-xs font-semibold rounded-xl bg-walnut-950/60 border border-brand-dark/40 text-walnut-400 hover:text-walnut-200 hover:bg-walnut-900 active:scale-95 transition-all"
+                className="py-3 text-xs font-semibold rounded-xl bg-[#0A0714] border border-white/10 text-zinc-400 hover:text-white hover:bg-white/5 active:scale-95 transition-all"
               >
                 Limpar
               </button>
               <button
                 type="button"
                 onClick={() => handleNumPadPress('0')}
-                className="py-3 text-xl font-bold font-mono rounded-xl bg-walnut-950/90 border border-brand-dark/40 text-walnut-100 hover:bg-brand-primary/20 hover:border-brand-cyan/50 active:scale-95 transition-all shadow-sm"
+                className="py-3 text-xl font-bold font-mono rounded-xl bg-[#0A0714] border border-white/10 text-white hover:bg-[#8300E9]/30 hover:border-[#8300E9]/50 active:scale-95 transition-all shadow-sm"
               >
                 0
               </button>
               <button
                 type="button"
-                onClick={() => handleNumPadBackspace}
-                className="py-3 flex items-center justify-center rounded-xl bg-walnut-950/60 border border-brand-dark/40 text-walnut-400 hover:text-walnut-200 hover:bg-walnut-900 active:scale-95 transition-all"
+                onClick={handleNumPadBackspace}
+                className="py-3 flex items-center justify-center rounded-xl bg-[#0A0714] border border-white/10 text-zinc-400 hover:text-white hover:bg-white/5 active:scale-95 transition-all"
                 title="Apagar último dígito"
               >
                 <Delete className="w-5 h-5" />
@@ -238,7 +235,7 @@ export const ClientAuthPin: React.FC<ClientAuthPinProps> = ({ gallery, allGaller
               type="submit"
               variant="primary"
               size="lg"
-              className="w-full text-sm font-semibold shadow-lg shadow-[#8300E9]/25 mt-4"
+              className="w-full text-sm font-semibold shadow-lg shadow-[#8300E9]/30 mt-4"
               disabled={pinInput.length < 4 || isVerifying}
             >
               <span>{isVerifying ? 'Verificando...' : 'Acessar Meu Ensaio'}</span>

@@ -237,7 +237,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
   // Step 2: If unlocked but voter identity has not been confirmed, block grid and require name
   if (!currentVoter || isIdentityModalOpen) {
     return (
-      <div className="min-h-screen bg-[#0c0d0e]">
+      <div className="min-h-screen bg-[#0A0714]">
         <ClientVoterModal
           isOpen={true}
           gallery={gallery}
@@ -249,7 +249,7 @@ export const ClientPortalView: React.FC<ClientPortalViewProps> = ({
 
   // Step 3: Render collaborative gallery
   return (
-    <div className="min-h-screen pb-20 bg-[#0c0d0e]">
+    <div className="min-h-screen pb-20 bg-[#0A0714]">
       {/* Sticky Top Header */}
       <ClientStickyHeader
         gallery={gallery}

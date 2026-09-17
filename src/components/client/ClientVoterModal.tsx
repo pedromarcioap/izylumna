@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Gallery, GalleryVoter } from '../../types';
 import { Card, CardContent } from '../ui/Card';
 import { Button } from '../ui/Button';
+import { LumnaLogo } from '../common/LumnaLogo';
 import { Users, User, Plus, UserCheck } from 'lucide-react';
 
 export interface ClientVoterModalProps {
@@ -12,12 +13,12 @@ export interface ClientVoterModalProps {
 }
 
 const AVATAR_COLORS = [
-  'from-[#01743F] to-[#4CB963]',
-  'from-[#D57720] to-[#FEF600]',
-  'from-[#4CB963] to-[#01743F]',
-  'from-[#4F3926] to-[#D57720]',
-  'from-[#01743F] to-[#4F3926]',
-  'from-[#D57720] to-[#4CB963]'
+  'from-[#8300E9] to-[#46BDC6]',
+  'from-[#46BDC6] to-[#8300E9]',
+  'from-[#8300E9] to-[#FDBD00]',
+  'from-[#F94713] to-[#8300E9]',
+  'from-[#46BDC6] to-[#FDBD00]',
+  'from-[#8300E9] to-[#F94713]'
 ];
 
 export const ClientVoterModal: React.FC<ClientVoterModalProps> = ({
@@ -58,7 +59,6 @@ export const ClientVoterModal: React.FC<ClientVoterModalProps> = ({
     }
     setError('');
 
-    // Check if name already exists in active voters
     const existing = activeVoters.find((v) => v.name.toLowerCase() === clean.toLowerCase());
     const slug = clean.toLowerCase().replace(/[^a-z0-9]/g, '-');
     const newVoter: GalleryVoter = existing || {
@@ -73,23 +73,25 @@ export const ClientVoterModal: React.FC<ClientVoterModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-walnut-950/95 backdrop-blur-xl p-4 animate-in fade-in duration-200">
-      <Card className="max-w-lg w-full border-brand-dark/50 bg-walnut-900 shadow-2xl shadow-black/90">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0A0714]/95 backdrop-blur-2xl p-4 animate-in fade-in duration-200">
+      <Card className="max-w-lg w-full border-white/10 bg-[#140F24]/90 shadow-2xl shadow-black/95">
         <CardContent className="p-6 sm:p-8 space-y-6">
-          {/* Header */}
-          <div className="text-center space-y-2">
-            <div className="mx-auto w-16 h-16 rounded-2xl bg-brand-primary/15 border border-brand-emerald/40 flex items-center justify-center text-brand-emerald shadow-inner">
-              <Users className="w-8 h-8" />
+          {/* Header & Emblem */}
+          <div className="text-center space-y-4 flex flex-col items-center">
+            <LumnaLogo variant="dark" layout="vertical" size="md" showSubtitle={true} />
+
+            <div className="pt-2">
+              <span className="text-[10px] uppercase tracking-widest font-mono bg-[#8300E9]/20 text-[#8300E9] dark:text-purple-300 font-bold px-3 py-1 rounded-full border border-[#8300E9]/30 inline-flex items-center gap-1.5">
+                <Users className="w-3.5 h-3.5 text-[#46BDC6]" />
+                <span>Identificação do Votante</span>
+              </span>
+              <h2 className="font-sans text-2xl font-extrabold text-white mt-2">
+                Quem está escolhendo as fotos?
+              </h2>
+              <p className="text-xs text-zinc-400 max-w-sm mx-auto leading-relaxed mt-1">
+                Informe seu nome para gravar seus votos no ensaio <strong className="text-zinc-200">{gallery.title}</strong>.
+              </p>
             </div>
-            <span className="text-[11px] uppercase tracking-widest font-mono bg-brand-accent text-brand-dark font-extrabold px-2.5 py-0.5 rounded border border-[#4F3926]/30 inline-block">
-              Identificação do Votante
-            </span>
-            <h2 className="font-serif text-2xl font-bold text-walnut-100">
-              Quem está escolhendo as fotos?
-            </h2>
-            <p className="text-xs text-walnut-400 max-w-sm mx-auto leading-relaxed">
-              Informe seu nome ou selecione seu perfil para registrar seus votos e formar o consenso da galeria <strong className="text-walnut-200">{gallery.title}</strong>.
-            </p>
           </div>
 
           {/* Option A: Predefined Voters */}
@@ -103,7 +105,7 @@ export const ClientVoterModal: React.FC<ClientVoterModalProps> = ({
                       key={p.id || idx}
                       type="button"
                       onClick={() => handleSelectPredefined(p)}
-                      className="group relative flex items-center p-4 rounded-xl bg-walnut-950/80 border border-brand-dark/50 hover:border-brand-primary hover:bg-walnut-800 transition-all text-left space-x-3.5 shadow-md active:scale-98"
+                      className="group relative flex items-center p-4 rounded-xl bg-[#0A0714] border border-white/10 hover:border-[#8300E9] hover:bg-white/5 transition-all text-left space-x-3.5 shadow-md active:scale-98"
                     >
                       <div
                         className={`w-11 h-11 rounded-full bg-gradient-to-tr ${colorClass} flex items-center justify-center text-white font-bold text-sm shadow-md group-hover:scale-105 transition-transform`}
@@ -112,16 +114,16 @@ export const ClientVoterModal: React.FC<ClientVoterModalProps> = ({
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center space-x-1.5">
-                          <span className="font-semibold text-walnut-100 text-sm truncate group-hover:text-brand-emerald">
+                          <span className="font-bold text-white text-sm truncate group-hover:text-[#46BDC6]">
                             {p.name}
                           </span>
                           {p.isDecisionMaker && (
-                            <span className="text-[10px] bg-brand-accent text-brand-dark px-1.5 py-0.5 rounded font-extrabold border border-[#4F3926]/30">
+                            <span className="text-[9px] bg-[#FDBD00] text-[#160F29] px-1.5 py-0.5 rounded-full font-extrabold">
                               Tomador
                             </span>
                           )}
                         </div>
-                        <span className="text-[11px] text-walnut-400 block pt-0.5">
+                        <span className="text-[11px] text-zinc-400 block pt-0.5">
                           Entrar como {p.name.split(' ')[0]}
                         </span>
                       </div>
@@ -135,9 +137,9 @@ export const ClientVoterModal: React.FC<ClientVoterModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setIsCustomMode(true)}
-                    className="inline-flex items-center text-xs text-brand-emerald hover:text-brand-emerald/80 font-medium py-2 px-4 rounded-lg hover:bg-brand-emerald/10 transition-colors"
+                    className="inline-flex items-center text-xs text-[#46BDC6] hover:text-[#46BDC6]/80 font-semibold py-2 px-4 rounded-lg hover:bg-[#46BDC6]/10 transition-colors"
                   >
-                    <Plus className="w-3.5 h-3.5 mr-1.5" />
+                    <Plus className="w-3.5 h-3.5 mr-1.5 text-[#46BDC6]" />
                     Entrar com outro nome
                   </button>
                 </div>
@@ -147,8 +149,8 @@ export const ClientVoterModal: React.FC<ClientVoterModalProps> = ({
             /* Option B: Direct Name Input */
             <form onSubmit={handleCreateCustomName} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-walnut-300">
-                  Seu Nome Completo ou Papel (Ex: Noiva, Noivo, Mãe):
+                <label className="block text-xs font-semibold text-zinc-300">
+                  Seu Nome Completo (Ex: Noiva, Noivo, Mãe, Lucas):
                 </label>
                 <div className="relative">
                   <input
@@ -159,10 +161,10 @@ export const ClientVoterModal: React.FC<ClientVoterModalProps> = ({
                       setError('');
                     }}
                     placeholder="Digite seu nome aqui..."
-                    className="w-full py-3 px-4 pl-10 rounded-xl bg-walnut-950 border border-brand-dark/50 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 text-walnut-100 placeholder-walnut-500 text-sm focus:outline-none transition-all"
+                    className="w-full py-3 px-4 pl-10 rounded-xl bg-[#0A0714] border border-white/10 focus:border-[#8300E9] focus:ring-2 focus:ring-[#8300E9]/30 text-white placeholder-zinc-500 text-sm focus:outline-none transition-all"
                     autoFocus
                   />
-                  <User className="w-4 h-4 text-walnut-400 absolute left-3.5 top-3.5" />
+                  <User className="w-4 h-4 text-zinc-400 absolute left-3.5 top-3.5" />
                 </div>
                 {error && <p className="text-xs text-red-400 font-medium pt-1">{error}</p>}
               </div>
@@ -171,7 +173,7 @@ export const ClientVoterModal: React.FC<ClientVoterModalProps> = ({
                 type="submit"
                 variant="primary"
                 size="lg"
-                className="w-full text-sm font-semibold shadow-lg shadow-[#01743F]/25 py-3"
+                className="w-full text-sm font-semibold shadow-lg shadow-[#8300E9]/30 py-3"
                 disabled={!customName.trim()}
               >
                 <span>Confirmar e Acessar Galeria</span>
@@ -183,7 +185,7 @@ export const ClientVoterModal: React.FC<ClientVoterModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setIsCustomMode(false)}
-                    className="text-xs text-walnut-400 hover:text-walnut-200 underline"
+                    className="text-xs text-zinc-400 hover:text-white underline"
                   >
                     Voltar aos nomes pré-definidos
                   </button>

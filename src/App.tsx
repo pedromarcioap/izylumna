@@ -253,6 +253,10 @@ export default function App() {
         isPhotographerAuthenticated={photographerSession.isAuthenticated}
         photographerProfile={photographerSession.profile}
         onLogout={handleLogout}
+        onCreateGallery={() => {
+          setGalleryToEdit(null);
+          setIsFormModalOpen(true);
+        }}
       />
 
       {/* Main Content View Container */}
