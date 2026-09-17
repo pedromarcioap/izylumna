@@ -265,11 +265,27 @@ export default function App() {
       onNavTabChange={(tab) => {
         setActiveNavTab(tab);
         setAdminSubView('list');
+        if (tab === 'galleries') {
+          if (activeSidebarItem !== 'filters' && activeSidebarItem !== 'settings') {
+            setActiveSidebarItem('collections');
+          }
+        } else if (tab === 'financial') {
+          setActiveSidebarItem('billing');
+        } else if (tab === 'client_demo') {
+          setActiveSidebarItem('presentation');
+        }
       }}
       activeSidebarItem={activeSidebarItem}
       onSidebarItemChange={(item) => {
         setActiveSidebarItem(item);
         setAdminSubView('list');
+        if (item === 'collections' || item === 'filters' || item === 'settings') {
+          setActiveNavTab('galleries');
+        } else if (item === 'billing') {
+          setActiveNavTab('financial');
+        } else if (item === 'presentation') {
+          setActiveNavTab('client_demo');
+        }
       }}
       onNavigateToSettingsTab={(tab) => setSettingsSubTab(tab)}
       photographerProfile={photographerSession.profile}
@@ -293,17 +309,6 @@ export default function App() {
                 }}
                 onShowToast={showToast}
               />
-            ) : activeNavTab === 'pos_production' ? (
-              <PosProductionView
-                galleries={galleries}
-                onViewGalleryDetails={handleViewGalleryDetails}
-                onShowToast={showToast}
-              />
-            ) : activeNavTab === 'financial' || activeSidebarItem === 'billing' ? (
-              <FinancialExtrasView
-                galleries={galleries}
-                onShowToast={showToast}
-              />
             ) : activeSidebarItem === 'filters' ? (
               <FiltersMetadataView
                 galleries={galleries}
@@ -313,6 +318,17 @@ export default function App() {
               <StudioSettingsView
                 key={settingsSubTab}
                 initialTab={settingsSubTab}
+                onShowToast={showToast}
+              />
+            ) : activeNavTab === 'pos_production' ? (
+              <PosProductionView
+                galleries={galleries}
+                onViewGalleryDetails={handleViewGalleryDetails}
+                onShowToast={showToast}
+              />
+            ) : activeNavTab === 'financial' || activeSidebarItem === 'billing' ? (
+              <FinancialExtrasView
+                galleries={galleries}
                 onShowToast={showToast}
               />
             ) : (

@@ -154,9 +154,10 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
             onClick={() => {
               onRoleChange('admin');
               onNavTabChange('galleries');
+              onSidebarItemChange('collections');
             }}
             className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-              activeNavTab === 'galleries' && currentRole === 'admin'
+              activeNavTab === 'galleries' && activeSidebarItem === 'collections' && currentRole === 'admin'
                 ? 'bg-[#1D1636] text-white border border-purple-500/40 shadow-sm'
                 : 'text-zinc-400 hover:text-white hover:bg-white/5'
             }`}
@@ -171,6 +172,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
             onClick={() => {
               onRoleChange('admin');
               onNavTabChange('pos_production');
+              onSidebarItemChange('');
             }}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
               activeNavTab === 'pos_production' && currentRole === 'admin'
@@ -185,9 +187,10 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
             onClick={() => {
               onRoleChange('admin');
               onNavTabChange('financial');
+              onSidebarItemChange('billing');
             }}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-              activeNavTab === 'financial' && currentRole === 'admin'
+              (activeNavTab === 'financial' || activeSidebarItem === 'billing') && currentRole === 'admin'
                 ? 'bg-[#1D1636] text-white border border-purple-500/40 shadow-sm'
                 : 'text-zinc-400 hover:text-white hover:bg-white/5'
             }`}
@@ -199,6 +202,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
             onClick={() => {
               onRoleChange('client');
               onNavTabChange('client_demo');
+              onSidebarItemChange('presentation');
             }}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
               currentRole === 'client'
@@ -453,6 +457,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
               <button
                 onClick={() => {
                   onRoleChange('admin');
+                  onNavTabChange('galleries');
                   onSidebarItemChange('collections');
                 }}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${
@@ -468,6 +473,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
               <button
                 onClick={() => {
                   onRoleChange('admin');
+                  onNavTabChange('galleries');
                   onSidebarItemChange('filters');
                 }}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${
@@ -483,6 +489,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
               <button
                 onClick={() => {
                   onRoleChange('admin');
+                  onNavTabChange('financial');
                   onSidebarItemChange('billing');
                 }}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${
@@ -498,6 +505,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
               <button
                 onClick={() => {
                   onRoleChange('client');
+                  onNavTabChange('client_demo');
                   onSidebarItemChange('presentation');
                 }}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${
@@ -513,6 +521,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
               <button
                 onClick={() => {
                   onRoleChange('admin');
+                  onNavTabChange('galleries');
                   onSidebarItemChange('settings');
                 }}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${
