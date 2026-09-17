@@ -153,7 +153,15 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
           </button>
 
           {/* User Profile Avatar Dropdown */}
-          <div className="flex items-center gap-1.5 cursor-pointer pl-1">
+          <div 
+            onClick={() => {
+              onRoleChange('admin');
+              onNavTabChange('galleries');
+              onSidebarItemChange('settings');
+            }}
+            className="flex items-center gap-1.5 cursor-pointer pl-1 hover:opacity-90 transition-opacity"
+            title="Ajustes do Estúdio & Perfil"
+          >
             <div className="w-8 h-8 rounded-xl bg-[#8300E9] text-white border border-[#46BDC6]/50 flex items-center justify-center font-bold text-xs shadow-md">
               {profile?.full_name ? profile.full_name.slice(0, 2).toUpperCase() : 'IZ'}
             </div>

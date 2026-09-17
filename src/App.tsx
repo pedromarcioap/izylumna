@@ -19,6 +19,11 @@ import { ClientPortalView } from './components/client/ClientPortalView';
 import { AdobeOAuthCallbackView } from './components/admin/AdobeOAuthCallbackView';
 import { useAuth } from './contexts/AuthContext';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
+import { PosProductionView } from './components/admin/PosProductionView';
+import { FinancialExtrasView } from './components/admin/FinancialExtrasView';
+import { FiltersMetadataView } from './components/admin/FiltersMetadataView';
+import { PresentationModeView } from './components/client/PresentationModeView';
+import { StudioSettingsView } from './components/settings/StudioSettingsView';
 
 
 export default function App() {
@@ -256,9 +261,15 @@ export default function App() {
         setIsFormModalOpen(true);
       }}
       activeNavTab={activeNavTab}
-      onNavTabChange={setActiveNavTab}
+      onNavTabChange={(tab) => {
+        setActiveNavTab(tab);
+        setAdminSubView('list');
+      }}
       activeSidebarItem={activeSidebarItem}
-      onSidebarItemChange={setActiveSidebarItem}
+      onSidebarItemChange={(item) => {
+        setActiveSidebarItem(item);
+        setAdminSubView('list');
+      }}
       photographerProfile={photographerSession.profile}
       onLogout={handleLogout}
     >
@@ -278,6 +289,26 @@ export default function App() {
                   setGalleryToEdit(g);
                   setIsFormModalOpen(true);
                 }}
+                onShowToast={showToast}
+              />
+            ) : activeNavTab === 'pos_production' ? (
+              <PosProductionView
+                galleries={galleries}
+                onViewGalleryDetails={handleViewGalleryDetails}
+                onShowToast={showToast}
+              />
+            ) : activeNavTab === 'financial' || activeSidebarItem === 'billing' ? (
+              <FinancialExtrasView
+                galleries={galleries}
+                onShowToast={showToast}
+              />
+            ) : activeSidebarItem === 'filters' ? (
+              <FiltersMetadataView
+                galleries={galleries}
+                onShowToast={showToast}
+              />
+            ) : activeSidebarItem === 'settings' ? (
+              <StudioSettingsView
                 onShowToast={showToast}
               />
             ) : (
@@ -309,6 +340,15 @@ export default function App() {
             )}
           </div>
         </ProtectedRoute>
+      ) : activeSidebarItem === 'presentation' && activeGallery ? (
+        <PresentationModeView
+          gallery={activeGallery}
+          onExit={() => {
+            setActiveSidebarItem('collections');
+            setCurrentRole('client');
+          }}
+          onShowToast={showToast}
+        />
       ) : activeGallery ? (
         <ClientPortalView
           key={activeGallery.id}

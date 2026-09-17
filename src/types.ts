@@ -67,6 +67,17 @@ export interface Photo {
   orientation?: 'landscape' | 'portrait' | 'square';
   caption?: string;
   isStarred?: boolean;
+  rating?: number;
+  isPicked?: boolean;
+  cameraModel?: string;
+  technicalDetails?: {
+    camera?: string;
+    lens?: string;
+    aperture?: string;
+    shutterSpeed?: string;
+    iso?: number;
+    focalLength?: string;
+  };
   metadata?: PhotoMetadata | null;
   votes?: PhotoVote[];
   commentsList?: PhotoCommentItem[];

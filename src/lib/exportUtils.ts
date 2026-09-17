@@ -48,6 +48,39 @@ export function downloadSelectionFile(filename: string, content: string): void {
 }
 
 /**
+ * Exports photo list as CSV formatted for Adobe Lightroom Catalog import.
+ */
+export function exportToLightroomCSV(photos: Photo[], title: string = 'selecao'): void {
+  const headers = 'Filename,OriginalFileName,Rating,PickFlag,Camera,Lens,ISO\n';
+  const rows = photos
+    .map(
+      (p) =>
+        `"${p.id}","${p.originalFileName}",${p.rating || 5},1,"${p.technicalDetails?.camera || p.cameraModel || ''}","${p.technicalDetails?.lens || ''}",${p.technicalDetails?.iso || 100}`
+    )
+    .join('\n');
+
+  const content = headers + rows;
+  const sanitizedTitle = title.toLowerCase().replace(/[^a-z0-9]/g, '_');
+  downloadSelectionFile(`lightroom_export_${sanitizedTitle}.csv`, content);
+}
+
+/**
+ * Exports photo filenames as TXT for Lightroom Smart Collection filtering.
+ */
+export function exportToLightroomTxt(photos: Photo[], title: string = 'selecao'): void {
+  const filenames = generateFilenamesList(photos, { commaSeparated: true, includeExtension: false });
+  const sanitizedTitle = title.toLowerCase().replace(/[^a-z0-9]/g, '_');
+  downloadSelectionFile(`lightroom_colecao_${sanitizedTitle}.txt`, filenames);
+}
+
+/**
+ * Generates export selection summary string.
+ */
+export function exportSelectionSummary(photos: Photo[]): string {
+  return `Exportação com ${photos.length} fotos selecionadas.`;
+}
+
+/**
  * Generates a complete, structured post-production text manifest for Lightroom / editing software.
  */
 export function generateSelectionManifestText(gallery: Gallery, options: ExportOptions = {}): string {
