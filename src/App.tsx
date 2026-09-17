@@ -8,6 +8,7 @@ import {
   getGalleryByPinAsync
 } from './lib/storage';
 import { getPhotographerSession, logoutPhotographer, savePhotographerProfile } from './lib/auth';
+import { AppLayout } from './components/common/AppLayout';
 import { TopNavigation } from './components/common/TopNavigation';
 import { ToastContainer } from './components/ui/Toast';
 import { AdminDashboard } from './components/admin/AdminDashboard';
@@ -46,6 +47,13 @@ export default function App() {
 
   // Toasts
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  // Active gallery for client portal
+  const activeGallery = galleries.find((g) => g.id === selectedGalleryId) || galleries[0];
+
+  // Active gallery for admin detail view
+  const detailGallery = galleries.find((g) => g.id === detailGalleryId);
+
 
   // Fetch initial data from Supabase
   useEffect(() => {
@@ -217,11 +225,9 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Active gallery for client portal
-  const activeGallery = galleries.find((g) => g.id === selectedGalleryId) || galleries[0];
+  const [activeNavTab, setActiveNavTab] = useState('galleries');
+  const [activeSidebarItem, setActiveSidebarItem] = useState('collections');
 
-  // Active gallery for admin detail view
-  const detailGallery = galleries.find((g) => g.id === detailGalleryId);
 
   if (isAdobeCallback) {
     return (
@@ -239,98 +245,93 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0c0d0e] text-zinc-100 flex flex-col font-sans selection:bg-amber-500/20 selection:text-amber-200">
-      {/* Top Application Header */}
-      <TopNavigation
-        currentRole={currentRole}
-        onRoleChange={setCurrentRole}
-        activeGalleryId={selectedGalleryId}
-        galleries={galleries}
-        onSelectGallery={(id) => setSelectedGalleryId(id)}
-        onResetData={() => {
-          showToast('Banco de Dados Supabase Ativo', 'Todas as alterações são sincronizadas ao vivo com o Supabase.', 'info');
-        }}
-        isPhotographerAuthenticated={photographerSession.isAuthenticated}
-        photographerProfile={photographerSession.profile}
-        onLogout={handleLogout}
-        onCreateGallery={() => {
-          setGalleryToEdit(null);
-          setIsFormModalOpen(true);
-        }}
-      />
-
+    <AppLayout
+      currentRole={currentRole}
+      onRoleChange={setCurrentRole}
+      galleries={galleries}
+      activeGalleryId={selectedGalleryId}
+      onSelectGallery={(id) => setSelectedGalleryId(id)}
+      onCreateGallery={() => {
+        setGalleryToEdit(null);
+        setIsFormModalOpen(true);
+      }}
+      activeNavTab={activeNavTab}
+      onNavTabChange={setActiveNavTab}
+      activeSidebarItem={activeSidebarItem}
+      onSidebarItemChange={setActiveSidebarItem}
+      photographerProfile={photographerSession.profile}
+      onLogout={handleLogout}
+    >
       {/* Main Content View Container */}
-      <main className="flex-1">
-        {currentRole === 'admin' ? (
-          <ProtectedRoute
-            onReturnToClient={() => setCurrentRole('client')}
-            onShowToast={showToast}
-          >
-            <div className="px-4 sm:px-6 lg:px-8 pt-6">
-              {adminSubView === 'detail' && detailGallery ? (
-                <GalleryDetailView
-                  gallery={detailGallery}
-                  onBack={() => setAdminSubView('list')}
-                  onOpenClientView={handleOpenClientView}
-                  onEditGallery={(g) => {
-                    setGalleryToEdit(g);
-                    setIsFormModalOpen(true);
-                  }}
-                  onShowToast={showToast}
-                />
-              ) : (
-                <AdminDashboard
-                  galleries={galleries}
-                  photographerProfile={{
-                    ...photographerSession.profile,
-                    name: profile?.full_name || photographerSession.profile.name || 'Usuário Lumina',
-                    studioName: photographerSession.profile.studioName || 'Lumina Proofing Studio',
-                    email: profile?.email || photographerSession.profile.email || 'admin@lumina.com',
-                    phone: photographerSession.profile.phone || '',
-                    avatarUrl: profile?.avatar_url || photographerSession.profile.avatarUrl || ''
-                  }}
-                  onUpdateProfile={handleUpdateProfile}
-                  onLogout={handleLogout}
-                  onCreateGallery={() => {
-                    setGalleryToEdit(null);
-                    setIsFormModalOpen(true);
-                  }}
-                  onEditGallery={(g) => {
-                    setGalleryToEdit(g);
-                    setIsFormModalOpen(true);
-                  }}
-                  onDeleteGallery={handleDeleteGallery}
-                  onViewGalleryDetails={handleViewGalleryDetails}
-                  onOpenClientView={handleOpenClientView}
-                  onShowToast={showToast}
-                />
-              )}
-            </div>
-          </ProtectedRoute>
-        ) : activeGallery ? (
-          <ClientPortalView
-            key={activeGallery.id}
-            gallery={activeGallery}
-            allGalleries={galleries}
-            onSelectGallery={(id) => setSelectedGalleryId(id)}
-            onUpdateGallery={handleUpdateGalleryFromClient}
-            onShowToast={showToast}
-            onSwitchToAdmin={() => setCurrentRole('admin')}
-          />
-        ) : (
-          <div className="text-center py-24">
-            <h3 className="text-lg font-semibold text-zinc-300">
-              {isLoadingSupabase ? 'Carregando dados do Supabase...' : 'Nenhuma galeria encontrada'}
-            </h3>
-            <button
-              onClick={() => setCurrentRole('admin')}
-              className="text-amber-400 underline text-sm mt-2 inline-block"
-            >
-              Ir ao Painel do Fotógrafo
-            </button>
+      {currentRole === 'admin' ? (
+        <ProtectedRoute
+          onReturnToClient={() => setCurrentRole('client')}
+          onShowToast={showToast}
+        >
+          <div className="px-4 sm:px-6 lg:px-8 pt-6">
+            {adminSubView === 'detail' && detailGallery ? (
+              <GalleryDetailView
+                gallery={detailGallery}
+                onBack={() => setAdminSubView('list')}
+                onOpenClientView={handleOpenClientView}
+                onEditGallery={(g) => {
+                  setGalleryToEdit(g);
+                  setIsFormModalOpen(true);
+                }}
+                onShowToast={showToast}
+              />
+            ) : (
+              <AdminDashboard
+                galleries={galleries}
+                photographerProfile={{
+                  ...photographerSession.profile,
+                  name: profile?.full_name || photographerSession.profile.name || 'Usuário Lumina',
+                  studioName: photographerSession.profile.studioName || 'Lumina Proofing Studio',
+                  email: profile?.email || photographerSession.profile.email || 'admin@lumina.com',
+                  phone: photographerSession.profile.phone || '',
+                  avatarUrl: profile?.avatar_url || photographerSession.profile.avatarUrl || ''
+                }}
+                onUpdateProfile={handleUpdateProfile}
+                onLogout={handleLogout}
+                onCreateGallery={() => {
+                  setGalleryToEdit(null);
+                  setIsFormModalOpen(true);
+                }}
+                onEditGallery={(g) => {
+                  setGalleryToEdit(g);
+                  setIsFormModalOpen(true);
+                }}
+                onDeleteGallery={handleDeleteGallery}
+                onViewGalleryDetails={handleViewGalleryDetails}
+                onOpenClientView={handleOpenClientView}
+                onShowToast={showToast}
+              />
+            )}
           </div>
-        )}
-      </main>
+        </ProtectedRoute>
+      ) : activeGallery ? (
+        <ClientPortalView
+          key={activeGallery.id}
+          gallery={activeGallery}
+          allGalleries={galleries}
+          onSelectGallery={(id) => setSelectedGalleryId(id)}
+          onUpdateGallery={handleUpdateGalleryFromClient}
+          onShowToast={showToast}
+          onSwitchToAdmin={() => setCurrentRole('admin')}
+        />
+      ) : (
+        <div className="text-center py-24">
+          <h3 className="text-lg font-semibold text-zinc-300">
+            {isLoadingSupabase ? 'Carregando dados do Supabase...' : 'Nenhuma galeria encontrada'}
+          </h3>
+          <button
+            onClick={() => setCurrentRole('admin')}
+            className="text-[#46BDC6] underline text-sm mt-2 inline-block font-semibold"
+          >
+            Ir ao Painel do Fotógrafo
+          </button>
+        </div>
+      )}
 
       {/* Create / Edit Gallery Dialog */}
       <GalleryFormModal
@@ -345,6 +346,7 @@ export default function App() {
 
       {/* Toast Notification Stack */}
       <ToastContainer toasts={toasts} onDismiss={handleDismissToast} />
-    </div>
+    </AppLayout>
   );
 }
+
