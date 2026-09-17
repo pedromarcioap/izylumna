@@ -10,6 +10,12 @@ import {
 } from '../types';
 import { supabase, isSupabaseConfigured } from './supabase';
 import { INITIAL_GALLERIES } from '../mockData';
+import {
+  notifyVoteEvent,
+  notifyRatingEvent,
+  notifyCommentEvent,
+  notifyFinalizeEvent
+} from './notifications';
 
 const LOCAL_CACHE_KEY = 'izylumna_supabase_galleries_cache_v2';
 const PROFILE_CACHE_KEY = 'izylumna_supabase_profile_cache_v2';
@@ -679,6 +685,16 @@ export async function togglePhotoVoteAsync(
   // 2. Save client selection to Supabase
   await saveClientSelection(gallery.id, updatedSelection, gallery.status, activeVoters);
 
+  // 3. Dispatch interaction notification
+  const targetPhoto = gallery.photos.find((p) => p.id === photoId);
+  notifyVoteEvent({
+    galleryTitle: gallery.title,
+    voterName: voter.name,
+    photoName: targetPhoto ? targetPhoto.originalFileName : 'Foto',
+    action: existingIdx >= 0 ? 'remove' : 'add',
+    galleryId: gallery.id
+  });
+
   return updatedGallery;
 }
 
@@ -735,6 +751,13 @@ export async function resetGalleryVotesAsync(gallery: Gallery): Promise<Gallery>
       console.warn('[Supabase Fallback] Error resetting gallery status in Supabase:', e);
     }
   }
+
+  notifyVoteEvent({
+    galleryTitle: gallery.title,
+    voterName: 'Todos os participantes',
+    action: 'reset',
+    galleryId: gallery.id
+  });
 
   return updatedGallery;
 }
@@ -802,6 +825,14 @@ export async function setPhotoRatingAsync(
     }
   }
 
+  const targetPhoto = gallery.photos.find((p) => p.id === photoId);
+  notifyRatingEvent({
+    galleryTitle: gallery.title,
+    photoName: targetPhoto ? targetPhoto.originalFileName : 'Foto',
+    rating: sanitizedRating,
+    galleryId: gallery.id
+  });
+
   return updatedGallery;
 }
 
@@ -866,6 +897,14 @@ export async function resetVoterVotesAsync(
       console.warn('[Supabase Fallback] Error updating voters in Supabase:', e);
     }
   }
+
+  const voter = (gallery.voters || gallery.clientSelection.voters || []).find((v) => v.id === voterId);
+  notifyVoteEvent({
+    galleryTitle: gallery.title,
+    voterName: voter ? voter.name : 'Participante',
+    action: 'reset',
+    galleryId: gallery.id
+  });
 
   return updatedGallery;
 }
@@ -1010,6 +1049,15 @@ export async function addPhotoCommentAsync(
   // Save client selection to Supabase
   await saveClientSelection(gallery.id, updatedSelection, gallery.status, gallery.voters);
 
+  const targetPhoto = gallery.photos.find((p) => p.id === photoId);
+  notifyCommentEvent({
+    galleryTitle: gallery.title,
+    commenterName: voter.name,
+    photoName: targetPhoto ? targetPhoto.originalFileName : 'Foto',
+    commentText: text.trim(),
+    galleryId: gallery.id
+  });
+
   return updatedGallery;
 }
 
@@ -1111,6 +1159,13 @@ export async function finalizeVoterSelectionAsync(
       console.warn('[Supabase Fallback] Error updating gallery voters in Supabase:', e);
     }
   }
+
+  const voterName = activeVoters.find((v) => v.id === voterId)?.name || gallery.clientName;
+  notifyFinalizeEvent({
+    galleryTitle: gallery.title,
+    voterName,
+    galleryId: gallery.id
+  });
 
   return updatedGallery;
 }

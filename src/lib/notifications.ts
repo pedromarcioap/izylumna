@@ -1,5 +1,193 @@
 import { Order, Gallery, NotificationPayload } from '../types';
 
+export interface NotificationItem {
+  id: string;
+  type: 'vote' | 'payment' | 'comment' | 'user';
+  title: string;
+  message: string;
+  timestamp: string;
+  createdIso: string;
+  isRead: boolean;
+  galleryId?: string;
+  photoId?: string;
+}
+
+const NOTIFICATION_STORAGE_KEY = 'izylumna_app_notifications_v1';
+export const NOTIFICATION_EVENT_NAME = 'izylumna-notification-change';
+
+const DEFAULT_INITIAL_NOTIFICATIONS: NotificationItem[] = [
+  {
+    id: 'n-default-1',
+    type: 'vote',
+    title: 'Votação em Aberto',
+    message: 'Marina Alencar adicionou novos votos na galeria "Casamento Marina & Lucas".',
+    timestamp: 'há 10 min',
+    createdIso: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+    isRead: false
+  },
+  {
+    id: 'n-default-2',
+    type: 'payment',
+    title: 'Pagamento PIX Confirmado',
+    message: 'Recebido R$ 360,00 (+12 fotos extras selecionadas) no Ensaio Casamento.',
+    timestamp: 'há 25 min',
+    createdIso: new Date(Date.now() - 25 * 60 * 1000).toISOString(),
+    isRead: false
+  },
+  {
+    id: 'n-default-3',
+    type: 'comment',
+    title: 'Novo Comentário',
+    message: 'Camila Rossi: "Poderia enviar uma versão em alta resolução desta foto?"',
+    timestamp: 'há 1h',
+    createdIso: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+    isRead: false
+  }
+];
+
+export function getStoredNotifications(): NotificationItem[] {
+  try {
+    const raw = localStorage.getItem(NOTIFICATION_STORAGE_KEY);
+    if (!raw) {
+      localStorage.setItem(NOTIFICATION_STORAGE_KEY, JSON.stringify(DEFAULT_INITIAL_NOTIFICATIONS));
+      return DEFAULT_INITIAL_NOTIFICATIONS;
+    }
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      return parsed;
+    }
+    return DEFAULT_INITIAL_NOTIFICATIONS;
+  } catch (e) {
+    return DEFAULT_INITIAL_NOTIFICATIONS;
+  }
+}
+
+export function saveStoredNotifications(items: NotificationItem[]): void {
+  try {
+    localStorage.setItem(NOTIFICATION_STORAGE_KEY, JSON.stringify(items));
+    window.dispatchEvent(new CustomEvent(NOTIFICATION_EVENT_NAME, { detail: items }));
+  } catch (e) {
+    console.error('Failed to save notifications to localStorage:', e);
+  }
+}
+
+export function addAppNotification(
+  payload: Omit<NotificationItem, 'id' | 'timestamp' | 'createdIso' | 'isRead'> & { timestamp?: string }
+): NotificationItem {
+  const current = getStoredNotifications();
+  const createdIso = new Date().toISOString();
+  const newNotification: NotificationItem = {
+    id: `notif-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+    type: payload.type,
+    title: payload.title,
+    message: payload.message,
+    timestamp: payload.timestamp || 'Agora',
+    createdIso,
+    isRead: false,
+    galleryId: payload.galleryId,
+    photoId: payload.photoId
+  };
+
+  const updated = [newNotification, ...current].slice(0, 50); // Keep latest 50 notifications
+  saveStoredNotifications(updated);
+  return newNotification;
+}
+
+export function markAllNotificationsAsRead(): void {
+  const current = getStoredNotifications();
+  const updated = current.map((item) => ({ ...item, isRead: true }));
+  saveStoredNotifications(updated);
+}
+
+export function toggleNotificationRead(id: string): void {
+  const current = getStoredNotifications();
+  const updated = current.map((item) => (item.id === id ? { ...item, isRead: !item.isRead } : item));
+  saveStoredNotifications(updated);
+}
+
+export function clearNotifications(): void {
+  saveStoredNotifications([]);
+}
+
+/**
+ * Event-driven dispatchers for platform interactions
+ */
+export function notifyVoteEvent(params: {
+  galleryTitle: string;
+  voterName: string;
+  photoName?: string;
+  action: 'add' | 'remove' | 'reset';
+  galleryId?: string;
+}) {
+  let title = 'Novo Voto em Foto';
+  let message = `${params.voterName} votou na foto "${params.photoName || 'Foto'}" na galeria "${params.galleryTitle}".`;
+
+  if (params.action === 'remove') {
+    title = 'Voto Removido';
+    message = `${params.voterName} removeu o voto da foto "${params.photoName || 'Foto'}" na galeria "${params.galleryTitle}".`;
+  } else if (params.action === 'reset') {
+    title = 'Votação Zerada';
+    message = `Votos de ${params.voterName} foram zerados na galeria "${params.galleryTitle}".`;
+  }
+
+  addAppNotification({
+    type: 'vote',
+    title,
+    message,
+    galleryId: params.galleryId
+  });
+}
+
+export function notifyRatingEvent(params: {
+  galleryTitle: string;
+  raterName?: string;
+  photoName: string;
+  rating: number;
+  galleryId?: string;
+}) {
+  const title = params.rating > 0 ? 'Nova Avaliação de Foto' : 'Avaliação Removida';
+  const name = params.raterName || 'Um usuário';
+  const message =
+    params.rating > 0
+      ? `${name} avaliou a foto "${params.photoName}" com ${params.rating}★ na galeria "${params.galleryTitle}".`
+      : `${name} removeu a classificação da foto "${params.photoName}" na galeria "${params.galleryTitle}".`;
+
+  addAppNotification({
+    type: 'vote',
+    title,
+    message,
+    galleryId: params.galleryId
+  });
+}
+
+export function notifyCommentEvent(params: {
+  galleryTitle: string;
+  commenterName: string;
+  photoName: string;
+  commentText: string;
+  galleryId?: string;
+}) {
+  addAppNotification({
+    type: 'comment',
+    title: 'Novo Comentário em Foto',
+    message: `${params.commenterName}: "${params.commentText}" na foto "${params.photoName}" ("${params.galleryTitle}").`,
+    galleryId: params.galleryId
+  });
+}
+
+export function notifyFinalizeEvent(params: {
+  galleryTitle: string;
+  voterName: string;
+  galleryId?: string;
+}) {
+  addAppNotification({
+    type: 'user',
+    title: 'Seleção Finalizada',
+    message: `${params.voterName} finalizou a escolha de fotos na galeria "${params.galleryTitle}".`,
+    galleryId: params.galleryId
+  });
+}
+
 /**
  * Builds standard WhatsApp / Email notification template for the Photographer upon payment receipt.
  */
@@ -55,6 +243,14 @@ export async function sendPaymentNotificationsAsync(
   const photographerMessage = buildPhotographerNotificationMessage(order, gallery);
   const clientMessage = buildClientNotificationMessage(order, gallery);
 
+  // Always add to local app notification drawer for instant UI update
+  addAppNotification({
+    type: 'payment',
+    title: 'Pagamento PIX Confirmado',
+    message: `Recebido R$ ${order.totalAmount.toFixed(2)} referente à galeria "${gallery.title}".`,
+    galleryId: gallery.id
+  });
+
   const payloads: NotificationPayload[] = [
     {
       recipientType: 'photographer',
@@ -107,7 +303,7 @@ export async function sendPaymentNotificationsAsync(
   } else {
     // Log for local development environment
     console.log('[Notification Dispatcher Local Mode] Payloads generated:');
-    payloads.forEach(p => {
+    payloads.forEach((p) => {
       console.log(`[${p.recipientType.toUpperCase()}] -> Contact: ${p.recipientContact}\n${p.message}\n---`);
     });
   }
@@ -117,3 +313,4 @@ export async function sendPaymentNotificationsAsync(
     errors: errors.length > 0 ? errors : undefined
   };
 }
+

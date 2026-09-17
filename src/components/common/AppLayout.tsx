@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   FolderKanban, 
   SlidersHorizontal, 
@@ -22,6 +22,16 @@ import {
 import { LumnaLogo } from './LumnaLogo';
 import { Gallery, PhotographerProfile } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
+import {
+  getStoredNotifications,
+  markAllNotificationsAsRead,
+  toggleNotificationRead,
+  clearNotifications,
+  NOTIFICATION_EVENT_NAME,
+  NotificationItem
+} from '../../lib/notifications';
+
+export type { NotificationItem };
 
 export interface AppLayoutProps {
   children: React.ReactNode;
@@ -38,15 +48,6 @@ export interface AppLayoutProps {
   onNavigateToSettingsTab?: (tab: 'perfil' | 'team' | 'adobe' | 'pix') => void;
   photographerProfile?: PhotographerProfile;
   onLogout?: () => void;
-}
-
-export interface NotificationItem {
-  id: string;
-  type: 'vote' | 'payment' | 'comment' | 'user';
-  title: string;
-  message: string;
-  timestamp: string;
-  isRead: boolean;
 }
 
 export const AppLayout: React.FC<AppLayoutProps> = ({
@@ -71,55 +72,37 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
 
-  const [notifications, setNotifications] = useState<NotificationItem[]>([
-    {
-      id: 'n1',
-      type: 'vote',
-      title: 'Votação em Aberto',
-      message: 'Marina Alencar adicionou novos votos na galeria "Casamento Marina & Lucas".',
-      timestamp: 'há 10 min',
-      isRead: false
-    },
-    {
-      id: 'n2',
-      type: 'payment',
-      title: 'Pagamento PIX Confirmado',
-      message: 'Recebido R$ 360,00 (+12 fotos extras selecionadas) no Ensaio Casamento.',
-      timestamp: 'há 25 min',
-      isRead: false
-    },
-    {
-      id: 'n3',
-      type: 'comment',
-      title: 'Novo Comentário',
-      message: 'Camila Rossi: "Poderia enviar uma versão em alta resolução desta foto?"',
-      timestamp: 'há 1h',
-      isRead: false
-    },
-    {
-      id: 'n4',
-      type: 'user',
-      title: 'Membro na Equipe',
-      message: 'Novo usuário "Marcos Oliveira" adicionado ao estúdio com nível de Fotógrafo.',
-      timestamp: 'há 3h',
-      isRead: true
-    }
-  ]);
+  const [notifications, setNotifications] = useState<NotificationItem[]>(() => getStoredNotifications());
+
+  useEffect(() => {
+    const handleNotificationChange = () => {
+      setNotifications(getStoredNotifications());
+    };
+
+    window.addEventListener(NOTIFICATION_EVENT_NAME, handleNotificationChange);
+    window.addEventListener('storage', handleNotificationChange);
+
+    return () => {
+      window.removeEventListener(NOTIFICATION_EVENT_NAME, handleNotificationChange);
+      window.removeEventListener('storage', handleNotificationChange);
+    };
+  }, []);
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
   const handleMarkAllNotificationsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    markAllNotificationsAsRead();
+    setNotifications(getStoredNotifications());
   };
 
   const handleClearNotifications = () => {
+    clearNotifications();
     setNotifications([]);
   };
 
   const handleToggleNotificationRead = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, isRead: !n.isRead } : n))
-    );
+    toggleNotificationRead(id);
+    setNotifications(getStoredNotifications());
   };
 
   const handleLogoutAction = async () => {
@@ -287,7 +270,14 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                     notifications.map((n) => (
                       <div
                         key={n.id}
-                        onClick={() => handleToggleNotificationRead(n.id)}
+                        onClick={() => {
+                          handleToggleNotificationRead(n.id);
+                          if (n.galleryId) {
+                            onSelectGallery(n.galleryId);
+                            onRoleChange('admin');
+                            setIsNotificationsOpen(false);
+                          }
+                        }}
                         className={`p-3.5 flex items-start gap-3 cursor-pointer hover:bg-white/5 transition-colors ${
                           !n.isRead ? 'bg-[#8300E9]/10' : ''
                         }`}
