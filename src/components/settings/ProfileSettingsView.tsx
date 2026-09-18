@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { sanitizeImageUrl, PLACEHOLDER_IMAGE } from '../../lib/utils';
+import { validatePassword } from '../../lib/passwordValidation';
+import { PasswordStrengthIndicator } from '../common/PasswordStrengthIndicator';
 import { Card, CardContent } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
@@ -48,18 +50,12 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({ onShow
     e.preventDefault();
     setPasswordMessage(null);
 
-    if (!newPassword) {
-      setPasswordMessage({ type: 'error', text: 'Informe a nova senha de acesso.' });
-      return;
-    }
-
-    if (newPassword.length < 6) {
-      setPasswordMessage({ type: 'error', text: 'A senha deve possuir no mínimo 6 caracteres.' });
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      setPasswordMessage({ type: 'error', text: 'As senhas informadas não coincidem. Digite novamente.' });
+    const validation = validatePassword(newPassword, confirmPassword);
+    if (!validation.isValid) {
+      setPasswordMessage({
+        type: 'error',
+        text: validation.errors[0] // Show the first/primary validation error clearly
+      });
       return;
     }
 
@@ -291,7 +287,7 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({ onShow
             </div>
           </form>
 
-          {/* Form 2: Password Change Section (Independent Form) */}
+          {/* Form 2: Password Change Section (Independent Form with Enhanced Rules) */}
           <form onSubmit={handlePasswordSubmit} className="pt-6 border-t border-zinc-800 space-y-4">
             <div className="p-4 rounded-xl bg-zinc-950/80 border border-zinc-800 space-y-4">
               <div className="flex items-center justify-between border-b border-zinc-850 pb-2">
@@ -299,7 +295,7 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({ onShow
                   <KeyRound className="w-4 h-4 text-amber-400" />
                   <h3 className="font-semibold text-xs text-zinc-200">Alterar Senha de Acesso</h3>
                 </div>
-                <span className="text-[11px] text-zinc-500">Mínimo de 6 caracteres</span>
+                <span className="text-[11px] text-zinc-500 font-mono">Requisitos Seguros Ativos</span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -307,9 +303,12 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({ onShow
                   <Input
                     type={showPassword ? 'text' : 'password'}
                     label="Nova Senha"
-                    placeholder="••••••••"
+                    placeholder="Ex: Senha@123"
                     value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
+                    onChange={(e) => {
+                      setNewPassword(e.target.value);
+                      setPasswordMessage(null);
+                    }}
                     leftIcon={<Lock className="w-4 h-4 text-zinc-400" />}
                   />
                   <button
@@ -324,27 +323,38 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({ onShow
                 <Input
                   type={showPassword ? 'text' : 'password'}
                   label="Confirmar Nova Senha"
-                  placeholder="••••••••"
+                  placeholder="Ex: Senha@123"
                   value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  onChange={(e) => {
+                    setConfirmPassword(e.target.value);
+                    setPasswordMessage(null);
+                  }}
                   leftIcon={<Lock className="w-4 h-4 text-zinc-400" />}
                 />
               </div>
 
+              {/* Password Strength Indicator & Real-Time Checklist */}
+              {newPassword && (
+                <PasswordStrengthIndicator
+                  password={newPassword}
+                  confirmPassword={confirmPassword}
+                />
+              )}
+
               {passwordMessage && (
                 <div
-                  className={`p-2.5 rounded-lg border text-xs flex items-center gap-2 ${
+                  className={`p-3 rounded-lg border text-xs flex items-start gap-2 ${
                     passwordMessage.type === 'success'
                       ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
                       : 'bg-red-500/10 border-red-500/30 text-red-300'
                   }`}
                 >
                   {passwordMessage.type === 'success' ? (
-                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                    <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
                   ) : (
-                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                   )}
-                  <span>{passwordMessage.text}</span>
+                  <span className="leading-relaxed">{passwordMessage.text}</span>
                 </div>
               )}
 

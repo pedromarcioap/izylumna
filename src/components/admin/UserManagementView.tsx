@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { UserProfile, UserRole } from '../../types';
 import { sanitizeImageUrl, PLACEHOLDER_IMAGE } from '../../lib/utils';
+import { validatePassword } from '../../lib/passwordValidation';
+import { PasswordStrengthIndicator } from '../common/PasswordStrengthIndicator';
 import { Card, CardContent } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
@@ -184,11 +186,18 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onShowTo
       return;
     }
 
+    const targetPassword = newUserData.password.trim() || 'Mudar123!';
+    const validation = validatePassword(targetPassword);
+    if (!validation.isValid) {
+      onShowToast('Senha Invalida', validation.errors[0], 'warning');
+      return;
+    }
+
     setIsSubmitting(true);
     const res = await adminCreateUser({
       fullName: newUserData.fullName,
       email: newUserData.email,
-      password: newUserData.password || 'Mudar123!',
+      password: targetPassword,
       role: newUserData.role,
       phone: newUserData.phone
     });
@@ -546,10 +555,13 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onShowTo
                   <label className="block text-zinc-300 font-medium mb-1.5">Senha Inicial</label>
                   <Input
                     type="password"
-                    placeholder="Deixe em branco p/ padrão"
+                    placeholder="Ex: Senha@123 (Padrão: Mudar123!)"
                     value={newUserData.password}
                     onChange={(e) => setNewUserData({ ...newUserData, password: e.target.value })}
                   />
+                  {newUserData.password && (
+                    <PasswordStrengthIndicator password={newUserData.password} showChecklist={true} />
+                  )}
                 </div>
               </div>
 

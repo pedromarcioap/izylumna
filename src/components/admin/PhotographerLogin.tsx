@@ -5,6 +5,8 @@ import { Input } from '../ui/Input';
 import { useAuth } from '../../contexts/AuthContext';
 import { UserRole } from '../../types';
 import { LumnaLogo } from '../common/LumnaLogo';
+import { validatePassword } from '../../lib/passwordValidation';
+import { PasswordStrengthIndicator } from '../common/PasswordStrengthIndicator';
 import {
   Lock,
   Mail,
@@ -71,8 +73,11 @@ export const PhotographerLogin: React.FC<PhotographerLoginProps> = ({
         setIsLoading(false);
         return;
       }
-      if (password.length < 6) {
-        setError('A senha deve conter no mínimo 6 caracteres.');
+
+      // Password Strength Validation
+      const validation = validatePassword(password);
+      if (!validation.isValid) {
+        setError(validation.errors[0]);
         setIsLoading(false);
         return;
       }
@@ -196,7 +201,7 @@ export const PhotographerLogin: React.FC<PhotographerLoginProps> = ({
                 </div>
                 <input
                   type={showPassword ? 'text' : 'password'}
-                  placeholder="Mínimo 6 caracteres"
+                  placeholder={mode === 'signup' ? 'Ex: Senha@123 (Mínimo 8 caract.)' : 'Sua senha'}
                   value={password}
                   onChange={(e) => {
                     setPassword(e.target.value);
@@ -215,6 +220,11 @@ export const PhotographerLogin: React.FC<PhotographerLoginProps> = ({
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
+
+              {/* Password Strength Indicator for Signup */}
+              {mode === 'signup' && password && (
+                <PasswordStrengthIndicator password={password} />
+              )}
             </div>
 
             {mode === 'signup' && (
@@ -258,47 +268,53 @@ export const PhotographerLogin: React.FC<PhotographerLoginProps> = ({
               </div>
             )}
 
+            {/* Error Message */}
             {error && (
-              <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-xs text-red-300 flex items-center gap-2 animate-in fade-in">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>{error}</span>
+              <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-xs text-red-300 flex items-start gap-2 animate-in fade-in">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-400" />
+                <span className="leading-relaxed">{error}</span>
               </div>
             )}
 
+            {/* Success Message */}
             {successMessage && (
-              <div className="p-3 rounded-xl bg-[#46BDC6]/15 border border-[#46BDC6]/40 text-xs text-[#46BDC6] flex items-center gap-2 animate-in fade-in">
-                <CheckCircle2 className="w-4 h-4 shrink-0" />
+              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-300 flex items-center gap-2 animate-in fade-in">
+                <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
                 <span>{successMessage}</span>
               </div>
             )}
 
+            {/* Submit Button */}
             <Button
               type="submit"
               variant="primary"
-              size="lg"
-              className="w-full text-sm font-semibold shadow-lg shadow-[#8300E9]/30"
-              disabled={isLoading || !email.trim() || !password}
+              disabled={isLoading}
+              className="w-full py-3 bg-[#8300E9] hover:bg-[#8300E9]/90 text-white font-bold rounded-xl shadow-lg shadow-[#8300E9]/20 transition-all flex items-center justify-center gap-2"
             >
-              <span>
-                {isLoading
-                  ? 'Processando...'
-                  : mode === 'login'
-                  ? 'Entrar no Painel'
-                  : 'Finalizar Cadastro'}
-              </span>
-              <ArrowRight className="w-4 h-4 ml-1.5" />
+              {isLoading ? (
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : mode === 'login' ? (
+                <>
+                  <span>Entrar no Painel</span>
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              ) : (
+                <>
+                  <span>Concluir Cadastro</span>
+                  <UserCheck className="w-4 h-4" />
+                </>
+              )}
             </Button>
           </form>
 
-          {/* Switch to client view */}
-          <div className="pt-2 border-t border-white/10 text-center">
+          {/* Footer return link */}
+          <div className="pt-4 border-t border-white/10 text-center">
             <button
               type="button"
               onClick={onReturnToClient}
-              className="text-xs text-zinc-400 hover:text-zinc-200 transition-colors inline-flex items-center gap-1.5"
+              className="text-xs text-zinc-400 hover:text-zinc-200 transition-colors flex items-center justify-center gap-1.5 mx-auto"
             >
-              <UserCheck className="w-3.5 h-3.5 text-[#46BDC6]" />
-              <span>Você é um cliente? Ir para o <strong>Portal de Aprovação por PIN</strong></span>
+              <span>Retornar para área de visualização do cliente</span>
             </button>
           </div>
         </CardContent>
