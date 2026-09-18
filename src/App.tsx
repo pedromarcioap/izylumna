@@ -3,8 +3,12 @@ import { Gallery, ToastMessage, PhotographerSession, PhotographerProfile } from 
 import {
   getGalleries,
   getGalleriesAsync,
+  getTrashGalleriesAsync,
   saveGalleryAsync,
   deleteGalleryAsync,
+  restoreGalleryAsync,
+  permanentlyDeleteGalleryAsync,
+  emptyTrashAsync,
   getGalleryByPinAsync
 } from './lib/storage';
 import { getPhotographerSession, logoutPhotographer, savePhotographerProfile } from './lib/auth';
@@ -24,6 +28,7 @@ import { FinancialExtrasView } from './components/admin/FinancialExtrasView';
 import { FiltersMetadataView } from './components/admin/FiltersMetadataView';
 import { PresentationModeView } from './components/client/PresentationModeView';
 import { StudioSettingsView } from './components/settings/StudioSettingsView';
+import { TrashBinView } from './components/admin/TrashBinView';
 
 
 export default function App() {
@@ -37,6 +42,7 @@ export default function App() {
 
   // Application Data State
   const [galleries, setGalleries] = useState<Gallery[]>([]);
+  const [trashGalleries, setTrashGalleries] = useState<Gallery[]>([]);
   const [activeGalleryId, setActiveGalleryId] = useState<string>('');
   const [adminSubView, setAdminSubView] = useState<'list' | 'detail'>('list');
   const [detailGalleryId, setDetailGalleryId] = useState<string | null>(null);
@@ -54,32 +60,36 @@ export default function App() {
   // Check OAuth callback path
   const isAdobeCallback = window.location.pathname === '/adobe-callback';
 
+  const refreshGalleriesAndTrash = async () => {
+    try {
+      const active = await getGalleriesAsync();
+      const trash = await getTrashGalleriesAsync();
+      setGalleries(active);
+      setTrashGalleries(trash);
+      if (active.length > 0 && (!activeGalleryId || !active.some((g) => g.id === activeGalleryId))) {
+        setActiveGalleryId(active[0].id);
+      }
+    } catch (err) {
+      console.error('Failed to load async galleries, fallback to local', err);
+      const syncData = getGalleries();
+      setGalleries(syncData);
+      if (syncData.length > 0 && !activeGalleryId) {
+        setActiveGalleryId(syncData[0].id);
+      }
+    }
+  };
+
   // Load Galleries from database/local storage
   useEffect(() => {
     let isMounted = true;
-    
-    const loadGalleries = async () => {
-      try {
-        const data = await getGalleriesAsync();
-        if (isMounted) {
-          setGalleries(data);
-          if (data.length > 0 && !activeGalleryId) {
-            setActiveGalleryId(data[0].id);
-          }
-        }
-      } catch (err) {
-        console.error('Failed to load async galleries, fallback to local', err);
-        if (isMounted) {
-          const syncData = getGalleries();
-          setGalleries(syncData);
-          if (syncData.length > 0 && !activeGalleryId) {
-            setActiveGalleryId(syncData[0].id);
-          }
-        }
+
+    const load = async () => {
+      if (isMounted) {
+        await refreshGalleriesAndTrash();
       }
     };
 
-    loadGalleries();
+    load();
     return () => {
       isMounted = false;
     };
@@ -171,17 +181,37 @@ export default function App() {
   const handleDeleteGallery = async (galleryId: string) => {
     const target = galleries.find((g) => g.id === galleryId);
     await deleteGalleryAsync(galleryId);
-    const updated = await getGalleriesAsync();
-    setGalleries(updated);
+    await refreshGalleriesAndTrash();
 
     if (activeGalleryId === galleryId) {
-      setActiveGalleryId(updated.length > 0 ? updated[0].id : '');
+      const remaining = galleries.filter((g) => g.id !== galleryId);
+      setActiveGalleryId(remaining.length > 0 ? remaining[0].id : '');
     }
     if (adminSubView === 'detail' && detailGalleryId === galleryId) {
       setAdminSubView('list');
       setDetailGalleryId(null);
     }
-    showToast('Ensaio Removido', `A galeria "${target?.title || 'selecionada'}" foi excluída.`, 'warning');
+    showToast('Ensaio Movido para a Lixeira', `A galeria "${target?.title || 'selecionada'}" foi enviada para a lixeira (retenção de 15 dias).`, 'warning');
+  };
+
+  const handleRestoreGallery = async (galleryId: string) => {
+    const target = trashGalleries.find((g) => g.id === galleryId);
+    await restoreGalleryAsync(galleryId);
+    await refreshGalleriesAndTrash();
+    showToast('Ensaio Restaurado!', `A galeria "${target?.title || 'selecionada'}" foi restaurada com sucesso.`, 'success');
+  };
+
+  const handlePermanentDeleteGallery = async (galleryId: string) => {
+    const target = trashGalleries.find((g) => g.id === galleryId);
+    await permanentlyDeleteGalleryAsync(galleryId);
+    await refreshGalleriesAndTrash();
+    showToast('Exclusão Permanente', `A galeria "${target?.title || 'selecionada'}" foi removida definitivamente.`, 'info');
+  };
+
+  const handleEmptyTrash = async () => {
+    await emptyTrashAsync();
+    await refreshGalleriesAndTrash();
+    showToast('Lixeira Esvaziada', 'Todos os ensaios da lixeira foram removidos permanentemente.', 'info');
   };
 
   const handleViewGalleryDetails = (galleryId: string) => {
@@ -197,8 +227,7 @@ export default function App() {
 
   const handleUpdateGalleryFromClient = async (updatedGallery: Gallery) => {
     await saveGalleryAsync(updatedGallery);
-    const refreshed = await getGalleriesAsync();
-    setGalleries(refreshed);
+    await refreshGalleriesAndTrash();
   };
 
   const activeGallery = galleries.find((g) => g.id === activeGalleryId);
@@ -229,6 +258,7 @@ export default function App() {
           }
         }}
         galleries={galleries}
+        trashGalleriesCount={trashGalleries.length}
         activeGalleryId={activeGalleryId}
         onSelectGallery={(id) => setActiveGalleryId(id)}
         onCreateGallery={() => {
@@ -254,6 +284,8 @@ export default function App() {
             setActiveNavTab('financial');
           } else if (item === 'presentation') {
             setActiveNavTab('client_demo');
+          } else if (item === 'trash') {
+            setActiveNavTab('galleries');
           }
         }}
         onNavigateToSettingsTab={(tab) => setSettingsSubTab(tab)}
@@ -281,6 +313,16 @@ export default function App() {
                     onDeleteGallery={handleDeleteGallery}
                     onUpdateGallery={handleUpdateGalleryFromClient}
                     onShowToast={showToast}
+                  />
+                </StaffRoute>
+              ) : activeSidebarItem === 'trash' ? (
+                <StaffRoute onReturnToClient={() => setCurrentRole('client')}>
+                  <TrashBinView
+                    trashGalleries={trashGalleries}
+                    onRestoreGallery={handleRestoreGallery}
+                    onPermanentDeleteGallery={handlePermanentDeleteGallery}
+                    onEmptyTrash={handleEmptyTrash}
+                    onRefresh={refreshGalleriesAndTrash}
                   />
                 </StaffRoute>
               ) : activeSidebarItem === 'filters' ? (

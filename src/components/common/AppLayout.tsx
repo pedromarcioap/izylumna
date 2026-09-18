@@ -18,7 +18,8 @@ import {
   Heart,
   DollarSign,
   UserCheck,
-  KeyRound
+  KeyRound,
+  Trash2
 } from 'lucide-react';
 import { LumnaLogo } from './LumnaLogo';
 import { Gallery, PhotographerProfile } from '../../types';
@@ -40,6 +41,7 @@ export interface AppLayoutProps {
   currentRole: 'admin' | 'client';
   onRoleChange: (role: 'admin' | 'client') => void;
   galleries: Gallery[];
+  trashGalleriesCount?: number;
   activeGalleryId?: string;
   onSelectGallery: (id: string) => void;
   onCreateGallery: () => void;
@@ -58,6 +60,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   currentRole,
   onRoleChange,
   galleries,
+  trashGalleriesCount,
   activeGalleryId,
   onSelectGallery,
   onCreateGallery,
@@ -508,6 +511,29 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
               >
                 <Settings className="w-4 h-4 text-zinc-400" />
                 <span>Ajustes do Estúdio</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  onRoleChange('admin');
+                  onNavTabChange('galleries');
+                  onSidebarItemChange('trash');
+                }}
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all ${
+                  activeSidebarItem === 'trash' && currentRole === 'admin'
+                    ? 'bg-red-500/10 text-red-200 font-bold border border-red-500/30'
+                    : 'text-zinc-400 hover:text-white hover:bg-white/5 font-medium'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Trash2 className="w-4 h-4 text-red-400" />
+                  <span>Lixeira</span>
+                </div>
+                {typeof trashGalleriesCount === 'number' && trashGalleriesCount > 0 && (
+                  <span className="px-1.5 py-0.2 text-[10px] font-mono font-bold bg-red-500/20 text-red-300 border border-red-500/30 rounded-full">
+                    {trashGalleriesCount}
+                  </span>
+                )}
               </button>
             </nav>
           </div>

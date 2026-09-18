@@ -149,6 +149,9 @@ export interface Gallery {
   // Client submission data
   clientSelection: ClientSelectionData;
 
+  // Soft Delete / Trash Backup (approx 15 days retention)
+  deletedAt?: string | null;
+
   createdAt: string;
   updatedAt: string;
 }

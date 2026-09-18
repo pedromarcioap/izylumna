@@ -244,6 +244,7 @@ function mapRowToGallery(row: any, photosRows: any[] = [], selectionRow: any = n
       completedAt: approvedAt,
       status: isCompleted ? 'submitted' : 'pending'
     },
+    deletedAt: row.deleted_at || null,
     createdAt: row.created_at || new Date().toISOString(),
     updatedAt: row.updated_at || new Date().toISOString()
   };
@@ -365,12 +366,38 @@ export async function saveClientSelection(
   }
 }
 
+export const TRASH_RETENTION_DAYS = 15;
+
 /**
- * Fetch all galleries with resilient Supabase -> localStorage fallback
+ * Calculates remaining days before permanent deletion from trash.
  */
-export async function getGalleriesAsync(): Promise<Gallery[]> {
+export function getDaysUntilPermanentDeletion(deletedAt?: string | null, retentionDays: number = TRASH_RETENTION_DAYS): number {
+  if (!deletedAt) return retentionDays;
+  const deletedTime = new Date(deletedAt).getTime();
+  if (isNaN(deletedTime)) return retentionDays;
+  const now = new Date().getTime();
+  const elapsedMs = now - deletedTime;
+  const elapsedDays = elapsedMs / (1000 * 60 * 60 * 24);
+  const remaining = Math.ceil(retentionDays - elapsedDays);
+  return remaining > 0 ? remaining : 0;
+}
+
+/**
+ * Checks if a gallery in trash has exceeded the 15-day retention period.
+ */
+export function isTrashExpired(deletedAt?: string | null, retentionDays: number = TRASH_RETENTION_DAYS): boolean {
+  if (!deletedAt) return false;
+  return getDaysUntilPermanentDeletion(deletedAt, retentionDays) <= 0;
+}
+
+/**
+ * Fetch all galleries (active and soft-deleted in trash) with resilient Supabase -> localStorage fallback,
+ * automatically purging items that exceeded 15 days in trash.
+ */
+export async function getAllGalleriesWithTrashAsync(): Promise<Gallery[]> {
   if (!isSupabaseConfigured || !supabase) {
-    return getGalleries();
+    const list = cachedGalleries.length > 0 ? cachedGalleries : INITIAL_GALLERIES;
+    return list.filter((g) => !isTrashExpired(g.deletedAt));
   }
   try {
     const { data: dbGalleries, error: galErr } = await supabase
@@ -380,11 +407,13 @@ export async function getGalleriesAsync(): Promise<Gallery[]> {
 
     if (galErr || !dbGalleries) {
       console.warn('[Supabase Fallback] Error fetching galleries from DB (using localStorage):', galErr?.message || galErr);
-      return getGalleries();
+      const list = cachedGalleries.length > 0 ? cachedGalleries : INITIAL_GALLERIES;
+      return list.filter((g) => !isTrashExpired(g.deletedAt));
     }
 
     if (dbGalleries.length === 0) {
-      return cachedGalleries.length > 0 ? cachedGalleries : getGalleries();
+      const list = cachedGalleries.length > 0 ? cachedGalleries : INITIAL_GALLERIES;
+      return list.filter((g) => !isTrashExpired(g.deletedAt));
     }
 
     const galleryIds = dbGalleries.map((g) => g.id);
@@ -414,8 +443,7 @@ export async function getGalleriesAsync(): Promise<Gallery[]> {
       mapRowToGallery(g, photosByGallery[g.id] || [], selectionsByGallery[g.id] || null)
     );
 
-    // Merge local-only galleries & preserve local photos if DB photos query returned fewer photos
-    const fallbackList = getGalleries();
+    // Merge local-only galleries & preserve local photos
     const mergedMap = new Map<string, Gallery>();
 
     dbMappedGalleries.forEach((g) => {
@@ -438,27 +466,50 @@ export async function getGalleriesAsync(): Promise<Gallery[]> {
         mergedMap.set(cg.id, cg);
       }
     });
-    fallbackList.forEach((fg) => {
-      if (!mergedMap.has(fg.id)) {
-        mergedMap.set(fg.id, fg);
-      }
-    });
 
     const mergedList = Array.from(mergedMap.values());
-    updateLocalCache(mergedList);
-    return mergedList;
+
+    // Auto-purge expired trash items (> 15 days)
+    const expiredGalleries = mergedList.filter((g) => g.deletedAt && isTrashExpired(g.deletedAt));
+    if (expiredGalleries.length > 0) {
+      expiredGalleries.forEach((g) => {
+        permanentlyDeleteGalleryAsync(g.id);
+      });
+    }
+
+    const unexpiredList = mergedList.filter((g) => !isTrashExpired(g.deletedAt));
+    updateLocalCache(unexpiredList);
+    return unexpiredList;
   } catch (e) {
     console.warn('[Supabase Fallback] Exception loading galleries from Supabase:', e);
-    return getGalleries();
+    const list = cachedGalleries.length > 0 ? cachedGalleries : INITIAL_GALLERIES;
+    return list.filter((g) => !isTrashExpired(g.deletedAt));
   }
 }
 
+export async function getGalleriesAsync(): Promise<Gallery[]> {
+  const all = await getAllGalleriesWithTrashAsync();
+  return all.filter((g) => !g.deletedAt);
+}
+
 export function getGalleries(): Gallery[] {
-  return cachedGalleries.length > 0 ? cachedGalleries : INITIAL_GALLERIES;
+  const list = cachedGalleries.length > 0 ? cachedGalleries : INITIAL_GALLERIES;
+  return list.filter((g) => !g.deletedAt && !isTrashExpired(g.deletedAt));
+}
+
+export async function getTrashGalleriesAsync(): Promise<Gallery[]> {
+  const all = await getAllGalleriesWithTrashAsync();
+  return all.filter((g) => Boolean(g.deletedAt));
+}
+
+export function getTrashGalleries(): Gallery[] {
+  return cachedGalleries.filter((g) => Boolean(g.deletedAt) && !isTrashExpired(g.deletedAt));
 }
 
 export function getGalleryById(id: string): Gallery | undefined {
-  return cachedGalleries.find((g) => g.id === id);
+  const gal = cachedGalleries.find((g) => g.id === id);
+  if (gal && gal.deletedAt) return undefined;
+  return gal;
 }
 
 export async function getGalleryByPinAsync(pinCode: string): Promise<Gallery | null> {
@@ -466,7 +517,8 @@ export async function getGalleryByPinAsync(pinCode: string): Promise<Gallery | n
   if (!cleanPin) return null;
 
   if (!isSupabaseConfigured || !supabase) {
-    return cachedGalleries.find((g) => g.pinCode === cleanPin) || null;
+    const gal = cachedGalleries.find((g) => g.pinCode === cleanPin);
+    return gal && !gal.deletedAt ? gal : null;
   }
 
   try {
@@ -476,9 +528,9 @@ export async function getGalleryByPinAsync(pinCode: string): Promise<Gallery | n
       .eq('pin_code', cleanPin)
       .maybeSingle();
 
-    if (error || !dbGallery) {
+    if (error || !dbGallery || dbGallery.deleted_at) {
       const cached = cachedGalleries.find((g) => g.pinCode === cleanPin);
-      return cached || null;
+      return cached && !cached.deletedAt ? cached : null;
     }
 
     const { data: dbPhotos } = await supabase
@@ -492,10 +544,13 @@ export async function getGalleryByPinAsync(pinCode: string): Promise<Gallery | n
       .eq('gallery_id', dbGallery.id)
       .maybeSingle();
 
-    return mapRowToGallery(dbGallery, dbPhotos || [], dbSelection || null);
+    const mapped = mapRowToGallery(dbGallery, dbPhotos || [], dbSelection || null);
+    if (mapped.deletedAt) return null;
+    return mapped;
   } catch (e) {
     console.warn('[Supabase Fallback] Error fetching gallery by PIN, trying local cache:', e);
-    return cachedGalleries.find((g) => g.pinCode === cleanPin) || null;
+    const cached = cachedGalleries.find((g) => g.pinCode === cleanPin);
+    return cached && !cached.deletedAt ? cached : null;
   }
 }
 
@@ -574,6 +629,7 @@ export async function saveGalleryAsync(gallery: Gallery): Promise<Gallery> {
       watermark_position: gallery.watermarkPosition || 'both',
       watermark_opacity: gallery.watermarkOpacity ?? 0.25,
       cover_photo_url: cleanCoverUrl,
+      deleted_at: gallery.deletedAt || null,
       updated_at: now
     };
 
@@ -604,7 +660,77 @@ export function saveGallery(gallery: Gallery): void {
   saveGalleryAsync(gallery);
 }
 
+export async function softDeleteGalleryAsync(id: string): Promise<void> {
+  const now = new Date().toISOString();
+  const idx = cachedGalleries.findIndex((g) => g.id === id);
+  if (idx >= 0) {
+    cachedGalleries[idx] = {
+      ...cachedGalleries[idx],
+      deletedAt: now,
+      updatedAt: now
+    };
+    updateLocalCache(cachedGalleries);
+  }
+
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { error } = await supabase
+        .from('galleries')
+        .update({ deleted_at: now, updated_at: now })
+        .eq('id', id);
+      if (error) {
+        console.warn('[Supabase Sync Warning] Failed to soft-delete gallery in DB:', error.message);
+      }
+    } catch (e) {
+      console.warn('[Supabase Fallback] Error soft-deleting gallery in Supabase:', e);
+    }
+  }
+}
+
 export async function deleteGalleryAsync(id: string): Promise<void> {
+  return softDeleteGalleryAsync(id);
+}
+
+export function deleteGallery(id: string): void {
+  softDeleteGalleryAsync(id);
+}
+
+export async function restoreGalleryAsync(id: string): Promise<Gallery | undefined> {
+  const now = new Date().toISOString();
+  let restored: Gallery | undefined;
+  const idx = cachedGalleries.findIndex((g) => g.id === id);
+  if (idx >= 0) {
+    restored = {
+      ...cachedGalleries[idx],
+      deletedAt: null,
+      updatedAt: now
+    };
+    cachedGalleries[idx] = restored;
+    updateLocalCache(cachedGalleries);
+  }
+
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { error } = await supabase
+        .from('galleries')
+        .update({ deleted_at: null, updated_at: now })
+        .eq('id', id);
+      if (error) {
+        console.warn('[Supabase Sync Warning] Failed to restore gallery in DB:', error.message);
+      }
+    } catch (e) {
+      console.warn('[Supabase Fallback] Error restoring gallery in Supabase:', e);
+    }
+  }
+
+  return restored;
+}
+
+export function restoreGallery(id: string): void {
+  restoreGalleryAsync(id);
+}
+
+export async function permanentlyDeleteGalleryAsync(id: string): Promise<void> {
   const filtered = cachedGalleries.filter((g) => g.id !== id);
   updateLocalCache(filtered);
 
@@ -614,14 +740,26 @@ export async function deleteGalleryAsync(id: string): Promise<void> {
 
   try {
     const { error } = await supabase.from('galleries').delete().eq('id', id);
-    if (error) console.warn('[Supabase Sync Warning] Failed to delete gallery from DB:', error.message);
+    if (error) console.warn('[Supabase Sync Warning] Failed to permanently delete gallery from DB:', error.message);
   } catch (e) {
-    console.warn('[Supabase Fallback] Failed deleting gallery from Supabase, removing locally:', e);
+    console.warn('[Supabase Fallback] Failed permanently deleting gallery from Supabase:', e);
   }
 }
 
-export function deleteGallery(id: string): void {
-  deleteGalleryAsync(id);
+export async function emptyTrashAsync(): Promise<void> {
+  const trashItems = cachedGalleries.filter((g) => Boolean(g.deletedAt));
+  const activeItems = cachedGalleries.filter((g) => !g.deletedAt);
+  updateLocalCache(activeItems);
+
+  if (isSupabaseConfigured && supabase && trashItems.length > 0) {
+    try {
+      const trashIds = trashItems.map((g) => g.id);
+      const { error } = await supabase.from('galleries').delete().in('id', trashIds);
+      if (error) console.warn('[Supabase Sync Warning] Failed to empty trash in DB:', error.message);
+    } catch (e) {
+      console.warn('[Supabase Fallback] Failed emptying trash in Supabase:', e);
+    }
+  }
 }
 
 /**
