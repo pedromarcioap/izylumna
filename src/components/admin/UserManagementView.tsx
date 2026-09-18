@@ -87,7 +87,11 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onShowTo
   const paginatedUsers = filteredUsers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   const handleRoleChange = async (targetUser: UserProfile, newRole: UserRole) => {
-    if (targetUser.id === currentUserProfile?.id && newRole !== 'admin') {
+    const isSelf =
+      targetUser.id === currentUserProfile?.id ||
+      (currentUserProfile?.email && targetUser.email.toLowerCase() === currentUserProfile.email.toLowerCase());
+
+    if (isSelf && newRole !== 'admin') {
       onShowToast(
         'Ação Bloqueada',
         'Você não pode remover seu próprio privilégio de Administrador para evitar bloqueio acidental.',
@@ -110,7 +114,11 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onShowTo
   };
 
   const handleToggleStatus = async (targetUser: UserProfile) => {
-    if (targetUser.id === currentUserProfile?.id) {
+    const isSelf =
+      targetUser.id === currentUserProfile?.id ||
+      (currentUserProfile?.email && targetUser.email.toLowerCase() === currentUserProfile.email.toLowerCase());
+
+    if (isSelf) {
       onShowToast(
         'Ação Bloqueada',
         'Você não pode suspender sua própria conta de Administrador.',
@@ -308,7 +316,9 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onShowTo
                 </tr>
               ) : (
                 paginatedUsers.map((userItem) => {
-                  const isSelf = userItem.id === currentUserProfile?.id;
+                  const isSelf =
+                    userItem.id === currentUserProfile?.id ||
+                    (currentUserProfile?.email && userItem.email.toLowerCase() === currentUserProfile.email.toLowerCase());
 
                   return (
                     <tr key={userItem.id} className="hover:bg-zinc-800/30 transition-colors">
