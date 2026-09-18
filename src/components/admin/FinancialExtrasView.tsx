@@ -32,9 +32,10 @@ import {
 } from 'lucide-react';
 import {
   getFinancialTransactions,
-  addFinancialTransaction,
-  updateFinancialTransaction,
-  deleteFinancialTransaction
+  getFinancialTransactionsAsync,
+  addFinancialTransactionAsync,
+  updateFinancialTransactionAsync,
+  deleteFinancialTransactionAsync
 } from '../../lib/financialStorage';
 
 export interface FinancialExtrasViewProps {
@@ -70,10 +71,25 @@ export const FinancialExtrasView: React.FC<FinancialExtrasViewProps> = ({
   const [formDate, setFormDate] = useState<string>('');
   const [formNotes, setFormNotes] = useState<string>('');
 
-  // Load transactions and sync live gallery charges
+  // Load transactions synchronously then sync with Supabase async
   useEffect(() => {
-    const loaded = getFinancialTransactions(galleries);
-    setTransactions(loaded);
+    // 1. Initial render from local cache
+    const initialLocal = getFinancialTransactions(galleries);
+    setTransactions(initialLocal);
+
+    // 2. Fetch from Supabase orders table + live galleries
+    let isMounted = true;
+    getFinancialTransactionsAsync(galleries).then((synced) => {
+      if (isMounted && synced.length > 0) {
+        setTransactions(synced);
+      }
+    }).catch((err) => {
+      console.warn('[Financial CMS] Supabase async sync warning:', err);
+    });
+
+    return () => {
+      isMounted = false;
+    };
   }, [galleries]);
 
   // Open Edit Modal
@@ -121,7 +137,7 @@ export const FinancialExtrasView: React.FC<FinancialExtrasViewProps> = ({
   };
 
   // Save Transaction (Create or Edit)
-  const handleSaveForm = (e: React.FormEvent) => {
+  const handleSaveForm = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!formClientName.trim() || !formGalleryTitle.trim()) {
@@ -146,10 +162,10 @@ export const FinancialExtrasView: React.FC<FinancialExtrasViewProps> = ({
         notes: formNotes.trim()
       };
 
-      const newList = updateFinancialTransaction(updatedObj, transactions);
+      const newList = await updateFinancialTransactionAsync(updatedObj, transactions);
       setTransactions(newList);
       setEditingTx(null);
-      onShowToast('Transação Atualizada!', `Cobrança de ${updatedObj.clientName} foi alterada com sucesso.`, 'success');
+      onShowToast('Transação Atualizada!', `Cobrança de ${updatedObj.clientName} foi alterada e salva com sucesso.`, 'success');
     } else {
       // CREATE NEW TRANSACTION
       const newTxData = {
@@ -166,7 +182,7 @@ export const FinancialExtrasView: React.FC<FinancialExtrasViewProps> = ({
         notes: formNotes.trim()
       };
 
-      const newList = addFinancialTransaction(newTxData, transactions);
+      const newList = await addFinancialTransactionAsync(newTxData, transactions);
       setTransactions(newList);
       setIsCreateModalOpen(false);
       onShowToast('Transação Criada!', `Nova cobrança cadastrada para ${newTxData.clientName}.`, 'success');
@@ -174,22 +190,22 @@ export const FinancialExtrasView: React.FC<FinancialExtrasViewProps> = ({
   };
 
   // Delete Transaction
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!deletingTx) return;
-    const nextList = deleteFinancialTransaction(deletingTx.id, transactions);
+    const nextList = await deleteFinancialTransactionAsync(deletingTx.id, transactions);
     setTransactions(nextList);
     onShowToast('Transação Excluída', `Cobrança de ${deletingTx.clientName} (TxID: ${deletingTx.pixTxId}) foi removida.`, 'info');
     setDeletingTx(null);
   };
 
   // Quick Baixar PIX (Simular ou Confirmar Pagamento)
-  const handleSimulatePayment = (tx: FinancialTransaction) => {
+  const handleSimulatePayment = async (tx: FinancialTransaction) => {
     const updatedObj: FinancialTransaction = {
       ...tx,
       status: 'settled',
       notes: (tx.notes ? tx.notes + ' | ' : '') + 'Baixa realizada manualmente pelo fotógrafo.'
     };
-    const nextList = updateFinancialTransaction(updatedObj, transactions);
+    const nextList = await updateFinancialTransactionAsync(updatedObj, transactions);
     setTransactions(nextList);
     onShowToast(
       'Baixa PIX Efetuada!',

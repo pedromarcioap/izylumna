@@ -1,5 +1,10 @@
-import { FinancialTransaction, Gallery, TransactionStatus } from '../types';
-import { updateGalleryPaymentStatusAsync } from './storage';
+import { FinancialTransaction, Gallery, TransactionStatus, Order } from '../types';
+import {
+  updateGalleryPaymentStatusAsync,
+  getAllOrdersAsync,
+  saveOrderAsync,
+  deleteOrderAsync
+} from './storage';
 
 const FINANCIAL_CACHE_KEY = 'izylumna_financial_transactions_v2';
 
@@ -82,7 +87,117 @@ export const INITIAL_TRANSACTIONS: FinancialTransaction[] = [
 ];
 
 /**
- * Loads transactions from localStorage and syncs/perceives charges from live galleries
+ * Syncs and loads transactions from local storage + Supabase orders table + Live Galleries
+ */
+export async function getFinancialTransactionsAsync(galleries: Gallery[] = []): Promise<FinancialTransaction[]> {
+  let stored: FinancialTransaction[] = [];
+  try {
+    const raw = localStorage.getItem(FINANCIAL_CACHE_KEY);
+    if (raw) {
+      stored = JSON.parse(raw);
+    }
+  } catch (e) {
+    console.warn('[Financial Storage] Error reading cached transactions:', e);
+  }
+
+  if (!Array.isArray(stored) || stored.length === 0) {
+    stored = [...INITIAL_TRANSACTIONS];
+  }
+
+  const txMap = new Map<string, FinancialTransaction>();
+  stored.forEach((tx) => txMap.set(tx.id, tx));
+
+  // 1. Fetch real Supabase orders table rows
+  try {
+    const dbOrders = await getAllOrdersAsync();
+    dbOrders.forEach((ord) => {
+      const matchedGallery = galleries.find((g) => g.id === ord.galleryId);
+      const isPaid = ord.status === 'paid';
+      const statusMapped: TransactionStatus = isPaid
+        ? 'settled'
+        : ord.status === 'canceled' || ord.status === 'expired'
+        ? 'canceled'
+        : 'pending';
+
+      const existingInMap = txMap.get(ord.id);
+      txMap.set(ord.id, {
+        id: ord.id,
+        galleryId: ord.galleryId,
+        galleryTitle: matchedGallery?.title || existingInMap?.galleryTitle || 'Ensaio Solicitado',
+        clientName: matchedGallery?.clientName || existingInMap?.clientName || 'Cliente Lumina',
+        clientPhone: matchedGallery?.clientPhone || existingInMap?.clientPhone || '(11) 99999-0000',
+        extraPhotosCount: existingInMap?.extraPhotosCount || 10,
+        amount: ord.totalAmount || existingInMap?.amount || 0,
+        pixTxId: ord.externalId || ord.pixCopyPaste?.substring(0, 30) || existingInMap?.pixTxId || `E${ord.id}`,
+        status: statusMapped,
+        date: ord.createdAt
+          ? new Date(ord.createdAt).toLocaleDateString('pt-BR') + ' às ' + new Date(ord.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+          : existingInMap?.date || new Date().toLocaleDateString('pt-BR'),
+        paymentMethod: 'pix',
+        notes: existingInMap?.notes || `Pedido Supabase ID: ${ord.id}`,
+        createdAt: ord.createdAt || new Date().toISOString()
+      });
+    });
+  } catch (e) {
+    console.warn('[Financial Storage] Failed fetching orders from Supabase:', e);
+  }
+
+  // 2. Perceive live charges from galleries ("percebendo as cobranças do site")
+  galleries.forEach((gallery) => {
+    const selectedCount =
+      gallery.clientSelection?.selectedPhotoIds?.length ||
+      gallery.photos.filter((p) => (p.votes || []).length >= (gallery.consensusThreshold || 2)).length ||
+      0;
+
+    const quota = gallery.maxContractedPhotos || gallery.quotaIncluded || 20;
+    const extrasCount = Math.max(0, selectedCount - quota);
+    const price = gallery.extraPhotoPrice || 25;
+    const extraTotal = extrasCount * price;
+
+    if (extraTotal > 0 || gallery.galleryClosureFee) {
+      const existing = Array.from(txMap.values()).find((t) => t.galleryId === gallery.id);
+      const isPaid = gallery.paymentStatus === 'paid';
+      const status: TransactionStatus = isPaid ? 'settled' : existing?.status || 'pending';
+      const amount = extraTotal > 0 ? extraTotal : (gallery.galleryClosureFee || 6.90);
+
+      if (existing) {
+        txMap.set(existing.id, {
+          ...existing,
+          galleryTitle: existing.galleryTitle || gallery.title,
+          clientName: existing.clientName || gallery.clientName,
+          clientPhone: existing.clientPhone || gallery.clientPhone || '(11) 99999-0000',
+          extraPhotosCount: existing.extraPhotosCount || extrasCount,
+          amount: existing.amount || amount,
+          status: isPaid ? 'settled' : existing.status
+        });
+      } else {
+        const newPerceivedTx: FinancialTransaction = {
+          id: `tx-gal-${gallery.id}`,
+          galleryId: gallery.id,
+          galleryTitle: gallery.title,
+          clientName: gallery.clientName,
+          clientPhone: gallery.clientPhone || '(11) 99999-0000',
+          extraPhotosCount: extrasCount,
+          amount,
+          pixTxId: `E${Math.floor(10000000 + Math.random() * 90000000)}${Date.now().toString().slice(-10)}`,
+          status,
+          date: new Date(gallery.updatedAt || gallery.createdAt).toLocaleDateString('pt-BR') + ' às ' + new Date(gallery.updatedAt || gallery.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+          paymentMethod: 'pix',
+          notes: `Cobrança automática da galeria ${gallery.title} (${extrasCount} fotos extras).`,
+          createdAt: gallery.createdAt
+        };
+        txMap.set(newPerceivedTx.id, newPerceivedTx);
+      }
+    }
+  });
+
+  const finalTransactions = Array.from(txMap.values());
+  saveFinancialTransactions(finalTransactions);
+  return finalTransactions;
+}
+
+/**
+ * Synchronous local getter for fast renders
  */
 export function getFinancialTransactions(galleries: Gallery[] = []): FinancialTransaction[] {
   let stored: FinancialTransaction[] = [];
@@ -99,7 +214,6 @@ export function getFinancialTransactions(galleries: Gallery[] = []): FinancialTr
     stored = [...INITIAL_TRANSACTIONS];
   }
 
-  // Perceive live charges from galleries ("percebendo as cobranças do site")
   const txMap = new Map<string, FinancialTransaction>();
   stored.forEach((tx) => txMap.set(tx.id, tx));
 
@@ -115,15 +229,12 @@ export function getFinancialTransactions(galleries: Gallery[] = []): FinancialTr
     const extraTotal = extrasCount * price;
 
     if (extraTotal > 0 || gallery.galleryClosureFee) {
-      // Check if a transaction for this gallery already exists
       const existing = Array.from(txMap.values()).find((t) => t.galleryId === gallery.id);
-      
       const isPaid = gallery.paymentStatus === 'paid';
       const status: TransactionStatus = isPaid ? 'settled' : existing?.status || 'pending';
       const amount = extraTotal > 0 ? extraTotal : (gallery.galleryClosureFee || 6.90);
 
       if (existing) {
-        // Update detected gallery data while maintaining user edits if any
         txMap.set(existing.id, {
           ...existing,
           galleryTitle: existing.galleryTitle || gallery.title,
@@ -134,7 +245,6 @@ export function getFinancialTransactions(galleries: Gallery[] = []): FinancialTr
           status: isPaid ? 'settled' : existing.status
         });
       } else {
-        // Create new perceived transaction from gallery charge
         const newPerceivedTx: FinancialTransaction = {
           id: `tx-gal-${gallery.id}`,
           galleryId: gallery.id,
@@ -172,12 +282,12 @@ export function saveFinancialTransactions(transactions: FinancialTransaction[]):
 }
 
 /**
- * Adds a new financial transaction
+ * Adds a new financial transaction and persists to Supabase orders + LocalStorage
  */
-export function addFinancialTransaction(
+export async function addFinancialTransactionAsync(
   tx: Omit<FinancialTransaction, 'id' | 'createdAt' | 'updatedAt'>,
   allTransactions: FinancialTransaction[]
-): FinancialTransaction[] {
+): Promise<FinancialTransaction[]> {
   const newTx: FinancialTransaction = {
     ...tx,
     id: `tx-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
@@ -188,20 +298,32 @@ export function addFinancialTransaction(
   const updated = [newTx, ...allTransactions];
   saveFinancialTransactions(updated);
 
-  if (newTx.galleryId && newTx.status === 'settled') {
-    updateGalleryPaymentStatusAsync(newTx.galleryId, 'paid');
+  // Persist order in Supabase
+  if (newTx.galleryId) {
+    await saveOrderAsync({
+      id: newTx.id,
+      galleryId: newTx.galleryId,
+      payerType: 'client',
+      totalAmount: newTx.amount,
+      externalId: newTx.pixTxId,
+      status: newTx.status === 'settled' ? 'paid' : newTx.status === 'canceled' ? 'canceled' : 'pending'
+    });
+
+    if (newTx.status === 'settled') {
+      await updateGalleryPaymentStatusAsync(newTx.galleryId, 'paid');
+    }
   }
 
   return updated;
 }
 
 /**
- * Updates an existing transaction
+ * Updates an existing transaction and persists to Supabase orders + LocalStorage
  */
-export function updateFinancialTransaction(
+export async function updateFinancialTransactionAsync(
   updatedTx: FinancialTransaction,
   allTransactions: FinancialTransaction[]
-): FinancialTransaction[] {
+): Promise<FinancialTransaction[]> {
   const now = new Date().toISOString();
   const nextList = allTransactions.map((tx) =>
     tx.id === updatedTx.id ? { ...updatedTx, updatedAt: now } : tx
@@ -209,11 +331,21 @@ export function updateFinancialTransaction(
 
   saveFinancialTransactions(nextList);
 
+  // Persist update to Supabase orders table
   if (updatedTx.galleryId) {
+    await saveOrderAsync({
+      id: updatedTx.id,
+      galleryId: updatedTx.galleryId,
+      payerType: 'client',
+      totalAmount: updatedTx.amount,
+      externalId: updatedTx.pixTxId,
+      status: updatedTx.status === 'settled' ? 'paid' : updatedTx.status === 'canceled' ? 'canceled' : 'pending'
+    });
+
     if (updatedTx.status === 'settled') {
-      updateGalleryPaymentStatusAsync(updatedTx.galleryId, 'paid');
+      await updateGalleryPaymentStatusAsync(updatedTx.galleryId, 'paid');
     } else if (updatedTx.status === 'pending') {
-      updateGalleryPaymentStatusAsync(updatedTx.galleryId, 'pending');
+      await updateGalleryPaymentStatusAsync(updatedTx.galleryId, 'pending');
     }
   }
 
@@ -221,13 +353,17 @@ export function updateFinancialTransaction(
 }
 
 /**
- * Deletes a transaction by ID
+ * Deletes a transaction by ID from Supabase orders + LocalStorage
  */
-export function deleteFinancialTransaction(
+export async function deleteFinancialTransactionAsync(
   txId: string,
   allTransactions: FinancialTransaction[]
-): FinancialTransaction[] {
+): Promise<FinancialTransaction[]> {
   const nextList = allTransactions.filter((tx) => tx.id !== txId);
   saveFinancialTransactions(nextList);
+
+  // Attempt delete in Supabase
+  await deleteOrderAsync(txId);
+
   return nextList;
 }

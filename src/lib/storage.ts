@@ -1381,6 +1381,108 @@ export async function getGalleryOrdersAsync(galleryId: string): Promise<Order[]>
   }
 }
 
+export async function getAllOrdersAsync(): Promise<Order[]> {
+  if (!isSupabaseConfigured || !supabase) {
+    return [];
+  }
+  try {
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error || !data) return [];
+    return data.map((row: any) => ({
+      id: row.id,
+      galleryId: row.gallery_id,
+      payerType: row.payer_type || 'client',
+      totalAmount: Number(row.total_amount) || 0,
+      platformFee: Number(row.platform_fee) || 0,
+      photographerAmount: Number(row.photographer_amount) || 0,
+      externalId: row.external_id,
+      status: row.status || 'pending',
+      pixCopyPaste: row.pix_copy_paste,
+      pixQrCodeBase64: row.pix_qr_code_base64,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    }));
+  } catch (e) {
+    console.warn('[Supabase Fallback] Failed fetching all orders:', e);
+    return [];
+  }
+}
+
+export async function saveOrderAsync(order: Partial<Order>): Promise<Order | null> {
+  if (!isSupabaseConfigured || !supabase) {
+    return null;
+  }
+  try {
+    const payload = {
+      ...(order.id ? { id: order.id } : {}),
+      gallery_id: order.galleryId,
+      payer_type: order.payerType || 'client',
+      total_amount: order.totalAmount || 0,
+      platform_fee: order.platformFee || 0,
+      photographer_amount: order.photographerAmount || order.totalAmount || 0,
+      external_id: order.externalId,
+      status: order.status || 'pending',
+      pix_copy_paste: order.pixCopyPaste,
+      pix_qr_code_base64: order.pixQrCodeBase64,
+      updated_at: new Date().toISOString()
+    };
+
+    const { data, error } = await supabase
+      .from('orders')
+      .upsert(payload)
+      .select()
+      .single();
+
+    if (error || !data) {
+      console.warn('[Supabase] Error saving order:', error);
+      return null;
+    }
+
+    return {
+      id: data.id,
+      galleryId: data.gallery_id,
+      payerType: data.payer_type,
+      totalAmount: Number(data.total_amount) || 0,
+      platformFee: Number(data.platform_fee) || 0,
+      photographerAmount: Number(data.photographer_amount) || 0,
+      externalId: data.external_id,
+      status: data.status,
+      pixCopyPaste: data.pix_copy_paste,
+      pixQrCodeBase64: data.pix_qr_code_base64,
+      createdAt: data.created_at,
+      updatedAt: data.updated_at
+    };
+  } catch (e) {
+    console.warn('[Supabase Fallback] Failed saving order:', e);
+    return null;
+  }
+}
+
+export async function deleteOrderAsync(orderId: string): Promise<boolean> {
+  if (!isSupabaseConfigured || !supabase) {
+    return false;
+  }
+  try {
+    const { error } = await supabase
+      .from('orders')
+      .delete()
+      .eq('id', orderId);
+
+    if (error) {
+      console.warn('[Supabase] Error deleting order:', error);
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.warn('[Supabase Fallback] Failed deleting order:', e);
+    return false;
+  }
+}
+
 export async function updateGalleryPaymentStatusAsync(
   galleryId: string,
   status: 'pending' | 'paid' | 'waived'
