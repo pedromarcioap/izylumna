@@ -142,11 +142,21 @@ export default function App() {
     setPhotographerSession(current);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     logoutPhotographer();
+    await signOut();
     setPhotographerSession({
       isAuthenticated: false,
-      profile: photographerSession.profile
+      profile: {
+        id: '',
+        name: '',
+        email: '',
+        studioName: '',
+        phone: '',
+        avatarUrl: '',
+        defaultWatermarkText: '',
+        defaultExtraPrice: 30
+      }
     });
     showToast('Sessão Encerrada', 'Você saiu do Painel do Fotógrafo.', 'info');
   };

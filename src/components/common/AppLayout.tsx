@@ -107,10 +107,9 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
 
   const handleLogoutAction = async () => {
     setIsUserMenuOpen(false);
+    await signOut();
     if (onLogout) {
       onLogout();
-    } else {
-      await signOut();
     }
   };
 

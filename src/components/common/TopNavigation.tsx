@@ -35,8 +35,8 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({
 
   const isAuthenticated = !!user || isPhotographerAuthenticated;
 
-  const handleUserLogout = () => {
-    signOut();
+  const handleUserLogout = async () => {
+    await signOut();
     if (onLogout) onLogout();
   };
 

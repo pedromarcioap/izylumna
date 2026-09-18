@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { UserProfile, UserRole } from '../types';
+import { UserProfile, UserRole, PhotographerProfile } from '../types';
+import { logoutPhotographer, savePhotographerProfile, savePhotographerSession } from '../lib/auth';
 
 interface AuthContextType {
   user: User | null;
@@ -179,9 +180,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signInWithPassword = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     setIsLoading(true);
     try {
+      const emailClean = email.trim().toLowerCase();
       if (isSupabaseConfigured && supabase) {
         const { data, error } = await supabase.auth.signInWithPassword({
-          email: email.trim(),
+          email: emailClean,
           password
         });
 
@@ -191,7 +193,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         if (data.user) {
-          const prof = await fetchUserProfile(data.user.id, data.user.email || email);
+          const prof = await fetchUserProfile(data.user.id, data.user.email || emailClean);
           if (prof && !prof.is_active) {
             await supabase.auth.signOut();
             setIsLoading(false);
@@ -201,24 +203,86 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             };
           }
           setProfile(prof);
+          if (prof) {
+            const photoProfile: PhotographerProfile = {
+              id: prof.id,
+              name: prof.full_name || splitEmailName(prof.email),
+              email: prof.email,
+              studioName: 'Lumina Proofing Studio',
+              phone: '',
+              avatarUrl: prof.avatar_url || '',
+              defaultWatermarkText: 'PROVA • LUMINA STUDIO • PROVA',
+              defaultExtraPrice: 30
+            };
+            savePhotographerProfile(photoProfile);
+            savePhotographerSession({
+              isAuthenticated: true,
+              token: `token_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+              loginTime: new Date().toISOString(),
+              rememberMe: true,
+              profile: photoProfile
+            });
+          }
         }
         setIsLoading(false);
         return { success: true };
       } else {
         // Local simulation login
-        const mockUserId = '00000000-0000-4000-a000-000000000001';
-        const mockUser: any = { id: mockUserId, email: email.trim() };
-        const mockProfile: UserProfile = {
-          id: mockUserId,
-          email: email.trim(),
-          full_name: splitEmailName(email),
-          role: 'admin',
-          is_active: true,
-          created_at: new Date().toISOString()
-        };
+        const allProfiles = await fetchAllProfiles();
+        let matchingProfile = allProfiles.find(
+          (p) =>
+            p.email.toLowerCase() === emailClean ||
+            (emailClean === 'admin' && p.role === 'admin') ||
+            (emailClean === 'fotografo' && (p.role === 'photographer' || p.role === 'admin'))
+        );
+
+        if (matchingProfile) {
+          if (!matchingProfile.is_active) {
+            setIsLoading(false);
+            return {
+              success: false,
+              error: 'A sua conta foi suspensa/desativada por um administrador. Entre em contato com o suporte.'
+            };
+          }
+        } else {
+          matchingProfile = {
+            id: generateUUID(),
+            email: emailClean,
+            full_name: splitEmailName(emailClean),
+            role: allProfiles.length === 0 ? 'admin' : 'photographer',
+            is_active: true,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          };
+          const existingLocal = getStoredProfiles();
+          saveStoredProfiles([matchingProfile, ...existingLocal.filter((p) => p.email.toLowerCase() !== emailClean)]);
+        }
+
+        const mockUser: any = { id: matchingProfile.id, email: matchingProfile.email };
         setUser(mockUser);
-        setProfile(mockProfile);
-        localStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify({ user: mockUser, profile: mockProfile }));
+        setProfile(matchingProfile);
+        localStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify({ user: mockUser, profile: matchingProfile }));
+
+        // Sync with local photographer session in lib/auth.ts
+        const photoProfile: PhotographerProfile = {
+          id: matchingProfile.id,
+          name: matchingProfile.full_name || splitEmailName(matchingProfile.email),
+          email: matchingProfile.email,
+          studioName: 'Lumina Proofing Studio',
+          phone: '',
+          avatarUrl: matchingProfile.avatar_url || '',
+          defaultWatermarkText: 'PROVA • LUMINA STUDIO • PROVA',
+          defaultExtraPrice: 30
+        };
+        savePhotographerProfile(photoProfile);
+        savePhotographerSession({
+          isAuthenticated: true,
+          token: `token_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+          loginTime: new Date().toISOString(),
+          rememberMe: true,
+          profile: photoProfile
+        });
+
         setIsLoading(false);
         return { success: true };
       }
@@ -262,10 +326,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else {
         // Local simulation signup
         const newId = generateUUID();
-        const mockUser: any = { id: newId, email: email.trim() };
+        const emailClean = email.trim().toLowerCase();
+        const mockUser: any = { id: newId, email: emailClean };
         const mockProfile: UserProfile = {
           id: mockUser.id,
-          email: email.trim(),
+          email: emailClean,
           full_name: fullName.trim(),
           role: role || 'admin',
           is_active: true,
@@ -274,6 +339,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(mockUser);
         setProfile(mockProfile);
         localStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify({ user: mockUser, profile: mockProfile }));
+
+        const photoProfile: PhotographerProfile = {
+          id: mockProfile.id,
+          name: mockProfile.full_name || splitEmailName(mockProfile.email),
+          email: mockProfile.email,
+          studioName: 'Lumina Proofing Studio',
+          phone: '',
+          avatarUrl: mockProfile.avatar_url || '',
+          defaultWatermarkText: 'PROVA • LUMINA STUDIO • PROVA',
+          defaultExtraPrice: 30
+        };
+        savePhotographerProfile(photoProfile);
+        savePhotographerSession({
+          isAuthenticated: true,
+          token: `token_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+          loginTime: new Date().toISOString(),
+          rememberMe: true,
+          profile: photoProfile
+        });
+
         setIsLoading(false);
         return { success: true };
       }
@@ -293,6 +378,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(null);
       setProfile(null);
       localStorage.removeItem(LOCAL_SESSION_KEY);
+      logoutPhotographer();
     } catch (e) {
       console.error('Erro ao encerrar sessão:', e);
     } finally {
@@ -476,11 +562,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const defaultTeam: UserProfile[] = [
       profile || {
         id: '00000000-0000-4000-a000-000000000001',
+        email: 'admin@lumina.com',
+        full_name: 'Lucas Silveira (Admin)',
+        role: 'admin',
+        is_active: true,
+        created_at: '2026-01-15T10:00:00Z'
+      },
+      {
+        id: '00000000-0000-4000-a000-000000000005',
         email: 'contato@luminastudio.com',
         full_name: 'Lumina Studio Admin',
         role: 'admin',
         is_active: true,
-        created_at: '2026-01-15T10:00:00Z'
+        created_at: '2026-01-16T10:00:00Z'
       },
       {
         id: '00000000-0000-4000-a000-000000000002',
