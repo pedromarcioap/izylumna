@@ -3,6 +3,17 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { UserProfile, UserRole, PhotographerProfile } from '../types';
 import { logoutPhotographer, savePhotographerProfile, savePhotographerSession } from '../lib/auth';
+import { validatePassword } from '../lib/passwordValidation';
+
+export interface AdminCreateUserOptions {
+  email: string;
+  fullName: string;
+  role: UserRole;
+  phone?: string;
+  password?: string;
+  sendInvite?: boolean;
+  mustChangePassword?: boolean;
+}
 
 interface AuthContextType {
   user: User | null;
@@ -18,7 +29,7 @@ interface AuthContextType {
   updateProfile: (data: { full_name?: string; avatar_url?: string }) => Promise<{ success: boolean; error?: string }>;
   changePassword: (newPassword: string) => Promise<{ success: boolean; error?: string }>;
   adminUpdateUser: (userId: string, data: { role?: UserRole; is_active?: boolean }) => Promise<{ success: boolean; error?: string }>;
-  adminCreateUser: (data: { email: string; password?: string; fullName: string; role: UserRole; phone?: string }) => Promise<{ success: boolean; user?: UserProfile; error?: string }>;
+  adminCreateUser: (data: AdminCreateUserOptions) => Promise<{ success: boolean; user?: UserProfile; error?: string }>;
   fetchAllProfiles: () => Promise<UserProfile[]>;
 }
 
@@ -545,13 +556,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const adminCreateUser = async (data: {
-    email: string;
-    password?: string;
-    fullName: string;
-    role: UserRole;
-    phone?: string;
-  }): Promise<{ success: boolean; user?: UserProfile; error?: string }> => {
+  const adminCreateUser = async (
+    data: AdminCreateUserOptions
+  ): Promise<{ success: boolean; user?: UserProfile; error?: string }> => {
     if (!profile || profile.role !== 'admin') {
       return { success: false, error: 'Somente administradores possuem permissão para criar novos usuários e gerenciar funções.' };
     }
@@ -561,6 +568,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (!emailClean || !fullNameClean) {
       return { success: false, error: 'E-mail e Nome Completo são obrigatórios.' };
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(emailClean)) {
+      return { success: false, error: 'Por favor, informe um endereço de e-mail com formato válido.' };
     }
 
     // Validate email uniqueness
@@ -573,24 +585,51 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
     }
 
+    // Defensive validation if manual password is used (Approach B)
+    if (!data.sendInvite) {
+      if (!data.password) {
+        return { success: false, error: 'A definição da senha é estritamente obrigatória quando o convite por e-mail não estiver selecionado.' };
+      }
+      const passValidation = validatePassword(data.password);
+      if (!passValidation.isValid) {
+        return {
+          success: false,
+          error: passValidation.errors[0] || 'A senha informada não atende aos requisitos mínimos de entropia.'
+        };
+      }
+    }
+
     const newProfile: UserProfile = {
       id: generateUUID(),
       email: emailClean,
       full_name: fullNameClean,
       role: data.role || 'photographer',
       is_active: true,
+      must_change_password: data.mustChangePassword ?? true,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
 
     if (isSupabaseConfigured && supabase && isValidUUID(newProfile.id)) {
       try {
+        if (data.sendInvite) {
+          if (supabase.auth.admin && typeof (supabase.auth.admin as any).inviteUserByEmail === 'function') {
+            const { error: inviteError } = await (supabase.auth.admin as any).inviteUserByEmail(emailClean, {
+              data: { full_name: fullNameClean, role: newProfile.role }
+            });
+            if (inviteError) {
+              console.warn('Supabase invite trigger note:', inviteError.message);
+            }
+          }
+        }
+
         const { error } = await supabase.from('profiles').insert([{
           id: newProfile.id,
           email: newProfile.email,
           full_name: newProfile.full_name,
           role: newProfile.role,
           is_active: true,
+          must_change_password: newProfile.must_change_password,
           created_at: newProfile.created_at,
           updated_at: newProfile.updated_at
         }]);

@@ -26,7 +26,11 @@ import {
   UserPlus,
   X,
   Mail,
-  Phone
+  Phone,
+  Send,
+  KeyRound,
+  ShieldAlert,
+  Info
 } from 'lucide-react';
 
 export interface UserManagementViewProps {
@@ -44,6 +48,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onShowTo
 
   // Create User Form state
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [creationMode, setCreationMode] = useState<'invite' | 'manual'>('invite');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [newUserData, setNewUserData] = useState({
     fullName: '',
@@ -181,33 +186,56 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onShowTo
 
   const handleCreateUserSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newUserData.fullName.trim() || !newUserData.email.trim()) {
-      onShowToast('Campos Obrigatórios', 'Preencha o Nome Completo e o E-mail.', 'warning');
+
+    const fullName = newUserData.fullName.trim();
+    const email = newUserData.email.trim().toLowerCase();
+    const phone = newUserData.phone.trim();
+    const password = newUserData.password.trim();
+
+    if (!fullName) {
+      onShowToast('Campo Obrigatório', 'Por favor, informe o Nome Completo do usuário.', 'warning');
       return;
     }
 
-    const targetPassword = newUserData.password.trim() || 'Mudar123!';
-    const validation = validatePassword(targetPassword);
-    if (!validation.isValid) {
-      onShowToast('Senha Invalida', validation.errors[0], 'warning');
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email || !emailRegex.test(email)) {
+      onShowToast('E-mail Inválido', 'Por favor, informe um endereço de e-mail com formato válido.', 'warning');
       return;
+    }
+
+    if (creationMode === 'manual') {
+      if (!password) {
+        onShowToast('Senha Obrigatória', 'No modo de definição manual, a senha é estritamente obrigatória.', 'warning');
+        return;
+      }
+      const validation = validatePassword(password);
+      if (!validation.isValid) {
+        onShowToast('Senha Insegura', validation.errors[0] || 'A senha não atende aos requisitos mínimos de segurança.', 'warning');
+        return;
+      }
     }
 
     setIsSubmitting(true);
-    const res = await adminCreateUser({
-      fullName: newUserData.fullName,
-      email: newUserData.email,
-      password: targetPassword,
-      role: newUserData.role,
-      phone: newUserData.phone
-    });
 
+    const payload = {
+      fullName,
+      email,
+      role: newUserData.role,
+      phone: phone || undefined,
+      sendInvite: creationMode === 'invite',
+      password: creationMode === 'manual' ? password : undefined,
+      mustChangePassword: true
+    };
+
+    const res = await adminCreateUser(payload);
     setIsSubmitting(false);
 
     if (res.success) {
       onShowToast(
-        'Usuário Criado com Sucesso!',
-        `O membro "${newUserData.fullName}" foi adicionado com nível de ${newUserData.role === 'admin' ? 'Administrador' : newUserData.role === 'photographer' ? 'Fotógrafo' : 'Usuário'}.`,
+        creationMode === 'invite' ? 'Convite de Ativação Enviado!' : 'Usuário Criado com Sucesso!',
+        creationMode === 'invite'
+          ? `Um e-mail de convite com token temporário foi enviado para "${email}".`
+          : `O membro "${fullName}" foi cadastrado com sucesso. A redefinição de senha será exigida no primeiro login.`,
         'success'
       );
       setNewUserData({
@@ -217,6 +245,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onShowTo
         password: '',
         role: 'photographer'
       });
+      setCreationMode('invite');
       setIsCreateModalOpen(false);
       loadUsers();
     } else {
@@ -500,7 +529,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onShowTo
                 </div>
                 <div>
                   <h3 className="font-serif font-bold text-lg text-white">Cadastrar Membro na Equipe</h3>
-                  <p className="text-xs text-zinc-400">Adicione dados de acesso e nível de permissão.</p>
+                  <p className="text-xs text-zinc-400">Adicione dados de acesso e escolha o método de criação seguro.</p>
                 </div>
               </div>
               <button
@@ -509,6 +538,54 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onShowTo
               >
                 <X className="w-5 h-5" />
               </button>
+            </div>
+
+            {/* Creation Mode Selector (Abordagem A vs Abordagem B) */}
+            <div className="space-y-1.5">
+              <label className="block text-zinc-300 font-medium">Método de Criação de Conta</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCreationMode('invite')}
+                  className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between ${
+                    creationMode === 'invite'
+                      ? 'bg-[#8300E9]/20 border-[#8300E9] text-white ring-1 ring-[#8300E9]'
+                      : 'bg-[#0A0714] border-white/10 text-zinc-400 hover:text-zinc-200'
+                  }`}
+                >
+                  <div className="flex items-center justify-between w-full mb-1">
+                    <Send className="w-4 h-4 text-purple-400" />
+                    <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[10px] font-mono font-bold">
+                      Recomendado
+                    </span>
+                  </div>
+                  <span className="font-bold text-xs">Convite por E-mail</span>
+                  <span className="text-[10px] text-zinc-400 leading-tight mt-0.5">
+                    Usuário define sua própria senha no 1º acesso
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setCreationMode('manual')}
+                  className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between ${
+                    creationMode === 'manual'
+                      ? 'bg-amber-500/20 border-amber-500 text-white ring-1 ring-amber-500'
+                      : 'bg-[#0A0714] border-white/10 text-zinc-400 hover:text-zinc-200'
+                  }`}
+                >
+                  <div className="flex items-center justify-between w-full mb-1">
+                    <KeyRound className="w-4 h-4 text-amber-400" />
+                    <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[10px] font-mono">
+                      Senha Manual
+                    </span>
+                  </div>
+                  <span className="font-bold text-xs">Senha com Redefinição</span>
+                  <span className="text-[10px] text-zinc-400 leading-tight mt-0.5">
+                    Redefinição forçada no 1º login (mustChangePassword)
+                  </span>
+                </button>
+              </div>
             </div>
 
             {/* Modal Form */}
@@ -540,22 +617,37 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onShowTo
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-zinc-300 font-medium mb-1.5">WhatsApp / Telefone</label>
-                  <Input
-                    placeholder="(11) 99999-9999"
-                    value={newUserData.phone}
-                    onChange={(e) => setNewUserData({ ...newUserData, phone: e.target.value })}
-                    leftIcon={<Phone className="w-4 h-4" />}
-                  />
-                </div>
+              <div>
+                <label className="block text-zinc-300 font-medium mb-1.5">WhatsApp / Telefone</label>
+                <Input
+                  placeholder="(11) 99999-9999"
+                  value={newUserData.phone}
+                  onChange={(e) => setNewUserData({ ...newUserData, phone: e.target.value })}
+                  leftIcon={<Phone className="w-4 h-4" />}
+                />
+              </div>
 
-                <div>
-                  <label className="block text-zinc-300 font-medium mb-1.5">Senha Inicial</label>
+              {/* Dynamic Password / Invite Notice Field */}
+              {creationMode === 'invite' ? (
+                <div className="p-3.5 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-start gap-3 text-purple-200">
+                  <Info className="w-5 h-5 text-purple-400 shrink-0 mt-0.5" />
+                  <div className="text-xs leading-relaxed">
+                    <strong className="block text-white font-medium mb-0.5">Fluxo de Ativação Seguro</strong>
+                    Um e-mail com token temporário e link de ativação será enviado. O próprio usuário definirá sua senha no primeiro acesso.
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2 p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-zinc-200 font-medium">
+                      Senha Inicial Estrita <span className="text-amber-400">*</span>
+                    </label>
+                    <span className="text-[10px] text-amber-300 font-mono">Requer troca no 1º login</span>
+                  </div>
                   <Input
+                    required
                     type="password"
-                    placeholder="Ex: Senha@123 (Padrão: Mudar123!)"
+                    placeholder="Digite uma senha forte e única"
                     value={newUserData.password}
                     onChange={(e) => setNewUserData({ ...newUserData, password: e.target.value })}
                   />
@@ -563,7 +655,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onShowTo
                     <PasswordStrengthIndicator password={newUserData.password} showChecklist={true} />
                   )}
                 </div>
-              </div>
+              )}
 
               <div>
                 <label className="block text-zinc-300 font-medium mb-1.5">
@@ -634,8 +726,10 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onShowTo
                 >
                   {isSubmitting ? (
                     <span className="flex items-center gap-1.5">
-                      <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Cadastrando...
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Processando...
                     </span>
+                  ) : creationMode === 'invite' ? (
+                    'Enviar Convite por E-mail'
                   ) : (
                     'Confirmar e Cadastrar'
                   )}
