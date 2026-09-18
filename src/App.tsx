@@ -27,7 +27,7 @@ import { StudioSettingsView } from './components/settings/StudioSettingsView';
 
 
 export default function App() {
-  const { user, profile, signOut } = useAuth();
+  const { user, profile, signOut, isLoading: isAuthLoading } = useAuth();
   const [galleries, setGalleries] = useState<Gallery[]>(() => getGalleries());
 
   const isAdobeCallback = typeof window !== 'undefined' && (
@@ -270,6 +270,28 @@ export default function App() {
           window.location.href = window.location.origin;
         }}
       />
+    );
+  }
+
+  if (isAuthLoading) {
+    return (
+      <div className="min-h-screen bg-[#07050E] flex flex-col items-center justify-center p-6 text-zinc-400">
+        <div className="w-8 h-8 border-2 border-[#8300E9] border-t-transparent rounded-full animate-spin mb-3" />
+        <p className="text-sm font-medium">Verificando sessão de autenticação...</p>
+      </div>
+    );
+  }
+
+  if (currentRole === 'admin' && (!user || !profile || !profile.is_active)) {
+    return (
+      <div className="min-h-screen bg-[#07050E] text-zinc-100 flex items-center justify-center p-4 relative">
+        <PhotographerLogin
+          onLoginSuccess={handleLoginSuccess}
+          onReturnToClient={() => setCurrentRole('client')}
+          onShowToast={showToast}
+        />
+        <ToastContainer toasts={toasts} onDismiss={handleDismissToast} />
+      </div>
     );
   }
 
