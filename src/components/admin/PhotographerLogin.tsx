@@ -220,7 +220,7 @@ export const PhotographerLogin: React.FC<PhotographerLoginProps> = ({
             {mode === 'signup' && (
               <div className="space-y-1.5">
                 <label className="block text-xs font-medium text-zinc-300">
-                  Função / Papel Solicitado
+                  Perfil de Acesso Solicitado
                 </label>
                 <select
                   value={selectedRole}
@@ -229,8 +229,10 @@ export const PhotographerLogin: React.FC<PhotographerLoginProps> = ({
                 >
                   <option value="photographer">Fotógrafo Profissional</option>
                   <option value="user">Usuário Comum / Cliente</option>
-                  <option value="admin">Administrador (Sujeito à validação)</option>
                 </select>
+                <p className="text-[10px] text-zinc-400">
+                  * A atribuição ou alteração de funções administrativas é realizada exclusivamente por um Administrador.
+                </p>
               </div>
             )}
 

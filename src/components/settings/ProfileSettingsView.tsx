@@ -17,7 +17,10 @@ import {
   AlertCircle,
   Loader2,
   HardDrive,
-  KeyRound
+  KeyRound,
+  Lock,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 
 export interface ProfileSettingsViewProps {
@@ -26,13 +29,53 @@ export interface ProfileSettingsViewProps {
 }
 
 export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({ onShowToast, onClose }) => {
-  const { user, profile, updateProfile, isAdmin, isPhotographer } = useAuth();
+  const { user, profile, updateProfile, changePassword, isAdmin, isPhotographer } = useAuth();
 
   const [fullName, setFullName] = useState<string>(profile?.full_name || '');
   const [avatarUrl, setAvatarUrl] = useState<string>(profile?.avatar_url || '');
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Password change state
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [passwordMessage, setPasswordMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordMessage(null);
+
+    if (!newPassword) {
+      setPasswordMessage({ type: 'error', text: 'Informe a nova senha de acesso.' });
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setPasswordMessage({ type: 'error', text: 'A senha deve possuir no mínimo 6 caracteres.' });
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordMessage({ type: 'error', text: 'As senhas informadas não coincidem. Digite novamente.' });
+      return;
+    }
+
+    setIsChangingPassword(true);
+    const res = await changePassword(newPassword);
+    setIsChangingPassword(false);
+
+    if (res.success) {
+      setPasswordMessage({ type: 'success', text: 'Sua senha foi alterada com sucesso!' });
+      onShowToast('Senha Atualizada', 'Sua nova senha de acesso foi salva com segurança.', 'success');
+      setNewPassword('');
+      setConfirmPassword('');
+    } else {
+      setPasswordMessage({ type: 'error', text: res.error || 'Falha ao alterar senha.' });
+    }
+  };
 
   const handleAvatarFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -223,6 +266,77 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({ onShow
               onChange={(e) => setAvatarUrl(e.target.value)}
               placeholder="https://..."
             />
+
+            {/* Password Change Section */}
+            <div className="p-4 rounded-xl bg-zinc-950/80 border border-zinc-800 space-y-4">
+              <div className="flex items-center justify-between border-b border-zinc-850 pb-2">
+                <div className="flex items-center gap-2">
+                  <KeyRound className="w-4 h-4 text-amber-400" />
+                  <h3 className="font-semibold text-xs text-zinc-200">Alterar Senha de Acesso</h3>
+                </div>
+                <span className="text-[11px] text-zinc-500">Mínimo de 6 caracteres</span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="relative">
+                  <Input
+                    type={showPassword ? 'text' : 'password'}
+                    label="Nova Senha"
+                    placeholder="••••••••"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    leftIcon={<Lock className="w-4 h-4 text-zinc-400" />}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-[34px] text-zinc-400 hover:text-zinc-200"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+
+                <Input
+                  type={showPassword ? 'text' : 'password'}
+                  label="Confirmar Nova Senha"
+                  placeholder="••••••••"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  leftIcon={<Lock className="w-4 h-4 text-zinc-400" />}
+                />
+              </div>
+
+              {passwordMessage && (
+                <div
+                  className={`p-2.5 rounded-lg border text-xs flex items-center gap-2 ${
+                    passwordMessage.type === 'success'
+                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                      : 'bg-red-500/10 border-red-500/30 text-red-300'
+                  }`}
+                >
+                  {passwordMessage.type === 'success' ? (
+                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                  )}
+                  <span>{passwordMessage.text}</span>
+                </div>
+              )}
+
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePasswordSubmit}
+                  disabled={isChangingPassword || !newPassword}
+                  className="text-xs border-amber-500/40 text-amber-300 hover:bg-amber-500/10"
+                >
+                  <KeyRound className="w-3.5 h-3.5 mr-1.5" />
+                  <span>{isChangingPassword ? 'Atualizando...' : 'Atualizar Senha'}</span>
+                </Button>
+              </div>
+            </div>
 
             {/* Quota & Permissions Summary */}
             <div className="p-4 rounded-xl bg-zinc-950/80 border border-zinc-800 space-y-3">

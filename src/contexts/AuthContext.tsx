@@ -16,6 +16,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, fullName: string, role?: UserRole) => Promise<{ success: boolean; error?: string }>;
   signOut: () => Promise<void>;
   updateProfile: (data: { full_name?: string; avatar_url?: string }) => Promise<{ success: boolean; error?: string }>;
+  changePassword: (newPassword: string) => Promise<{ success: boolean; error?: string }>;
   adminUpdateUser: (userId: string, data: { role?: UserRole; is_active?: boolean }) => Promise<{ success: boolean; error?: string }>;
   adminCreateUser: (data: { email: string; password?: string; fullName: string; role: UserRole; phone?: string }) => Promise<{ success: boolean; user?: UserProfile; error?: string }>;
   fetchAllProfiles: () => Promise<UserProfile[]>;
@@ -300,6 +301,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   ): Promise<{ success: boolean; error?: string }> => {
     setIsLoading(true);
     try {
+      const emailClean = email.trim().toLowerCase();
+
+      // Prevent registration of existing emails
+      const allProfiles = await fetchAllProfiles();
+      const existing = allProfiles.find((p) => p.email.toLowerCase() === emailClean);
+      if (existing) {
+        setIsLoading(false);
+        return {
+          success: false,
+          error: `Este e-mail (${emailClean}) já está cadastrado no sistema. Por favor, utilize a opção "Entrar" com suas credenciais.`
+        };
+      }
+
+      // Enforce role permission: non-admins cannot assign 'admin' role
+      let finalRole: UserRole = role;
+      if (role === 'admin' && profile?.role !== 'admin') {
+        finalRole = 'photographer';
+      }
+
       if (isSupabaseConfigured && supabase) {
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
@@ -307,7 +327,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           options: {
             data: {
               full_name: fullName.trim(),
-              role
+              role: finalRole
             }
           }
         });
@@ -326,13 +346,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else {
         // Local simulation signup
         const newId = generateUUID();
-        const emailClean = email.trim().toLowerCase();
         const mockUser: any = { id: newId, email: emailClean };
         const mockProfile: UserProfile = {
           id: mockUser.id,
           email: emailClean,
           full_name: fullName.trim(),
-          role: role || 'admin',
+          role: finalRole,
           is_active: true,
           created_at: new Date().toISOString()
         };
@@ -365,6 +384,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (e: any) {
       setIsLoading(false);
       return { success: false, error: e.message || 'Erro durante o cadastro.' };
+    }
+  };
+
+  const changePassword = async (newPassword: string): Promise<{ success: boolean; error?: string }> => {
+    if (!user) {
+      return { success: false, error: 'Você precisa estar autenticado para alterar sua senha.' };
+    }
+
+    if (!newPassword || newPassword.length < 6) {
+      return { success: false, error: 'A nova senha deve conter no mínimo 6 caracteres.' };
+    }
+
+    try {
+      if (isSupabaseConfigured && supabase) {
+        const { error } = await supabase.auth.updateUser({
+          password: newPassword
+        });
+
+        if (error) {
+          return { success: false, error: error.message };
+        }
+      }
+
+      // Local fallback simulation
+      try {
+        const stored = localStorage.getItem(LOCAL_SESSION_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed.user) {
+            parsed.user.updated_at = new Date().toISOString();
+            localStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify(parsed));
+          }
+        }
+      } catch (e) {
+        console.warn('Erro ao atualizar senha local:', e);
+      }
+
+      return { success: true };
+    } catch (e: any) {
+      return { success: false, error: e.message || 'Erro ao alterar a senha.' };
     }
   };
 
@@ -426,7 +485,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     data: { role?: UserRole; is_active?: boolean }
   ): Promise<{ success: boolean; error?: string }> => {
     if (!profile || profile.role !== 'admin') {
-      return { success: false, error: 'Apenas Administradores podem alterar privilégios.' };
+      return { success: false, error: 'Somente administradores possuem permissão para alterar funções de usuários.' };
     }
 
     const isSelf =
@@ -493,11 +552,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     role: UserRole;
     phone?: string;
   }): Promise<{ success: boolean; user?: UserProfile; error?: string }> => {
+    if (!profile || profile.role !== 'admin') {
+      return { success: false, error: 'Somente administradores possuem permissão para criar novos usuários e gerenciar funções.' };
+    }
+
     const emailClean = data.email.trim().toLowerCase();
     const fullNameClean = data.fullName.trim();
 
     if (!emailClean || !fullNameClean) {
       return { success: false, error: 'E-mail e Nome Completo são obrigatórios.' };
+    }
+
+    // Validate email uniqueness
+    const allProfiles = await fetchAllProfiles();
+    const existingUser = allProfiles.find((p) => p.email.toLowerCase() === emailClean);
+    if (existingUser) {
+      return {
+        success: false,
+        error: `Não é possível cadastrar: O e-mail "${emailClean}" já pertence a um usuário cadastrado no sistema.`
+      };
     }
 
     const newProfile: UserProfile = {
@@ -631,6 +704,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signUp,
         signOut,
         updateProfile,
+        changePassword,
         adminUpdateUser,
         adminCreateUser,
         fetchAllProfiles

@@ -87,6 +87,15 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onShowTo
   const paginatedUsers = filteredUsers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   const handleRoleChange = async (targetUser: UserProfile, newRole: UserRole) => {
+    if (!currentUserProfile || currentUserProfile.role !== 'admin') {
+      onShowToast(
+        'Acesso Negado',
+        'Somente Administradores possuem permissão para alterar funções.',
+        'warning'
+      );
+      return;
+    }
+
     const isSelf =
       targetUser.id === currentUserProfile?.id ||
       (currentUserProfile?.email && targetUser.email.toLowerCase() === currentUserProfile.email.toLowerCase());
@@ -361,8 +370,14 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onShowTo
                           <select
                             value={userItem.role}
                             onChange={(e) => handleRoleChange(userItem, e.target.value as UserRole)}
-                            disabled={isSelf}
-                            title={isSelf ? 'Você não pode alterar sua própria função de admin' : 'Alterar privilégios'}
+                            disabled={isSelf || currentUserProfile?.role !== 'admin'}
+                            title={
+                              isSelf
+                                ? 'Você não pode alterar sua própria função de admin'
+                                : currentUserProfile?.role !== 'admin'
+                                ? 'Somente Administradores podem alterar funções'
+                                : 'Alterar privilégios'
+                            }
                             className="bg-zinc-950 border border-zinc-800 text-zinc-300 text-[11px] rounded-lg px-2 py-1 focus:outline-none focus:border-amber-500 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <option value="admin">Promover a Admin</option>
