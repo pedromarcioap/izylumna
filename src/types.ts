@@ -162,6 +162,26 @@ export type OrderPayerType = 'client' | 'photographer';
 
 export type OrderStatus = 'pending' | 'paid' | 'expired' | 'canceled';
 
+export type TransactionStatus = 'settled' | 'pending' | 'canceled' | 'failed';
+export type PaymentMethod = 'pix' | 'manual' | 'credit_card' | 'bank_transfer';
+
+export interface FinancialTransaction {
+  id: string;
+  galleryId?: string;
+  galleryTitle: string;
+  clientName: string;
+  clientPhone: string;
+  extraPhotosCount: number;
+  amount: number;
+  pixTxId: string;
+  status: TransactionStatus;
+  date: string;
+  paymentMethod?: PaymentMethod;
+  notes?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface Order {
   id: string;
   galleryId: string;
