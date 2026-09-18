@@ -89,13 +89,12 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({ onShow
         const fileExt = file.name.split('.').pop() || 'png';
         const fileName = `${user.id}-${Date.now()}.${fileExt}`;
 
-        const { data, error } = await supabase.storage
+        const { error } = await supabase.storage
           .from('avatars')
           .upload(fileName, file, { upsert: true, cacheControl: '3600' });
 
         if (error) {
           console.warn('Upload bucket fallback warning:', error.message);
-          // If bucket doesn't exist yet, convert to Base64 data URL
           const reader = new FileReader();
           reader.onload = (event) => {
             const base64 = event.target?.result as string;
@@ -114,7 +113,6 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({ onShow
         setAvatarUrl(publicUrl);
         onShowToast('Avatar Carregado!', 'Sua nova foto de perfil foi salva no Supabase Storage.', 'success');
       } else {
-        // Local Base64 preview
         const reader = new FileReader();
         reader.onload = (event) => {
           const base64 = event.target?.result as string;
@@ -166,7 +164,7 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({ onShow
                   Meu Perfil & Permissões
                 </h2>
                 <p className="text-xs text-zinc-400 mt-0.5">
-                  Gerencie seus dados pessoais, foto de exibição e visualize sua cota e privilégios.
+                  Gerencie seus dados pessoais, foto de exibição e altere sua senha de acesso.
                 </p>
               </div>
             </div>
@@ -192,7 +190,7 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({ onShow
             </div>
           </div>
 
-          {/* Form */}
+          {/* Form 1: Profile Info (Name & Avatar) */}
           <form onSubmit={handleSaveProfile} className="space-y-5">
             {/* Avatar section */}
             <div className="flex flex-col sm:flex-row items-center gap-5 p-4 rounded-xl bg-zinc-950/60 border border-zinc-800">
@@ -267,7 +265,34 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({ onShow
               placeholder="https://..."
             />
 
-            {/* Password Change Section */}
+            {message && (
+              <div
+                className={`p-3 rounded-xl border text-xs flex items-center gap-2 ${
+                  message.type === 'success'
+                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                    : 'bg-red-500/10 border-red-500/30 text-red-300'
+                }`}
+              >
+                {message.type === 'success' ? (
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                )}
+                <span>{message.text}</span>
+              </div>
+            )}
+
+            {/* Profile Info Save Button */}
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <Button type="submit" variant="amber" disabled={isSaving}>
+                <Save className="w-4 h-4 mr-1.5" />
+                <span>{isSaving ? 'Salvando...' : 'Salvar Alterações de Perfil'}</span>
+              </Button>
+            </div>
+          </form>
+
+          {/* Form 2: Password Change Section (Independent Form) */}
+          <form onSubmit={handlePasswordSubmit} className="pt-6 border-t border-zinc-800 space-y-4">
             <div className="p-4 rounded-xl bg-zinc-950/80 border border-zinc-800 space-y-4">
               <div className="flex items-center justify-between border-b border-zinc-850 pb-2">
                 <div className="flex items-center gap-2">
@@ -325,10 +350,9 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({ onShow
 
               <div className="flex justify-end">
                 <Button
-                  type="button"
+                  type="submit"
                   variant="outline"
                   size="sm"
-                  onClick={handlePasswordSubmit}
                   disabled={isChangingPassword || !newPassword}
                   className="text-xs border-amber-500/40 text-amber-300 hover:bg-amber-500/10"
                 >
@@ -337,74 +361,53 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({ onShow
                 </Button>
               </div>
             </div>
+          </form>
 
-            {/* Quota & Permissions Summary */}
-            <div className="p-4 rounded-xl bg-zinc-950/80 border border-zinc-800 space-y-3">
-              <div className="flex items-center justify-between text-xs border-b border-zinc-850 pb-2">
-                <span className="font-semibold text-zinc-300 flex items-center gap-1.5">
-                  <HardDrive className="w-4 h-4 text-amber-400" />
-                  <span>Cotas & Nível de Permissão</span>
-                </span>
-                <span className="font-mono text-zinc-400 text-[11px]">ID: {profile?.id?.slice(0, 8)}...</span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                <div className="p-2.5 rounded-lg bg-zinc-900 border border-zinc-800">
-                  <span className="text-zinc-400 text-[11px]">Função no Sistema</span>
-                  <p className="font-semibold text-zinc-200 mt-0.5 capitalize">
-                    {profile?.role === 'admin' ? 'Administrador do Sistema' : profile?.role === 'photographer' ? 'Fotógrafo Profissional' : 'Usuário / Cliente'}
-                  </p>
-                </div>
-
-                <div className="p-2.5 rounded-lg bg-zinc-900 border border-zinc-800">
-                  <span className="text-zinc-400 text-[11px]">Capacidade de Galerias</span>
-                  <p className="font-semibold text-emerald-400 mt-0.5">
-                    {isAdmin || isPhotographer ? 'Ilimitado (Painel Ativo)' : 'Restrito a galerias vinculadas'}
-                  </p>
-                </div>
-              </div>
+          {/* Quota & Permissions Summary */}
+          <div className="p-4 rounded-xl bg-zinc-950/80 border border-zinc-800 space-y-3">
+            <div className="flex items-center justify-between text-xs border-b border-zinc-850 pb-2">
+              <span className="font-semibold text-zinc-300 flex items-center gap-1.5">
+                <HardDrive className="w-4 h-4 text-amber-400" />
+                <span>Cotas & Nível de Permissão</span>
+              </span>
+              <span className="font-mono text-zinc-400 text-[11px]">ID: {profile?.id?.slice(0, 8)}...</span>
             </div>
 
-            {/* Adobe Integration Section */}
-            {user?.id && (
-              <div className="pt-2 border-t border-zinc-800">
-                <PhotographerIntegrationsTab
-                  userId={user.id}
-                  onShowToast={onShowToast}
-                />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              <div className="p-2.5 rounded-lg bg-zinc-900 border border-zinc-800">
+                <span className="text-zinc-400 text-[11px]">Função no Sistema</span>
+                <p className="font-semibold text-zinc-200 mt-0.5 capitalize">
+                  {profile?.role === 'admin' ? 'Administrador do Sistema' : profile?.role === 'photographer' ? 'Fotógrafo Profissional' : 'Usuário / Cliente'}
+                </p>
               </div>
-            )}
 
-            {message && (
-              <div
-                className={`p-3 rounded-xl border text-xs flex items-center gap-2 ${
-                  message.type === 'success'
-                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
-                    : 'bg-red-500/10 border-red-500/30 text-red-300'
-                }`}
-              >
-                {message.type === 'success' ? (
-                  <CheckCircle2 className="w-4 h-4 shrink-0" />
-                ) : (
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                )}
-                <span>{message.text}</span>
+              <div className="p-2.5 rounded-lg bg-zinc-900 border border-zinc-800">
+                <span className="text-zinc-400 text-[11px]">Capacidade de Galerias</span>
+                <p className="font-semibold text-emerald-400 mt-0.5">
+                  {isAdmin || isPhotographer ? 'Ilimitado (Painel Ativo)' : 'Restrito a galerias vinculadas'}
+                </p>
               </div>
-            )}
+            </div>
+          </div>
 
-            {/* Actions */}
+          {/* Adobe Integration Section (if admin/photographer) */}
+          {(isAdmin || isPhotographer) && user?.id && (
+            <div className="pt-2 border-t border-zinc-800">
+              <PhotographerIntegrationsTab
+                userId={user.id}
+                onShowToast={onShowToast}
+              />
+            </div>
+          )}
+
+          {/* Actions */}
+          {onClose && (
             <div className="flex items-center justify-end gap-3 pt-3 border-t border-zinc-800">
-              {onClose && (
-                <Button type="button" variant="ghost" onClick={onClose}>
-                  Cancelar
-                </Button>
-              )}
-              <Button type="submit" variant="amber" disabled={isSaving}>
-                <Save className="w-4 h-4 mr-1.5" />
-                <span>{isSaving ? 'Salvando...' : 'Salvar Alterações'}</span>
+              <Button type="button" variant="ghost" onClick={onClose}>
+                Fechar
               </Button>
             </div>
-          </form>
+          )}
         </CardContent>
       </Card>
     </div>

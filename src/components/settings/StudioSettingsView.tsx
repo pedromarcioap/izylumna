@@ -5,6 +5,8 @@ import { PhotographerIntegrationsTab } from '../admin/PhotographerIntegrationsTa
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
+import { useAuth } from '../../contexts/AuthContext';
+import { AdminRoute } from '../auth/ProtectedRoute';
 import {
   SlidersHorizontal,
   User,
@@ -16,7 +18,8 @@ import {
   CheckCircle2,
   ShieldCheck,
   Building,
-  KeyRound
+  KeyRound,
+  Lock
 } from 'lucide-react';
 
 export interface StudioSettingsViewProps {
@@ -28,6 +31,7 @@ export const StudioSettingsView: React.FC<StudioSettingsViewProps> = ({
   onShowToast,
   initialTab = 'perfil'
 }) => {
+  const { isAdmin, isPhotographer } = useAuth();
   const [activeTab, setActiveTab] = useState<'perfil' | 'team' | 'adobe' | 'pix'>(initialTab);
 
   // PIX Settings local state
@@ -80,7 +84,12 @@ export const StudioSettingsView: React.FC<StudioSettingsViewProps> = ({
         </button>
 
         <button
-          onClick={() => setActiveTab('team')}
+          onClick={() => {
+            if (!isAdmin) {
+              onShowToast('Acesso Restrito', 'Apenas Administradores podem gerenciar a equipe.', 'warning');
+            }
+            setActiveTab('team');
+          }}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
             activeTab === 'team'
               ? 'bg-[#8300E9] text-white shadow-lg shadow-purple-900/30'
@@ -89,6 +98,7 @@ export const StudioSettingsView: React.FC<StudioSettingsViewProps> = ({
         >
           <Users className="w-4 h-4" />
           <span>Gestão de Equipe (RBAC)</span>
+          {!isAdmin && <Lock className="w-3 h-3 text-amber-400 ml-1" />}
         </button>
 
         <button
@@ -104,7 +114,12 @@ export const StudioSettingsView: React.FC<StudioSettingsViewProps> = ({
         </button>
 
         <button
-          onClick={() => setActiveTab('pix')}
+          onClick={() => {
+            if (!isAdmin) {
+              onShowToast('Acesso Restrito', 'Apenas Administradores têm acesso às configurações de pagamento e PIX.', 'warning');
+            }
+            setActiveTab('pix');
+          }}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
             activeTab === 'pix'
               ? 'bg-[#8300E9] text-white shadow-lg shadow-purple-900/30'
@@ -113,6 +128,7 @@ export const StudioSettingsView: React.FC<StudioSettingsViewProps> = ({
         >
           <QrCode className="w-4 h-4 text-[#FDBD00]" />
           <span>Pagamentos & PIX</span>
+          {!isAdmin && <Lock className="w-3 h-3 text-amber-400 ml-1" />}
         </button>
       </div>
 
@@ -125,9 +141,11 @@ export const StudioSettingsView: React.FC<StudioSettingsViewProps> = ({
         )}
 
         {activeTab === 'team' && (
-          <div className="bg-[#120E22] p-6 rounded-2xl border border-white/10">
-            <UserManagementView onShowToast={onShowToast} />
-          </div>
+          <AdminRoute>
+            <div className="bg-[#120E22] p-6 rounded-2xl border border-white/10">
+              <UserManagementView onShowToast={onShowToast} />
+            </div>
+          </AdminRoute>
         )}
 
         {activeTab === 'adobe' && (
@@ -137,72 +155,74 @@ export const StudioSettingsView: React.FC<StudioSettingsViewProps> = ({
         )}
 
         {activeTab === 'pix' && (
-          <div className="bg-[#120E22] p-6 rounded-2xl border border-white/10 space-y-6 max-w-3xl">
-            <div>
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <QrCode className="w-5 h-5 text-[#FDBD00]" />
-                <span>Configuração de Chave PIX & Cobrança de Fotos Extras</span>
-              </h3>
-              <p className="text-xs text-zinc-400 mt-1">
-                Defina os dados bancários exibidos para os clientes na hora de confirmar a seleção de fotos além da cota contratada.
-              </p>
-            </div>
-
-            <form onSubmit={handleSavePix} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-mono text-zinc-300 mb-1">Tipo de Chave PIX</label>
-                  <select
-                    value={pixKeyType}
-                    onChange={(e: any) => setPixKeyType(e.target.value)}
-                    className="w-full py-2.5 px-3 rounded-xl bg-[#0A0714] border border-white/10 text-white text-xs focus:outline-none focus:border-[#FDBD00]"
-                  >
-                    <option value="cnpj">CNPJ</option>
-                    <option value="cpf">CPF</option>
-                    <option value="email">E-mail</option>
-                    <option value="phone">Telefone Celular</option>
-                    <option value="random">Chave Aleatória (EVP)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-mono text-zinc-300 mb-1">Chave PIX do Estúdio</label>
-                  <input
-                    type="text"
-                    value={pixKey}
-                    onChange={(e) => setPixKey(e.target.value)}
-                    placeholder="Informe a chave PIX..."
-                    className="w-full py-2 px-3 rounded-xl bg-[#0A0714] border border-white/10 text-white text-xs focus:outline-none focus:border-[#FDBD00]"
-                  />
-                </div>
-              </div>
-
+          <AdminRoute>
+            <div className="bg-[#120E22] p-6 rounded-2xl border border-white/10 space-y-6 max-w-3xl">
               <div>
-                <label className="block text-xs font-mono text-zinc-300 mb-1">
-                  Valor Padrão por Foto Extra (R$)
-                </label>
-                <div className="relative max-w-xs">
-                  <span className="absolute left-3 top-2.5 text-xs text-zinc-400 font-mono">R$</span>
-                  <input
-                    type="text"
-                    value={extraPhotoPrice}
-                    onChange={(e) => setExtraPhotoPrice(e.target.value)}
-                    className="w-full py-2 px-3 pl-9 rounded-xl bg-[#0A0714] border border-white/10 text-[#FDBD00] font-mono font-bold text-sm focus:outline-none focus:border-[#FDBD00]"
-                  />
-                </div>
-                <p className="text-[11px] text-zinc-500 mt-1">
-                  Este valor é aplicado por padrão a novas galerias criadas, podendo ser customizado em cada ensaio.
+                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                  <QrCode className="w-5 h-5 text-[#FDBD00]" />
+                  <span>Configuração de Chave PIX & Cobrança de Fotos Extras</span>
+                </h3>
+                <p className="text-xs text-zinc-400 mt-1">
+                  Defina os dados bancários exibidos para os clientes na hora de confirmar a seleção de fotos além da cota contratada.
                 </p>
               </div>
 
-              <div className="pt-4 border-t border-white/10 flex justify-end">
-                <Button variant="amber" size="sm" type="submit" disabled={isSavingPix} className="font-bold text-xs">
-                  <Save className="w-3.5 h-3.5 mr-1.5" />
-                  <span>{isSavingPix ? 'Salvando...' : 'Salvar Alterações PIX'}</span>
-                </Button>
-              </div>
-            </form>
-          </div>
+              <form onSubmit={handleSavePix} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-mono text-zinc-300 mb-1">Tipo de Chave PIX</label>
+                    <select
+                      value={pixKeyType}
+                      onChange={(e: any) => setPixKeyType(e.target.value)}
+                      className="w-full py-2.5 px-3 rounded-xl bg-[#0A0714] border border-white/10 text-white text-xs focus:outline-none focus:border-[#FDBD00]"
+                    >
+                      <option value="cnpj">CNPJ</option>
+                      <option value="cpf">CPF</option>
+                      <option value="email">E-mail</option>
+                      <option value="phone">Telefone Celular</option>
+                      <option value="random">Chave Aleatória (EVP)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-mono text-zinc-300 mb-1">Chave PIX do Estúdio</label>
+                    <input
+                      type="text"
+                      value={pixKey}
+                      onChange={(e) => setPixKey(e.target.value)}
+                      placeholder="Informe a chave PIX..."
+                      className="w-full py-2 px-3 rounded-xl bg-[#0A0714] border border-white/10 text-white text-xs focus:outline-none focus:border-[#FDBD00]"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-mono text-zinc-300 mb-1">
+                    Valor Padrão por Foto Extra (R$)
+                  </label>
+                  <div className="relative max-w-xs">
+                    <span className="absolute left-3 top-2.5 text-xs text-zinc-400 font-mono">R$</span>
+                    <input
+                      type="text"
+                      value={extraPhotoPrice}
+                      onChange={(e) => setExtraPhotoPrice(e.target.value)}
+                      className="w-full py-2 px-3 pl-9 rounded-xl bg-[#0A0714] border border-white/10 text-[#FDBD00] font-mono font-bold text-sm focus:outline-none focus:border-[#FDBD00]"
+                    />
+                  </div>
+                  <p className="text-[11px] text-zinc-500 mt-1">
+                    Este valor é aplicado por padrão a novas galerias criadas, podendo ser customizado em cada ensaio.
+                  </p>
+                </div>
+
+                <div className="pt-4 border-t border-white/10 flex justify-end">
+                  <Button variant="amber" size="sm" type="submit" disabled={isSavingPix} className="font-bold text-xs">
+                    <Save className="w-3.5 h-3.5 mr-1.5" />
+                    <span>{isSavingPix ? 'Salvando...' : 'Salvar Alterações PIX'}</span>
+                  </Button>
+                </div>
+              </form>
+            </div>
+          </AdminRoute>
         )}
       </div>
     </div>

@@ -18,7 +18,7 @@ import { PhotographerLogin } from './components/admin/PhotographerLogin';
 import { ClientPortalView } from './components/client/ClientPortalView';
 import { AdobeOAuthCallbackView } from './components/admin/AdobeOAuthCallbackView';
 import { useAuth } from './contexts/AuthContext';
-import { ProtectedRoute } from './components/auth/ProtectedRoute';
+import { ProtectedRoute, AdminRoute, StaffRoute } from './components/auth/ProtectedRoute';
 import { PosProductionView } from './components/admin/PosProductionView';
 import { FinancialExtrasView } from './components/admin/FinancialExtrasView';
 import { FiltersMetadataView } from './components/admin/FiltersMetadataView';
@@ -28,433 +28,355 @@ import { StudioSettingsView } from './components/settings/StudioSettingsView';
 
 export default function App() {
   const { user, profile, signOut, isLoading: isAuthLoading } = useAuth();
-  const [galleries, setGalleries] = useState<Gallery[]>(() => getGalleries());
-
-  const isAdobeCallback = typeof window !== 'undefined' && (
-    window.location.pathname.includes('/adobe/callback') ||
-    (window.location.search.includes('code=') && window.location.search.includes('state='))
-  );
-  const [photographerSession, setPhotographerSession] = useState<PhotographerSession>(() => getPhotographerSession());
+  
+  // Navigation & Role State
   const [currentRole, setCurrentRole] = useState<'admin' | 'client'>('admin');
-  const [selectedGalleryId, setSelectedGalleryId] = useState<string>(() => {
-    const list = getGalleries();
-    return list[0]?.id || '';
-  });
-  const [isLoadingSupabase, setIsLoadingSupabase] = useState(true);
+  const [activeNavTab, setActiveNavTab] = useState<string>('galleries');
+  const [activeSidebarItem, setActiveSidebarItem] = useState<string>('collections');
+  const [settingsSubTab, setSettingsSubTab] = useState<'perfil' | 'team' | 'adobe' | 'pix'>('perfil');
 
-  // Admin view sub-navigation: 'list' or 'detail'
+  // Application Data State
+  const [galleries, setGalleries] = useState<Gallery[]>([]);
+  const [activeGalleryId, setActiveGalleryId] = useState<string>('');
   const [adminSubView, setAdminSubView] = useState<'list' | 'detail'>('list');
   const [detailGalleryId, setDetailGalleryId] = useState<string | null>(null);
 
-  // Modal for creating/editing galleries
+  // Modal & Edit State
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [galleryToEdit, setGalleryToEdit] = useState<Gallery | null>(null);
-  const [settingsSubTab, setSettingsSubTab] = useState<'perfil' | 'team' | 'adobe' | 'pix'>('perfil');
 
-  // Toasts
+  // Toasts State
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
-  // Active gallery for client portal
-  const activeGallery = galleries.find((g) => g.id === selectedGalleryId) || galleries[0];
+  // Photographer Auth/Profile Session
+  const [photographerSession, setPhotographerSession] = useState<PhotographerSession>(getPhotographerSession());
 
-  // Active gallery for admin detail view
-  const detailGallery = galleries.find((g) => g.id === detailGalleryId);
+  // Check OAuth callback path
+  const isAdobeCallback = window.location.pathname === '/adobe-callback';
 
-
-  // Fetch initial data from Supabase
+  // Load Galleries from database/local storage
   useEffect(() => {
     let isMounted = true;
-    async function loadData() {
-      setIsLoadingSupabase(true);
+    
+    const loadGalleries = async () => {
       try {
-        const fetched = await getGalleriesAsync();
+        const data = await getGalleriesAsync();
         if (isMounted) {
-          setGalleries(fetched);
-          if (fetched.length > 0 && !selectedGalleryId) {
-            setSelectedGalleryId(fetched[0].id);
+          setGalleries(data);
+          if (data.length > 0 && !activeGalleryId) {
+            setActiveGalleryId(data[0].id);
           }
         }
       } catch (err) {
-        console.error('Failed to sync with Supabase:', err);
-      } finally {
-        if (isMounted) setIsLoadingSupabase(false);
+        console.error('Failed to load async galleries, fallback to local', err);
+        if (isMounted) {
+          const syncData = getGalleries();
+          setGalleries(syncData);
+          if (syncData.length > 0 && !activeGalleryId) {
+            setActiveGalleryId(syncData[0].id);
+          }
+        }
       }
-    }
-    loadData();
+    };
+
+    loadGalleries();
     return () => {
       isMounted = false;
     };
   }, []);
-
-  // Check URL params on load (support ?pin=1234 or ?gallery=id or ?role=client)
-  useEffect(() => {
-    try {
-      const params = new URLSearchParams(window.location.search);
-      const pinParam = params.get('pin');
-      const galleryParam = params.get('gallery');
-      const roleParam = params.get('role');
-
-      if (pinParam) {
-        // Direct PIN lookup from URL
-        getGalleryByPinAsync(pinParam).then((g) => {
-          if (g) {
-            setSelectedGalleryId(g.id);
-            setCurrentRole('client');
-          }
-        });
-      } else if (galleryParam) {
-        if (galleries.some((g) => g.id === galleryParam)) {
-          setSelectedGalleryId(galleryParam);
-        }
-      }
-
-      if (roleParam === 'client') {
-        setCurrentRole('client');
-      } else if (roleParam === 'admin') {
-        setCurrentRole('admin');
-      }
-    } catch (e) {
-      console.warn('Error parsing URL params:', e);
-    }
-  }, [galleries]);
 
   const showToast = (
     title: string,
     description?: string,
     type: 'success' | 'info' | 'warning' | 'error' = 'info'
   ) => {
-    const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`;
-    const newToast: ToastMessage = { id, title, description, type, duration: 4000 };
-    setToasts((prev) => [...prev, newToast]);
-
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 4500);
+    const id = Date.now().toString();
+    setToasts((prev) => [...prev, { id, title, description, type }]);
   };
 
-  const handleDismissToast = (id: string) => {
+  const removeToast = (id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
-  };
-
-  // Auth Handlers
-  const handleLoginSuccess = () => {
-    const current = getPhotographerSession();
-    setPhotographerSession(current);
-  };
-
-  const handleLogout = async () => {
-    logoutPhotographer();
-    await signOut();
-    setPhotographerSession({
-      isAuthenticated: false,
-      profile: {
-        id: '',
-        name: '',
-        email: '',
-        studioName: '',
-        phone: '',
-        avatarUrl: '',
-        defaultWatermarkText: '',
-        defaultExtraPrice: 30
-      }
-    });
-    showToast('Sessão Encerrada', 'Você saiu do Painel do Fotógrafo.', 'info');
   };
 
   const handleUpdateProfile = (updated: PhotographerProfile) => {
     savePhotographerProfile(updated);
-    setPhotographerSession((prev) => ({
-      ...prev,
-      profile: updated
-    }));
+    setPhotographerSession(getPhotographerSession());
+    showToast('Perfil Atualizado!', 'As informações do seu estúdio foram salvas.', 'success');
   };
 
-  // CRUD handlers via Supabase with automatic local fallback
-  const handleSaveGallery = async (gallery: Gallery) => {
+  const handleLogout = async () => {
     try {
-      const saved = await saveGalleryAsync(gallery);
-      const updatedList = await getGalleriesAsync();
-
-      const finalGalleries = updatedList.map((g) => {
-        if (g.id === saved.id) {
-          const savedPhotos = saved.photos || [];
-          const dbPhotos = g.photos || [];
-          return {
-            ...g,
-            photos: dbPhotos.length >= savedPhotos.length ? dbPhotos : savedPhotos,
-            coverPhotoUrl: g.coverPhotoUrl || saved.coverPhotoUrl
-          };
-        }
-        return g;
-      });
-
-      if (!finalGalleries.some((g) => g.id === saved.id)) {
-        finalGalleries.unshift(saved);
-      }
-
-      setGalleries(finalGalleries);
-      setSelectedGalleryId(saved.id);
-
-      showToast(
-        galleryToEdit ? 'Galeria Atualizada!' : 'Galeria Publicada com Sucesso!',
-        `O ensaio "${saved.title}" (PIN: ${saved.pinCode}) está pronto para acesso.`,
-        'success'
-      );
-    } catch (e) {
-      console.error('Error in handleSaveGallery:', e);
-      showToast('Galeria Salva Localmente', 'Salvo no navegador (modo offline/fallback).', 'info');
+      await signOut();
+    } catch (err) {
+      console.error('Logout error:', err);
     }
+    logoutPhotographer();
+    setPhotographerSession(getPhotographerSession());
+    setCurrentRole('admin');
+    showToast('Sessão Encerrada', 'Você saiu da área administrativa.', 'info');
   };
 
-  const handleDeleteGallery = async (id: string) => {
-    try {
-      await deleteGalleryAsync(id);
-      const updatedList = await getGalleriesAsync();
-      const finalGalleries = updatedList.filter((g) => g.id !== id);
-      setGalleries(finalGalleries);
-
-      if (selectedGalleryId === id) {
-        setSelectedGalleryId(finalGalleries[0]?.id || '');
-      }
-      if (detailGalleryId === id) {
-        setAdminSubView('list');
-        setDetailGalleryId(null);
-      }
-      showToast('Galeria Excluída', 'A galeria e seus registros foram removidos.', 'info');
-    } catch (e) {
-      console.error('Error deleting gallery:', e);
-      showToast('Erro ao Excluir', 'Falha ao remover a galeria.', 'error');
+  const handleSaveGallery = async (galleryData: Partial<Gallery>) => {
+    let updatedList: Gallery[];
+    if (galleryToEdit) {
+      // Editing existing gallery
+      const fullUpdated: Gallery = {
+        ...galleryToEdit,
+        ...galleryData,
+        updatedAt: new Date().toISOString()
+      };
+      await saveGalleryAsync(fullUpdated);
+      updatedList = await getGalleriesAsync();
+      setGalleries(updatedList);
+      showToast('Ensaio Atualizado!', `As alterações em "${fullUpdated.title}" foram salvas.`, 'success');
+    } else {
+      // Creating new gallery
+      const newGallery: Gallery = {
+        id: `gal-${Date.now()}`,
+        title: galleryData.title || 'Novo Ensaio Lumina',
+        clientName: galleryData.clientName || 'Cliente Lumina',
+        clientEmail: galleryData.clientEmail || 'cliente@exemplo.com',
+        clientPhone: galleryData.clientPhone || '',
+        eventDate: galleryData.eventDate || new Date().toISOString().split('T')[0],
+        description: galleryData.description || 'Ensaio fotográfico Lumina',
+        coverPhotoUrl: galleryData.coverPhotoUrl || 'https://images.unsplash.com/photo-1537633552985-df8429e8048b?auto=format&fit=crop&w=1200&q=80',
+        status: 'awaiting_client',
+        privacy: galleryData.privacy || 'private',
+        pinCode: galleryData.pinCode || Math.floor(1000 + Math.random() * 9000).toString(),
+        quotaIncluded: galleryData.quotaIncluded || 20,
+        maxContractedPhotos: galleryData.maxContractedPhotos || 50,
+        excessPolicy: galleryData.excessPolicy || 'charge',
+        extraPhotoPrice: galleryData.extraPhotoPrice || 30.0,
+        watermarkEnabled: galleryData.watermarkEnabled ?? true,
+        watermarkText: galleryData.watermarkText || 'IZY LUMNA PROOFING',
+        photos: galleryData.photos || [],
+        clientSelection: {
+          selectedPhotoIds: [],
+          comments: {},
+          status: 'pending'
+        },
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      await saveGalleryAsync(newGallery);
+      updatedList = await getGalleriesAsync();
+      setGalleries(updatedList);
+      setActiveGalleryId(newGallery.id);
+      showToast('Ensaio Criado!', `A galeria "${newGallery.title}" foi publicada com PIN ${newGallery.pinCode}.`, 'success');
     }
+    setIsFormModalOpen(false);
+    setGalleryToEdit(null);
   };
 
-  const handleUpdateGalleryFromClient = async (updated: Gallery) => {
-    try {
-      // Immediately reflect updated gallery in React state to ensure smooth, flicker-free UI
-      setGalleries((prev) =>
-        prev.map((g) => (g.id === updated.id ? updated : g))
-      );
-      // Persist changes in storage/Supabase in background
-      await saveGalleryAsync(updated);
-    } catch (e) {
-      console.warn('Fallback update from client:', e);
+  const handleDeleteGallery = async (galleryId: string) => {
+    const target = galleries.find((g) => g.id === galleryId);
+    await deleteGalleryAsync(galleryId);
+    const updated = await getGalleriesAsync();
+    setGalleries(updated);
+
+    if (activeGalleryId === galleryId) {
+      setActiveGalleryId(updated.length > 0 ? updated[0].id : '');
     }
+    if (adminSubView === 'detail' && detailGalleryId === galleryId) {
+      setAdminSubView('list');
+      setDetailGalleryId(null);
+    }
+    showToast('Ensaio Removido', `A galeria "${target?.title || 'selecionada'}" foi excluída.`, 'warning');
   };
 
-  // Open client view for a specific gallery
-  const handleOpenClientView = (galleryId: string) => {
-    setSelectedGalleryId(galleryId);
-    setCurrentRole('client');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  // View results/lightroom details
-  const handleViewGalleryDetails = (gallery: Gallery) => {
-    setDetailGalleryId(gallery.id);
+  const handleViewGalleryDetails = (galleryId: string) => {
+    setDetailGalleryId(galleryId);
     setAdminSubView('detail');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const [activeNavTab, setActiveNavTab] = useState('galleries');
-  const [activeSidebarItem, setActiveSidebarItem] = useState('collections');
+  const handleOpenClientView = (galleryId: string) => {
+    setActiveGalleryId(galleryId);
+    setCurrentRole('client');
+    showToast('Modo Cliente Ativado', 'Você está visualizando a galeria como o cliente.', 'info');
+  };
 
+  const handleUpdateGalleryFromClient = async (updatedGallery: Gallery) => {
+    await saveGalleryAsync(updatedGallery);
+    const refreshed = await getGalleriesAsync();
+    setGalleries(refreshed);
+  };
 
+  const activeGallery = galleries.find((g) => g.id === activeGalleryId);
+  const detailGallery = galleries.find((g) => g.id === detailGalleryId);
+
+  // If on Adobe OAuth Callback route, render dedicated handler
   if (isAdobeCallback) {
     return (
       <AdobeOAuthCallbackView
-        onComplete={(status, message) => {
-          showToast(
-            status === 'success' ? 'Adobe Conectado!' : 'Erro de Autenticação',
-            message,
-            status === 'success' ? 'success' : 'error'
-          );
-          window.location.href = window.location.origin;
+        onComplete={() => {
+          window.location.href = '/';
         }}
+        onShowToast={showToast}
       />
-    );
-  }
-
-  if (isAuthLoading) {
-    return (
-      <div className="min-h-screen bg-[#07050E] flex flex-col items-center justify-center p-6 text-zinc-400">
-        <div className="w-8 h-8 border-2 border-[#8300E9] border-t-transparent rounded-full animate-spin mb-3" />
-        <p className="text-sm font-medium">Verificando sessão de autenticação...</p>
-      </div>
-    );
-  }
-
-  if (currentRole === 'admin' && (!user || !profile || !profile.is_active)) {
-    return (
-      <div className="min-h-screen bg-[#07050E] text-zinc-100 flex items-center justify-center p-4 relative">
-        <PhotographerLogin
-          onLoginSuccess={handleLoginSuccess}
-          onReturnToClient={() => setCurrentRole('client')}
-          onShowToast={showToast}
-        />
-        <ToastContainer toasts={toasts} onDismiss={handleDismissToast} />
-      </div>
     );
   }
 
   return (
-    <AppLayout
-      currentRole={currentRole}
-      onRoleChange={setCurrentRole}
-      galleries={galleries}
-      activeGalleryId={selectedGalleryId}
-      onSelectGallery={(id) => setSelectedGalleryId(id)}
-      onCreateGallery={() => {
-        setGalleryToEdit(null);
-        setIsFormModalOpen(true);
-      }}
-      activeNavTab={activeNavTab}
-      onNavTabChange={(tab) => {
-        setActiveNavTab(tab);
-        setAdminSubView('list');
-        if (tab === 'galleries') {
-          if (activeSidebarItem !== 'filters' && activeSidebarItem !== 'settings') {
-            setActiveSidebarItem('collections');
+    <>
+      <ToastContainer toasts={toasts} onClose={removeToast} />
+
+      <AppLayout
+        currentRole={currentRole}
+        onRoleChange={(role) => {
+          setCurrentRole(role);
+          if (role === 'admin') {
+            setAdminSubView('list');
           }
-        } else if (tab === 'financial') {
-          setActiveSidebarItem('billing');
-        } else if (tab === 'client_demo') {
-          setActiveSidebarItem('presentation');
-        }
-      }}
-      activeSidebarItem={activeSidebarItem}
-      onSidebarItemChange={(item) => {
-        setActiveSidebarItem(item);
-        setAdminSubView('list');
-        if (item === 'collections' || item === 'filters' || item === 'settings') {
-          setActiveNavTab('galleries');
-        } else if (item === 'billing') {
-          setActiveNavTab('financial');
-        } else if (item === 'presentation') {
-          setActiveNavTab('client_demo');
-        }
-      }}
-      onNavigateToSettingsTab={(tab) => setSettingsSubTab(tab)}
-      photographerProfile={photographerSession.profile}
-      onLogout={handleLogout}
-    >
-      {/* Main Content View Container */}
-      {currentRole === 'admin' ? (
-        <ProtectedRoute
-          onReturnToClient={() => setCurrentRole('client')}
-          onShowToast={showToast}
-        >
-          <div className="px-4 sm:px-6 lg:px-8 pt-6">
-            {adminSubView === 'detail' && detailGallery ? (
-              <GalleryDetailView
-                gallery={detailGallery}
-                onBack={() => setAdminSubView('list')}
-                onOpenClientView={handleOpenClientView}
-                onEditGallery={(g) => {
-                  setGalleryToEdit(g);
-                  setIsFormModalOpen(true);
-                }}
-                onDeleteGallery={handleDeleteGallery}
-                onUpdateGallery={handleUpdateGalleryFromClient}
-                onShowToast={showToast}
-              />
-            ) : activeSidebarItem === 'filters' ? (
-              <FiltersMetadataView
-                galleries={galleries}
-                onShowToast={showToast}
-              />
-            ) : activeSidebarItem === 'settings' ? (
-              <StudioSettingsView
-                key={settingsSubTab}
-                initialTab={settingsSubTab}
-                onShowToast={showToast}
-              />
-            ) : activeNavTab === 'pos_production' ? (
-              <PosProductionView
-                galleries={galleries}
-                onViewGalleryDetails={handleViewGalleryDetails}
-                onShowToast={showToast}
-              />
-            ) : activeNavTab === 'financial' || activeSidebarItem === 'billing' ? (
-              <FinancialExtrasView
-                galleries={galleries}
-                onShowToast={showToast}
-              />
-            ) : (
-              <AdminDashboard
-                galleries={galleries}
-                photographerProfile={{
-                  ...photographerSession.profile,
-                  name: profile?.full_name || photographerSession.profile.name || 'Usuário Lumina',
-                  studioName: photographerSession.profile.studioName || 'Lumina Proofing Studio',
-                  email: profile?.email || photographerSession.profile.email || 'admin@lumina.com',
-                  phone: photographerSession.profile.phone || '',
-                  avatarUrl: profile?.avatar_url || photographerSession.profile.avatarUrl || ''
-                }}
-                onUpdateProfile={handleUpdateProfile}
-                onLogout={handleLogout}
-                onCreateGallery={() => {
-                  setGalleryToEdit(null);
-                  setIsFormModalOpen(true);
-                }}
-                onEditGallery={(g) => {
-                  setGalleryToEdit(g);
-                  setIsFormModalOpen(true);
-                }}
-                onDeleteGallery={handleDeleteGallery}
-                onViewGalleryDetails={handleViewGalleryDetails}
-                onOpenClientView={handleOpenClientView}
-                onShowToast={showToast}
-              />
-            )}
-          </div>
-        </ProtectedRoute>
-      ) : activeSidebarItem === 'presentation' && activeGallery ? (
-        <PresentationModeView
-          gallery={activeGallery}
-          onExit={() => {
-            setActiveSidebarItem('collections');
-            setCurrentRole('client');
-          }}
-          onShowToast={showToast}
-        />
-      ) : activeGallery ? (
-        <ClientPortalView
-          key={activeGallery.id}
-          gallery={activeGallery}
-          allGalleries={galleries}
-          onSelectGallery={(id) => setSelectedGalleryId(id)}
-          onUpdateGallery={handleUpdateGalleryFromClient}
-          onShowToast={showToast}
-          onSwitchToAdmin={() => setCurrentRole('admin')}
-        />
-      ) : (
-        <div className="text-center py-24">
-          <h3 className="text-lg font-semibold text-zinc-300">
-            {isLoadingSupabase ? 'Carregando dados do Supabase...' : 'Nenhuma galeria encontrada'}
-          </h3>
-          <button
-            onClick={() => setCurrentRole('admin')}
-            className="text-[#46BDC6] underline text-sm mt-2 inline-block font-semibold"
-          >
-            Ir ao Painel do Fotógrafo
-          </button>
-        </div>
-      )}
-
-      {/* Create / Edit Gallery Dialog */}
-      <GalleryFormModal
-        isOpen={isFormModalOpen}
-        onClose={() => {
-          setIsFormModalOpen(false);
-          setGalleryToEdit(null);
         }}
-        onSave={handleSaveGallery}
-        onDelete={handleDeleteGallery}
-        galleryToEdit={galleryToEdit}
-      />
+        galleries={galleries}
+        activeGalleryId={activeGalleryId}
+        onSelectGallery={(id) => setActiveGalleryId(id)}
+        onCreateGallery={() => {
+          setGalleryToEdit(null);
+          setIsFormModalOpen(true);
+        }}
+        activeNavTab={activeNavTab}
+        onNavTabChange={(tab) => {
+          setActiveNavTab(tab);
+          if (tab === 'galleries') {
+            setAdminSubView('list');
+          }
+        }}
+        activeSidebarItem={activeSidebarItem}
+        onSidebarItemChange={(item) => {
+          setActiveSidebarItem(item);
+          if (item === 'collections') {
+            setActiveNavTab('galleries');
+            setAdminSubView('list');
+          } else if (item === 'filters') {
+            setActiveNavTab('galleries');
+          } else if (item === 'billing') {
+            setActiveNavTab('financial');
+          } else if (item === 'presentation') {
+            setActiveNavTab('client_demo');
+          }
+        }}
+        onNavigateToSettingsTab={(tab) => setSettingsSubTab(tab)}
+        photographerProfile={photographerSession.profile}
+        onLogout={handleLogout}
+        onShowToast={showToast}
+      >
+        {/* Main Content View Container */}
+        {currentRole === 'admin' ? (
+          <ProtectedRoute
+            onReturnToClient={() => setCurrentRole('client')}
+            onShowToast={showToast}
+          >
+            <div className="px-4 sm:px-6 lg:px-8 pt-6">
+              {adminSubView === 'detail' && detailGallery ? (
+                <StaffRoute onReturnToClient={() => setCurrentRole('client')}>
+                  <GalleryDetailView
+                    gallery={detailGallery}
+                    onBack={() => setAdminSubView('list')}
+                    onOpenClientView={handleOpenClientView}
+                    onEditGallery={(g) => {
+                      setGalleryToEdit(g);
+                      setIsFormModalOpen(true);
+                    }}
+                    onDeleteGallery={handleDeleteGallery}
+                    onUpdateGallery={handleUpdateGalleryFromClient}
+                    onShowToast={showToast}
+                  />
+                </StaffRoute>
+              ) : activeSidebarItem === 'filters' ? (
+                <StaffRoute onReturnToClient={() => setCurrentRole('client')}>
+                  <FiltersMetadataView
+                    galleries={galleries}
+                    onShowToast={showToast}
+                  />
+                </StaffRoute>
+              ) : activeSidebarItem === 'settings' ? (
+                <StudioSettingsView
+                  key={settingsSubTab}
+                  initialTab={settingsSubTab}
+                  onShowToast={showToast}
+                />
+              ) : activeNavTab === 'pos_production' ? (
+                <StaffRoute onReturnToClient={() => setCurrentRole('client')}>
+                  <PosProductionView
+                    galleries={galleries}
+                    onViewGalleryDetails={handleViewGalleryDetails}
+                    onShowToast={showToast}
+                  />
+                </StaffRoute>
+              ) : activeNavTab === 'financial' || activeSidebarItem === 'billing' ? (
+                <AdminRoute onReturnToClient={() => setCurrentRole('client')}>
+                  <FinancialExtrasView
+                    galleries={galleries}
+                    onShowToast={showToast}
+                  />
+                </AdminRoute>
+              ) : (
+                <StaffRoute onReturnToClient={() => setCurrentRole('client')}>
+                  <AdminDashboard
+                    galleries={galleries}
+                    photographerProfile={{
+                      ...photographerSession.profile,
+                      name: profile?.full_name || photographerSession.profile.name || 'Usuário Lumina',
+                      studioName: photographerSession.profile.studioName || 'Lumina Proofing Studio',
+                      email: profile?.email || photographerSession.profile.email || 'admin@lumina.com',
+                      phone: photographerSession.profile.phone || '',
+                      avatarUrl: profile?.avatar_url || photographerSession.profile.avatarUrl || ''
+                    }}
+                    onUpdateProfile={handleUpdateProfile}
+                    onLogout={handleLogout}
+                    onCreateGallery={() => {
+                      setGalleryToEdit(null);
+                      setIsFormModalOpen(true);
+                    }}
+                    onEditGallery={(g) => {
+                      setGalleryToEdit(g);
+                      setIsFormModalOpen(true);
+                    }}
+                    onDeleteGallery={handleDeleteGallery}
+                    onViewGalleryDetails={handleViewGalleryDetails}
+                    onOpenClientView={handleOpenClientView}
+                    onShowToast={showToast}
+                  />
+                </StaffRoute>
+              )}
+            </div>
+          </ProtectedRoute>
+        ) : activeSidebarItem === 'presentation' && activeGallery ? (
+          <PresentationModeView
+            gallery={activeGallery}
+            onExit={() => {
+              setActiveSidebarItem('collections');
+              setCurrentRole('client');
+            }}
+            onShowToast={showToast}
+          />
+        ) : activeGallery ? (
+          <ClientPortalView
+            gallery={activeGallery}
+            onUpdateGallery={handleUpdateGalleryFromClient}
+            onShowToast={showToast}
+          />
+        ) : (
+          <div className="text-center py-20 text-zinc-500 text-sm">
+            Nenhuma galeria selecionada para o cliente.
+          </div>
+        )}
+      </AppLayout>
 
-      {/* Toast Notification Stack */}
-      <ToastContainer toasts={toasts} onDismiss={handleDismissToast} />
-    </AppLayout>
+      {/* Modal para Criação/Edição de Galeria */}
+      {isFormModalOpen && (
+        <GalleryFormModal
+          isOpen={isFormModalOpen}
+          galleryToEdit={galleryToEdit}
+          onClose={() => {
+            setIsFormModalOpen(false);
+            setGalleryToEdit(null);
+          }}
+          onSave={handleSaveGallery}
+          onShowToast={showToast}
+        />
+      )}
+    </>
   );
 }
-

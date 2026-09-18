@@ -17,11 +17,13 @@ import {
   MessageSquare,
   Heart,
   DollarSign,
-  UserCheck
+  UserCheck,
+  KeyRound
 } from 'lucide-react';
 import { LumnaLogo } from './LumnaLogo';
 import { Gallery, PhotographerProfile } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
+import { UserProfileModal } from '../settings/UserProfileModal';
 import {
   getStoredNotifications,
   markAllNotificationsAsRead,
@@ -48,6 +50,7 @@ export interface AppLayoutProps {
   onNavigateToSettingsTab?: (tab: 'perfil' | 'team' | 'adobe' | 'pix') => void;
   photographerProfile?: PhotographerProfile;
   onLogout?: () => void;
+  onShowToast?: (title: string, description?: string, type?: 'success' | 'info' | 'warning' | 'error') => void;
 }
 
 export const AppLayout: React.FC<AppLayoutProps> = ({
@@ -64,13 +67,15 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   onSidebarItemChange,
   onNavigateToSettingsTab,
   photographerProfile,
-  onLogout
+  onLogout,
+  onShowToast
 }) => {
-  const { user, profile, signOut } = useAuth();
+  const { user, profile, signOut, isAdmin, isPhotographer } = useAuth();
   const activeGallery = galleries.find((g) => g.id === activeGalleryId);
 
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   const [notifications, setNotifications] = useState<NotificationItem[]>(() => getStoredNotifications());
 
@@ -90,33 +95,21 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
-  const handleMarkAllNotificationsRead = () => {
-    markAllNotificationsAsRead();
-    setNotifications(getStoredNotifications());
-  };
-
-  const handleClearNotifications = () => {
-    clearNotifications();
-    setNotifications([]);
-  };
-
-  const handleToggleNotificationRead = (id: string) => {
-    toggleNotificationRead(id);
-    setNotifications(getStoredNotifications());
-  };
-
   const handleLogoutAction = async () => {
-    setIsUserMenuOpen(false);
-    await signOut();
-    if (onLogout) {
-      onLogout();
+    try {
+      setIsUserMenuOpen(false);
+      await signOut();
+      if (onLogout) onLogout();
+    } catch (err) {
+      console.error('Erro ao realizar logout:', err);
+      if (onLogout) onLogout();
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#07050E] text-zinc-100 flex flex-col font-sans select-none overflow-x-hidden">
-      {/* 1. TOP NAVBAR */}
-      <header className="sticky top-0 z-40 w-full bg-[#0A0714] border-b border-white/10 px-4 lg:px-6 py-2.5 flex items-center justify-between gap-4">
+    <div className="min-h-screen flex flex-col bg-[#07050E] text-zinc-100 font-sans selection:bg-[#8300E9] selection:text-white">
+      {/* 1. TOP HEADER ("CINEMATIC DARKROOM") */}
+      <header className="h-16 shrink-0 bg-[#0A0714] border-b border-white/10 px-4 flex items-center justify-between z-40 sticky top-0 backdrop-blur-xl">
         {/* Left: Brand Emblem Logo */}
         <div 
           onClick={() => onRoleChange('admin')}
@@ -196,39 +189,29 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
           </button>
         </div>
 
-        {/* Right: Lightroom status + New Gallery CTA + Notifications + Profile */}
-        {/* Right: Lightroom status + New Gallery CTA + Notifications + Profile */}
-        <div className="flex items-center gap-3 shrink-0 relative">
-          {/* Lightroom Connected Badge */}
-          <div className="hidden lg:flex items-center gap-2 px-3 py-1 rounded-full bg-[#120E22] border border-[#46BDC6]/30 text-xs">
-            <span className="w-2 h-2 rounded-full bg-[#46BDC6] animate-pulse" />
-            <span className="text-zinc-300 text-[11px] font-medium">Lightroom Cloud Conectado</span>
-          </div>
-
-          {/* New Gallery Button */}
-          <button
-            onClick={onCreateGallery}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-[#8300E9] to-[#7000C8] hover:brightness-110 text-white text-xs font-bold shadow-lg shadow-[#8300E9]/30 transition-all active:scale-95"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Novo Ensaio</span>
-          </button>
-
-          {/* Bell Notifications */}
-          <div className="relative z-40">
+        {/* Right: Actions, Notifications & Profile Menu */}
+        <div className="flex items-center gap-3">
+          {/* Create New Gallery Button */}
+          {currentRole === 'admin' && (isAdmin || isPhotographer) && (
             <button
-              onClick={() => {
-                setIsNotificationsOpen((prev) => !prev);
-                setIsUserMenuOpen(false);
-              }}
-              className={`relative p-2 text-zinc-400 hover:text-white rounded-xl bg-[#120E22] border border-white/10 transition-colors ${
-                isNotificationsOpen ? 'border-[#8300E9] text-white bg-[#8300E9]/20' : ''
-              }`}
-              title="Central de Notificações"
+              onClick={onCreateGallery}
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#8300E9] to-[#7000C8] hover:from-[#7000C8] hover:to-[#5E00A8] text-white text-xs font-bold shadow-lg shadow-purple-900/30 transition-all border border-purple-400/30 active:scale-95"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Novo Ensaio</span>
+            </button>
+          )}
+
+          {/* Notifications Dropdown Trigger */}
+          <div className="relative">
+            <button
+              onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
+              className="relative p-2 rounded-xl bg-[#120E22] hover:bg-white/10 text-zinc-300 hover:text-white border border-white/10 transition-colors"
+              title="Notificações em tempo real"
             >
               <Bell className="w-4 h-4" />
               {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#8300E9] text-white text-[9px] font-extrabold flex items-center justify-center animate-pulse">
+                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white text-[9px] font-mono font-bold flex items-center justify-center border border-[#0A0714] animate-pulse">
                   {unreadCount}
                 </span>
               )}
@@ -236,80 +219,66 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
 
             {/* Notifications Popover */}
             {isNotificationsOpen && (
-              <div className="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl bg-[#120E22] border border-white/10 shadow-2xl overflow-hidden z-50 text-xs animate-in fade-in duration-150">
-                {/* Header */}
-                <div className="p-3.5 bg-[#0A0714] border-b border-white/10 flex items-center justify-between">
+              <div className="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl bg-[#120E22] border border-white/10 shadow-2xl overflow-hidden z-50 animate-in fade-in duration-150">
+                <div className="p-3 bg-[#0A0714] border-b border-white/10 flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2">
-                    <Bell className="w-4 h-4 text-[#46BDC6]" />
-                    <span className="font-bold text-white text-sm">Notificações do Estúdio</span>
-                    {unreadCount > 0 && (
-                      <span className="px-1.5 py-0.5 rounded-full bg-[#8300E9]/30 text-purple-300 text-[10px] font-mono">
-                        {unreadCount} novas
-                      </span>
-                    )}
+                    <Bell className="w-4 h-4 text-purple-400" />
+                    <span className="font-bold text-white">Notificações Recentes</span>
                   </div>
                   {unreadCount > 0 && (
                     <button
-                      onClick={handleMarkAllNotificationsRead}
-                      className="text-[11px] text-[#46BDC6] hover:underline font-medium"
+                      onClick={() => {
+                        markAllNotificationsAsRead();
+                        setNotifications(getStoredNotifications());
+                      }}
+                      className="text-[11px] text-purple-400 hover:text-purple-300 font-medium transition-colors"
                     >
-                      Marcar lidas
+                      Marcar todas lidas
                     </button>
                   )}
                 </div>
 
-                {/* Notification Items List */}
                 <div className="max-h-80 overflow-y-auto divide-y divide-white/5">
                   {notifications.length === 0 ? (
-                    <div className="p-8 text-center text-zinc-500">
-                      <Bell className="w-6 h-6 mx-auto mb-2 text-zinc-600 opacity-50" />
-                      <span>Nenhuma notificação no momento.</span>
+                    <div className="p-6 text-center text-xs text-zinc-500">
+                      Nenhuma notificação por enquanto.
                     </div>
                   ) : (
                     notifications.map((n) => (
                       <div
                         key={n.id}
                         onClick={() => {
-                          handleToggleNotificationRead(n.id);
-                          if (n.galleryId) {
-                            onSelectGallery(n.galleryId);
-                            onRoleChange('admin');
-                            setIsNotificationsOpen(false);
-                          }
+                          toggleNotificationRead(n.id);
+                          setNotifications(getStoredNotifications());
                         }}
-                        className={`p-3.5 flex items-start gap-3 cursor-pointer hover:bg-white/5 transition-colors ${
-                          !n.isRead ? 'bg-[#8300E9]/10' : ''
+                        className={`p-3 text-xs transition-colors cursor-pointer hover:bg-white/5 ${
+                          !n.isRead ? 'bg-purple-500/10' : ''
                         }`}
                       >
-                        <div className="p-2 rounded-xl bg-[#0A0714] border border-white/10 shrink-0 mt-0.5">
-                          {n.type === 'vote' && <Heart className="w-4 h-4 text-purple-400" />}
-                          {n.type === 'payment' && <DollarSign className="w-4 h-4 text-amber-400" />}
-                          {n.type === 'comment' && <MessageSquare className="w-4 h-4 text-[#46BDC6]" />}
-                          {n.type === 'user' && <UserCheck className="w-4 h-4 text-emerald-400" />}
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="font-semibold text-white">{n.title}</span>
+                          <span className="text-[10px] text-zinc-500 font-mono">
+                            {new Date(n.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
                         </div>
-                        <div className="flex-1 space-y-0.5">
-                          <div className="flex items-center justify-between">
-                            <span className="font-semibold text-zinc-100">{n.title}</span>
-                            <span className="text-[10px] text-zinc-500 font-mono">{n.timestamp}</span>
-                          </div>
-                          <p className="text-zinc-300 text-[11px] leading-relaxed">{n.message}</p>
-                        </div>
-                        {!n.isRead && (
-                          <span className="w-2 h-2 rounded-full bg-[#8300E9] shrink-0 mt-2" />
-                        )}
+                        <p className="text-[11px] text-zinc-400 mt-1 leading-relaxed">
+                          {n.description}
+                        </p>
                       </div>
                     ))
                   )}
                 </div>
 
-                {/* Footer */}
                 {notifications.length > 0 && (
-                  <div className="p-2.5 bg-[#0A0714] border-t border-white/10 text-center">
+                  <div className="p-2 bg-[#0A0714] border-t border-white/10 text-center">
                     <button
-                      onClick={handleClearNotifications}
-                      className="text-[11px] text-zinc-400 hover:text-white hover:underline font-mono"
+                      onClick={() => {
+                        clearNotifications();
+                        setNotifications([]);
+                      }}
+                      className="text-[10px] font-mono text-zinc-400 hover:text-red-400 transition-colors"
                     >
-                      Limpar todas as notificações
+                      Limpar Histórico
                     </button>
                   </div>
                 )}
@@ -317,15 +286,11 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
             )}
           </div>
 
-          {/* User Profile Avatar Dropdown Button */}
-          <div className="relative z-40">
-            <button 
-              onClick={() => {
-                setIsUserMenuOpen((prev) => !prev);
-                setIsNotificationsOpen(false);
-              }}
-              className="flex items-center gap-2 p-1 rounded-xl hover:bg-white/5 transition-colors"
-              title="Menu do Usuário"
+          {/* User Menu Trigger */}
+          <div className="relative">
+            <button
+              onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+              className="flex items-center gap-2 p-1.5 rounded-xl bg-[#120E22] hover:bg-white/10 border border-white/10 transition-colors"
             >
               <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#8300E9] to-[#7000C8] text-white border border-[#46BDC6]/50 flex items-center justify-center font-bold text-xs shadow-md">
                 {profile?.full_name
@@ -339,10 +304,10 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
 
             {/* User Dropdown Menu Popover */}
             {isUserMenuOpen && (
-              <div className="absolute right-0 mt-2 w-64 rounded-2xl bg-[#120E22] border border-white/10 shadow-2xl overflow-hidden z-50 text-xs animate-in fade-in duration-150">
+              <div className="absolute right-0 mt-2 w-72 rounded-2xl bg-[#120E22] border border-white/10 shadow-2xl overflow-hidden z-50 text-xs animate-in fade-in duration-150">
                 {/* Header User Details */}
                 <div className="p-4 bg-[#0A0714] border-b border-white/10 flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#8300E9] to-[#46BDC6] text-white flex items-center justify-center font-bold text-sm shadow-inner">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#8300E9] to-[#46BDC6] text-white flex items-center justify-center font-bold text-sm shadow-inner shrink-0">
                     {profile?.full_name
                       ? profile.full_name.slice(0, 2).toUpperCase()
                       : photographerProfile?.name
@@ -351,13 +316,13 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="font-bold text-white truncate text-sm">
-                      {profile?.full_name || photographerProfile?.name || 'Fotógrafo Lumina'}
+                      {profile?.full_name || photographerProfile?.name || 'Usuário Lumina'}
                     </div>
                     <div className="text-[11px] text-zinc-400 truncate">
-                      {profile?.email || photographerProfile?.email || 'estudio@lumina.com'}
+                      {profile?.email || photographerProfile?.email || 'usuario@lumina.com'}
                     </div>
                     <span className="inline-block mt-1 px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[9px] font-mono font-bold uppercase tracking-wider">
-                      {profile?.role === 'admin' ? 'Administrador' : 'Fotógrafo Pro'}
+                      {profile?.role === 'admin' ? 'Administrador' : profile?.role === 'photographer' ? 'Fotógrafo Pro' : 'Usuário Comum'}
                     </span>
                   </div>
                 </div>
@@ -367,53 +332,75 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                   <button
                     onClick={() => {
                       setIsUserMenuOpen(false);
-                      onRoleChange('admin');
-                      onNavigateToSettingsTab?.('perfil');
-                      onSidebarItemChange('settings');
+                      setIsProfileModalOpen(true);
                     }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-zinc-300 hover:text-white hover:bg-white/5 transition-colors text-left"
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-zinc-300 hover:text-white hover:bg-white/5 transition-colors text-left font-medium"
                   >
-                    <User className="w-4 h-4 text-[#46BDC6]" />
-                    <span>Meu Perfil & Estúdio</span>
+                    <KeyRound className="w-4 h-4 text-amber-400 shrink-0" />
+                    <div className="flex flex-col">
+                      <span className="font-semibold text-white">Meu Perfil & Senha</span>
+                      <span className="text-[10px] text-zinc-400">Alterar nome e senha de acesso</span>
+                    </div>
                   </button>
 
-                  <button
-                    onClick={() => {
-                      setIsUserMenuOpen(false);
-                      onRoleChange('admin');
-                      onNavigateToSettingsTab?.('team');
-                      onSidebarItemChange('settings');
-                    }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-zinc-300 hover:text-white hover:bg-white/5 transition-colors text-left"
-                  >
-                    <UserCheck className="w-4 h-4 text-purple-400" />
-                    <span>Gestão de Equipe</span>
-                  </button>
+                  {(isAdmin || isPhotographer) && (
+                    <button
+                      onClick={() => {
+                        setIsUserMenuOpen(false);
+                        onRoleChange('admin');
+                        onNavigateToSettingsTab?.('perfil');
+                        onSidebarItemChange('settings');
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-zinc-300 hover:text-white hover:bg-white/5 transition-colors text-left"
+                    >
+                      <User className="w-4 h-4 text-[#46BDC6]" />
+                      <span>Ajustes do Estúdio</span>
+                    </button>
+                  )}
 
-                  <button
-                    onClick={() => {
-                      setIsUserMenuOpen(false);
-                      onRoleChange('admin');
-                      onSidebarItemChange('collections');
-                    }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-zinc-300 hover:text-white hover:bg-white/5 transition-colors text-left"
-                  >
-                    <FolderKanban className="w-4 h-4 text-amber-400" />
-                    <span>Coleções Ativas</span>
-                  </button>
+                  {isAdmin && (
+                    <button
+                      onClick={() => {
+                        setIsUserMenuOpen(false);
+                        onRoleChange('admin');
+                        onNavigateToSettingsTab?.('team');
+                        onSidebarItemChange('settings');
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-zinc-300 hover:text-white hover:bg-white/5 transition-colors text-left"
+                    >
+                      <UserCheck className="w-4 h-4 text-purple-400" />
+                      <span>Gestão de Equipe (RBAC)</span>
+                    </button>
+                  )}
 
-                  <button
-                    onClick={() => {
-                      setIsUserMenuOpen(false);
-                      onRoleChange('admin');
-                      onNavigateToSettingsTab?.('adobe');
-                      onSidebarItemChange('settings');
-                    }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-zinc-300 hover:text-white hover:bg-white/5 transition-colors text-left"
-                  >
-                    <SlidersHorizontal className="w-4 h-4 text-emerald-400" />
-                    <span>Lightroom & Preferências</span>
-                  </button>
+                  {(isAdmin || isPhotographer) && (
+                    <button
+                      onClick={() => {
+                        setIsUserMenuOpen(false);
+                        onRoleChange('admin');
+                        onSidebarItemChange('collections');
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-zinc-300 hover:text-white hover:bg-white/5 transition-colors text-left"
+                    >
+                      <FolderKanban className="w-4 h-4 text-amber-400" />
+                      <span>Coleções Ativas</span>
+                    </button>
+                  )}
+
+                  {(isAdmin || isPhotographer) && (
+                    <button
+                      onClick={() => {
+                        setIsUserMenuOpen(false);
+                        onRoleChange('admin');
+                        onNavigateToSettingsTab?.('adobe');
+                        onSidebarItemChange('settings');
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-zinc-300 hover:text-white hover:bg-white/5 transition-colors text-left"
+                    >
+                      <SlidersHorizontal className="w-4 h-4 text-emerald-400" />
+                      <span>Lightroom & Preferências</span>
+                    </button>
+                  )}
 
                   <div className="my-1 border-t border-white/10" />
 
@@ -570,6 +557,13 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
           <span className="text-[#46BDC6] font-semibold">Auto-Sync Lightroom: Ativo</span>
         </div>
       </footer>
+
+      {/* Centralized User Profile Modal */}
+      <UserProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        onShowToast={onShowToast || (() => {})}
+      />
     </div>
   );
 };
