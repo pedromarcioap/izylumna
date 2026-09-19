@@ -175,6 +175,17 @@ export default function App() {
       showToast('Ensaio Atualizado!', `As alterações em "${saved.title}" foram salvas.`, 'success');
     } else {
       // Creating new gallery
+      const isProOrAdmin = profile?.role === 'admin' || profile?.role === 'photographer_pro';
+      if (!isProOrAdmin && profile?.role === 'photographer' && userGalleries.length >= 10) {
+        showToast(
+          'Limite de 10 Galerias Atingido',
+          'Seu plano "Fotógrafo Izy" possui limite de 10 galerias. Faça upgrade para o "Fotógrafo Izy Pro" para galerias e espaço ilimitados!',
+          'error',
+          8000
+        );
+        return;
+      }
+
       const isUUID = galleryData.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(galleryData.id);
       const newGallery: Gallery = {
         ...galleryData,
@@ -281,6 +292,21 @@ export default function App() {
     await refreshGalleriesAndTrash();
   };
 
+  const handleOpenCreateGallery = () => {
+    const isProOrAdmin = profile?.role === 'admin' || profile?.role === 'photographer_pro';
+    if (!isProOrAdmin && profile?.role === 'photographer' && userGalleries.length >= 10) {
+      showToast(
+        'Limite de 10 Galerias Atingido',
+        'O seu plano "Fotógrafo Izy" é limitado a 10 galerias. Faça o upgrade para o "Fotógrafo Izy Pro" para ter direito a galerias e armazenamento ilimitados, faturas e lixeira.',
+        'warning',
+        8000
+      );
+      return;
+    }
+    setGalleryToEdit(null);
+    setIsFormModalOpen(true);
+  };
+
   const activeGallery = userGalleries.find((g) => g.id === activeGalleryId);
   const detailGallery = userGalleries.find((g) => g.id === detailGalleryId);
 
@@ -312,10 +338,7 @@ export default function App() {
         trashGalleriesCount={userTrashGalleries.length}
         activeGalleryId={activeGalleryId}
         onSelectGallery={(id) => setActiveGalleryId(id)}
-        onCreateGallery={() => {
-          setGalleryToEdit(null);
-          setIsFormModalOpen(true);
-        }}
+        onCreateGallery={handleOpenCreateGallery}
         activeNavTab={activeNavTab}
         onNavTabChange={(tab) => {
           setActiveNavTab(tab);
@@ -418,10 +441,7 @@ export default function App() {
                     }}
                     onUpdateProfile={handleUpdateProfile}
                     onLogout={handleLogout}
-                    onCreateGallery={() => {
-                      setGalleryToEdit(null);
-                      setIsFormModalOpen(true);
-                    }}
+                    onCreateGallery={handleOpenCreateGallery}
                     onEditGallery={(g) => {
                       setGalleryToEdit(g);
                       setIsFormModalOpen(true);

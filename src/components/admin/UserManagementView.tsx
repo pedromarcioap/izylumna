@@ -31,7 +31,8 @@ import {
   KeyRound,
   ShieldAlert,
   Info,
-  MailCheck
+  MailCheck,
+  Sparkles
 } from 'lucide-react';
 
 export interface UserManagementViewProps {
@@ -212,11 +213,18 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onShowTo
             <span>Admin</span>
           </span>
         );
+      case 'photographer_pro':
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-gradient-to-r from-[#8300E9]/20 to-[#46BDC6]/20 text-purple-200 border border-[#8300E9]/40 text-xs font-mono font-bold shadow-sm">
+            <Sparkles className="w-3.5 h-3.5 text-[#46BDC6]" />
+            <span>Fotógrafo Pro</span>
+          </span>
+        );
       case 'photographer':
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-purple-500/10 text-purple-300 border border-purple-500/20 text-xs font-mono font-bold">
             <Camera className="w-3.5 h-3.5" />
-            <span>Fotógrafo</span>
+            <span>Fotógrafo Izy</span>
           </span>
         );
       default:
@@ -435,7 +443,8 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onShowTo
           >
             <option value="all">Todas as Funções</option>
             <option value="admin">Administradores</option>
-            <option value="photographer">Fotógrafos</option>
+            <option value="photographer_pro">Fotógrafos Izy Pro (Ilimitado)</option>
+            <option value="photographer">Fotógrafos Izy (Até 10)</option>
             <option value="user">Usuários Comuns</option>
           </select>
 
@@ -547,8 +556,9 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onShowTo
                             className="bg-zinc-950 border border-zinc-800 text-zinc-300 text-[11px] rounded-lg px-2 py-1 focus:outline-none focus:border-amber-500 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <option value="admin">Promover a Admin</option>
-                            <option value="photographer">Fotógrafo</option>
-                            <option value="user">Usuário Comum</option>
+                            <option value="photographer_pro">Fotógrafo Izy Pro (Ilimitado + Faturas)</option>
+                            <option value="photographer">Fotógrafo Izy (Máx. 10 Galerias)</option>
+                            <option value="user">Usuário Comum / Assistente</option>
                           </select>
                         </div>
                       </td>
@@ -850,19 +860,42 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onShowTo
                 <label className="block text-zinc-300 font-medium mb-1.5">
                   Nível de Acesso (Função) <span className="text-amber-400">*</span>
                 </label>
-                <div className="grid grid-cols-3 gap-2 pt-1">
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setNewUserData({ ...newUserData, role: 'photographer_pro' })}
+                    className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between ${
+                      newUserData.role === 'photographer_pro'
+                        ? 'bg-gradient-to-br from-[#8300E9]/30 to-[#46BDC6]/20 border-[#8300E9] text-white ring-1 ring-[#8300E9]'
+                        : 'bg-[#0A0714] border-white/10 text-zinc-400 hover:text-zinc-200'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <Sparkles className="w-4 h-4 text-[#46BDC6]" />
+                      <span className="px-1.5 py-0.2 rounded bg-[#8300E9]/30 text-purple-200 text-[9px] font-mono font-bold">
+                        PRO
+                      </span>
+                    </div>
+                    <span className="font-bold text-xs text-white">Fotógrafo Izy Pro</span>
+                    <span className="text-[10px] text-zinc-400 leading-tight mt-0.5">
+                      Ilimitado + Faturas + Espaço
+                    </span>
+                  </button>
+
                   <button
                     type="button"
                     onClick={() => setNewUserData({ ...newUserData, role: 'photographer' })}
                     className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between ${
                       newUserData.role === 'photographer'
-                        ? 'bg-[#8300E9]/20 border-[#8300E9] text-white ring-1 ring-[#8300E9]'
+                        ? 'bg-purple-500/20 border-purple-500 text-white ring-1 ring-purple-500'
                         : 'bg-[#0A0714] border-white/10 text-zinc-400 hover:text-zinc-200'
                     }`}
                   >
                     <Camera className="w-4 h-4 text-purple-400 mb-1" />
-                    <span className="font-bold">Fotógrafo</span>
-                    <span className="text-[10px] text-zinc-400 leading-tight">Cria e edita galerias</span>
+                    <span className="font-bold text-xs text-white">Fotógrafo Izy</span>
+                    <span className="text-[10px] text-zinc-400 leading-tight mt-0.5">
+                      Até 10 Galerias / Ensaios
+                    </span>
                   </button>
 
                   <button
@@ -875,8 +908,10 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onShowTo
                     }`}
                   >
                     <ShieldCheck className="w-4 h-4 text-amber-400 mb-1" />
-                    <span className="font-bold">Admin</span>
-                    <span className="text-[10px] text-zinc-400 leading-tight">Acesso total ao estúdio</span>
+                    <span className="font-bold text-xs text-white">Admin</span>
+                    <span className="text-[10px] text-zinc-400 leading-tight mt-0.5">
+                      Acesso total ao estúdio
+                    </span>
                   </button>
 
                   <button
@@ -889,8 +924,10 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onShowTo
                     }`}
                   >
                     <User className="w-4 h-4 text-blue-400 mb-1" />
-                    <span className="font-bold">Assistente</span>
-                    <span className="text-[10px] text-zinc-400 leading-tight">Apenas visualização</span>
+                    <span className="font-bold text-xs text-white">Assistente</span>
+                    <span className="text-[10px] text-zinc-400 leading-tight mt-0.5">
+                      Apenas visualização
+                    </span>
                   </button>
                 </div>
               </div>

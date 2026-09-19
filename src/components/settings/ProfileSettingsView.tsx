@@ -22,7 +22,8 @@ import {
   KeyRound,
   Lock,
   Eye,
-  EyeOff
+  EyeOff,
+  Sparkles
 } from 'lucide-react';
 
 export interface ProfileSettingsViewProps {
@@ -179,10 +180,15 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({ onShow
                   <ShieldCheck className="w-3.5 h-3.5" />
                   <span>Administrador</span>
                 </Badge>
+              ) : profile?.role === 'photographer_pro' ? (
+                <Badge variant="info" className="gap-1 font-mono text-xs bg-gradient-to-r from-[#8300E9]/30 to-[#46BDC6]/30 text-purple-100 border-[#8300E9]/50 shadow-sm">
+                  <Sparkles className="w-3.5 h-3.5 text-[#46BDC6]" />
+                  <span>Fotógrafo Izy Pro</span>
+                </Badge>
               ) : isPhotographer ? (
                 <Badge variant="info" className="gap-1 font-mono text-xs">
                   <Camera className="w-3.5 h-3.5" />
-                  <span>Fotógrafo</span>
+                  <span>Fotógrafo Izy</span>
                 </Badge>
               ) : (
                 <Badge variant="default" className="gap-1 font-mono text-xs">
@@ -393,15 +399,25 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({ onShow
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
               <div className="p-2.5 rounded-lg bg-zinc-900 border border-zinc-800">
                 <span className="text-zinc-400 text-[11px]">Função no Sistema</span>
-                <p className="font-semibold text-zinc-200 mt-0.5 capitalize">
-                  {profile?.role === 'admin' ? 'Administrador do Sistema' : profile?.role === 'photographer' ? 'Fotógrafo Profissional' : 'Usuário / Cliente'}
+                <p className="font-semibold text-zinc-200 mt-0.5">
+                  {profile?.role === 'admin'
+                    ? 'Administrador do Sistema'
+                    : profile?.role === 'photographer_pro'
+                    ? 'Fotógrafo Izy Pro (Acesso Ilimitado)'
+                    : profile?.role === 'photographer'
+                    ? 'Fotógrafo Izy (Máx. 10 Galerias)'
+                    : 'Usuário / Cliente'}
                 </p>
               </div>
 
               <div className="p-2.5 rounded-lg bg-zinc-900 border border-zinc-800">
-                <span className="text-zinc-400 text-[11px]">Capacidade de Galerias</span>
+                <span className="text-zinc-400 text-[11px]">Capacidade de Galerias & Recursos</span>
                 <p className="font-semibold text-emerald-400 mt-0.5">
-                  {isAdmin || isPhotographer ? 'Ilimitado (Painel Ativo)' : 'Restrito a galerias vinculadas'}
+                  {isAdmin || profile?.role === 'photographer_pro'
+                    ? 'Ilimitado (Galerias + Faturas + Lixeira)'
+                    : isPhotographer
+                    ? 'Limite de 10 Galerias / Ensaios'
+                    : 'Restrito a galerias vinculadas'}
                 </p>
               </div>
             </div>

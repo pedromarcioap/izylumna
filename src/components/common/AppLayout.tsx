@@ -356,7 +356,13 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                       {profile?.email || photographerProfile?.email || 'usuario@lumina.com'}
                     </div>
                     <span className="inline-block mt-1 px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[9px] font-mono font-bold uppercase tracking-wider">
-                      {profile?.role === 'admin' ? 'Administrador' : profile?.role === 'photographer' ? 'Fotógrafo Pro' : 'Usuário Comum'}
+                      {profile?.role === 'admin'
+                        ? 'Administrador'
+                        : profile?.role === 'photographer_pro'
+                        ? 'Fotógrafo Izy Pro'
+                        : profile?.role === 'photographer'
+                        ? 'Fotógrafo Izy'
+                        : 'Usuário Comum'}
                     </span>
                   </div>
                 </div>
@@ -583,11 +589,33 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
           <div className="p-3 rounded-2xl bg-[#120E22] border border-white/10 space-y-2">
             <div className="flex items-center justify-between text-[11px] font-mono">
               <span className="text-zinc-400">Armazenamento</span>
-              <span className="text-white font-bold">1.2TB / 2TB</span>
+              <span className="text-white font-bold">
+                {profile?.role === 'admin' || profile?.role === 'photographer_pro'
+                  ? 'Espaço Ilimitado'
+                  : `${galleries.length} / 10 Galerias`}
+              </span>
             </div>
             <div className="h-1.5 w-full bg-[#0A0714] rounded-full overflow-hidden flex border border-white/10">
-              <div className="h-full bg-gradient-to-r from-[#8300E9] to-[#46BDC6] w-[60%]" />
+              <div
+                className={`h-full ${
+                  profile?.role === 'admin' || profile?.role === 'photographer_pro'
+                    ? 'bg-gradient-to-r from-[#8300E9] via-[#46BDC6] to-amber-400 w-full animate-pulse'
+                    : 'bg-[#8300E9]'
+                }`}
+                style={{
+                  width:
+                    profile?.role === 'admin' || profile?.role === 'photographer_pro'
+                      ? '100%'
+                      : `${Math.min(100, (galleries.length / 10) * 100)}%`
+                }}
+              />
             </div>
+            {profile?.role === 'photographer' && (
+              <div className="text-[10px] text-amber-300 font-mono flex items-center justify-between pt-1 border-t border-white/5">
+                <span>Plano Fotógrafo Izy</span>
+                <span className="text-purple-300 font-bold">Máx 10 Ensaios</span>
+              </div>
+            )}
           </div>
         </aside>
 

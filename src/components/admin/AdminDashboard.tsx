@@ -74,7 +74,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onOpenClientView,
   onShowToast
 }) => {
-  const { user, isAdmin } = useAuth();
+  const { user, profile, isAdmin, isPhotographerPro } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'in_progress' | 'pending_extras' | 'ready_lightroom' | 'completed'>('all');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -727,36 +727,75 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </Button>
           </div>
 
-          {/* WIDGET 3: CONSUMO DE NUVEM */}
+          {/* WIDGET 3: CONSUMO DE NUVEM & PLANO */}
           <div className="p-5 rounded-2xl bg-[#120E22] border border-white/10 space-y-3">
             <div className="flex items-center justify-between">
               <span className="font-mono font-bold text-[11px] uppercase tracking-wider text-zinc-400">
-                CONSUMO DE NUVEM
+                CONSUMO DE NUVEM & PLANO
               </span>
-              <span className="font-mono font-extrabold text-xs text-white">60%</span>
+              <span className="font-mono font-extrabold text-xs text-amber-400">
+                {profile?.role === 'photographer'
+                  ? `${totalGalleries} / 10 Galerias`
+                  : 'Espaço Ilimitado'}
+              </span>
             </div>
 
             <div className="flex items-baseline justify-between">
               <span className="font-sans text-2xl font-extrabold text-white">
-                1.2 TB <span className="text-xs font-normal text-zinc-400">de 2.0 TB</span>
+                {profile?.role === 'photographer' ? (
+                  <>
+                    {totalGalleries} <span className="text-xs font-normal text-zinc-400">de 10 Ensaios</span>
+                  </>
+                ) : (
+                  <>
+                    1.2 TB <span className="text-xs font-normal text-zinc-400">Espaço Ilimitado (Pro)</span>
+                  </>
+                )}
               </span>
             </div>
 
             <div className="h-2 w-full bg-[#0A0714] rounded-full overflow-hidden flex border border-white/10">
-              <div className="h-full bg-[#8300E9] w-[45%]" />
-              <div className="h-full bg-[#46BDC6] w-[15%]" />
+              <div
+                className={`h-full ${
+                  profile?.role === 'photographer'
+                    ? totalGalleries >= 10
+                      ? 'bg-red-500'
+                      : 'bg-[#8300E9]'
+                    : 'bg-gradient-to-r from-[#8300E9] via-[#46BDC6] to-amber-400 animate-pulse'
+                }`}
+                style={{
+                  width:
+                    profile?.role === 'photographer'
+                      ? `${Math.min(100, (totalGalleries / 10) * 100)}%`
+                      : '100%'
+                }}
+              />
             </div>
 
-            <div className="grid grid-cols-2 gap-2 text-[11px] text-zinc-400 pt-1 font-mono">
-              <div className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-[#8300E9]" />
-                <span>RAWs Originais (920 GB)</span>
+            {profile?.role === 'photographer' ? (
+              <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 space-y-1 mt-2">
+                <div className="font-bold flex items-center justify-between">
+                  <span>Plano Fotógrafo Izy</span>
+                  <span className="font-mono text-[10px] text-amber-400">
+                    {totalGalleries >= 10 ? '⚠️ Limite Atingido' : `${10 - totalGalleries} vaga(s) disponível(is)`}
+                  </span>
+                </div>
+                <p className="text-[11px] text-zinc-400 leading-snug">
+                  Faça upgrade para o <strong>Fotógrafo Izy Pro</strong> para galerias ilimitadas, módulo financeiro/faturas e suporte prioritário.
+                </p>
               </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-[#46BDC6]" />
-                <span>Previews Web (280 GB)</span>
+            ) : (
+              <div className="grid grid-cols-2 gap-2 text-[11px] text-zinc-400 pt-1 font-mono">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-[#8300E9]" />
+                  <span>RAWs (920 GB)</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-[#46BDC6]" />
+                  <span>Previews (280 GB)</span>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
