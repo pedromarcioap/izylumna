@@ -138,15 +138,26 @@ export default function App() {
 
   const userGalleries = React.useMemo(() => {
     if (isUserAdmin) return galleries;
-    if (!currentUserId) return galleries;
-    return galleries.filter((g) => !g.userId || g.userId === currentUserId);
+    if (!currentUserId) return [];
+    return galleries.filter((g) => g.userId === currentUserId);
   }, [galleries, isUserAdmin, currentUserId]);
 
   const userTrashGalleries = React.useMemo(() => {
     if (isUserAdmin) return trashGalleries;
-    if (!currentUserId) return trashGalleries;
-    return trashGalleries.filter((g) => !g.userId || g.userId === currentUserId);
+    if (!currentUserId) return [];
+    return trashGalleries.filter((g) => g.userId === currentUserId);
   }, [trashGalleries, isUserAdmin, currentUserId]);
+
+  // Keep activeGalleryId valid for the current user's authorized galleries
+  useEffect(() => {
+    if (userGalleries.length > 0) {
+      if (!activeGalleryId || !userGalleries.some((g) => g.id === activeGalleryId)) {
+        setActiveGalleryId(userGalleries[0].id);
+      }
+    } else if (activeGalleryId && !isUserAdmin) {
+      setActiveGalleryId('');
+    }
+  }, [userGalleries, activeGalleryId, isUserAdmin]);
 
   const handleSaveGallery = async (galleryData: Partial<Gallery>) => {
     let updatedList: Gallery[];
@@ -242,13 +253,8 @@ export default function App() {
     const id = typeof galleryOrId === 'string' ? galleryOrId : galleryOrId?.id;
     if (!id) return;
 
-    const targetGallery = galleries.find((g) => g.id === id);
+    const targetGallery = userGalleries.find((g) => g.id === id);
     if (!targetGallery) {
-      showToast('Galeria Não Encontrada', 'A galeria solicitada não existe ou foi removida.', 'error');
-      return;
-    }
-
-    if (!isUserAdmin && targetGallery.userId && targetGallery.userId !== currentUserId) {
       showToast('Acesso Negado', 'Você só possui permissão para acessar os ensaios criados pela sua conta.', 'error');
       return;
     }
@@ -258,6 +264,11 @@ export default function App() {
   };
 
   const handleOpenClientView = (galleryId: string) => {
+    const targetGallery = userGalleries.find((g) => g.id === galleryId);
+    if (!targetGallery && !isUserAdmin) {
+      showToast('Acesso Negado', 'Você só possui permissão para visualizar os ensaios da sua conta.', 'error');
+      return;
+    }
     setActiveGalleryId(galleryId);
     setCurrentRole('client');
     showToast('Modo Cliente Ativado', 'Você está visualizando a galeria como o cliente.', 'info');
@@ -268,8 +279,8 @@ export default function App() {
     await refreshGalleriesAndTrash();
   };
 
-  const activeGallery = galleries.find((g) => g.id === activeGalleryId);
-  const detailGallery = galleries.find((g) => g.id === detailGalleryId);
+  const activeGallery = userGalleries.find((g) => g.id === activeGalleryId);
+  const detailGallery = userGalleries.find((g) => g.id === detailGalleryId);
 
   // If on Adobe OAuth Callback route, render dedicated handler
   if (isAdobeCallback) {

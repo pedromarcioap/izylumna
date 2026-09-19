@@ -115,7 +115,11 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
       <header className="h-16 shrink-0 bg-[#0A0714] border-b border-white/10 px-4 flex items-center justify-between z-40 sticky top-0 backdrop-blur-xl">
         {/* Left: Brand Emblem Logo */}
         <div 
-          onClick={() => onRoleChange('admin')}
+          onClick={() => {
+            if (isAdmin || isPhotographer) {
+              onRoleChange('admin');
+            }
+          }}
           className="flex items-center gap-3 cursor-pointer shrink-0 hover:opacity-90 transition-opacity"
         >
           <div className="flex items-center gap-2">
@@ -128,53 +132,59 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
 
         {/* Center: Main Navigation Tabs */}
         <div className="hidden md:flex items-center gap-1.5 bg-[#120E22] p-1 rounded-xl border border-white/10">
-          <button
-            onClick={() => {
-              onRoleChange('admin');
-              onNavTabChange('galleries');
-              onSidebarItemChange('collections');
-            }}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-              activeNavTab === 'galleries' && activeSidebarItem === 'collections' && currentRole === 'admin'
-                ? 'bg-[#1D1636] text-white border border-purple-500/40 shadow-sm'
-                : 'text-zinc-400 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <span>Ensaios & Galerias</span>
-            <span className="px-1.5 py-0.2 text-[10px] font-mono font-bold bg-[#8300E9] text-white rounded-full">
-              {galleries.length || 12}
-            </span>
-          </button>
+          {(isAdmin || isPhotographer) && (
+            <button
+              onClick={() => {
+                onRoleChange('admin');
+                onNavTabChange('galleries');
+                onSidebarItemChange('collections');
+              }}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                activeNavTab === 'galleries' && activeSidebarItem === 'collections' && currentRole === 'admin'
+                  ? 'bg-[#1D1636] text-white border border-purple-500/40 shadow-sm'
+                  : 'text-zinc-400 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              <span>Ensaios & Galerias</span>
+              <span className="px-1.5 py-0.2 text-[10px] font-mono font-bold bg-[#8300E9] text-white rounded-full">
+                {galleries.length}
+              </span>
+            </button>
+          )}
 
-          <button
-            onClick={() => {
-              onRoleChange('admin');
-              onNavTabChange('pos_production');
-              onSidebarItemChange('');
-            }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-              activeNavTab === 'pos_production' && currentRole === 'admin'
-                ? 'bg-[#1D1636] text-white border border-purple-500/40 shadow-sm'
-                : 'text-zinc-400 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            Central de Pós-Produção
-          </button>
+          {(isAdmin || isPhotographer) && (
+            <button
+              onClick={() => {
+                onRoleChange('admin');
+                onNavTabChange('pos_production');
+                onSidebarItemChange('');
+              }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                activeNavTab === 'pos_production' && currentRole === 'admin'
+                  ? 'bg-[#1D1636] text-white border border-purple-500/40 shadow-sm'
+                  : 'text-zinc-400 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              Central de Pós-Produção
+            </button>
+          )}
 
-          <button
-            onClick={() => {
-              onRoleChange('admin');
-              onNavTabChange('financial');
-              onSidebarItemChange('billing');
-            }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-              (activeNavTab === 'financial' || activeSidebarItem === 'billing') && currentRole === 'admin'
-                ? 'bg-[#1D1636] text-white border border-purple-500/40 shadow-sm'
-                : 'text-zinc-400 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            Financeiro & Extras
-          </button>
+          {isAdmin && (
+            <button
+              onClick={() => {
+                onRoleChange('admin');
+                onNavTabChange('financial');
+                onSidebarItemChange('billing');
+              }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                (activeNavTab === 'financial' || activeSidebarItem === 'billing') && currentRole === 'admin'
+                  ? 'bg-[#1D1636] text-white border border-purple-500/40 shadow-sm'
+                  : 'text-zinc-400 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              Financeiro & Extras
+            </button>
+          )}
 
           <button
             onClick={() => {
@@ -188,7 +198,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                 : 'text-zinc-400 hover:text-white hover:bg-white/5'
             }`}
           >
-            <span>Portal do Cliente (Demo Ao Vivo)</span>
+            <span>Portal do Cliente</span>
           </button>
         </div>
 
@@ -452,53 +462,59 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
             </div>
 
             <nav className="space-y-1 text-xs">
-              <button
-                onClick={() => {
-                  onRoleChange('admin');
-                  onNavTabChange('galleries');
-                  onSidebarItemChange('collections');
-                }}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${
-                  activeSidebarItem === 'collections' && currentRole === 'admin'
-                    ? 'bg-[#1A142E] text-white font-bold border border-purple-500/30'
-                    : 'text-zinc-400 hover:text-white hover:bg-white/5 font-medium'
-                }`}
-              >
-                <FolderKanban className="w-4 h-4 text-[#46BDC6]" />
-                <span>Coleções Ativas</span>
-              </button>
+              {(isAdmin || isPhotographer) && (
+                <button
+                  onClick={() => {
+                    onRoleChange('admin');
+                    onNavTabChange('galleries');
+                    onSidebarItemChange('collections');
+                  }}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${
+                    activeSidebarItem === 'collections' && currentRole === 'admin'
+                      ? 'bg-[#1A142E] text-white font-bold border border-purple-500/30'
+                      : 'text-zinc-400 hover:text-white hover:bg-white/5 font-medium'
+                  }`}
+                >
+                  <FolderKanban className="w-4 h-4 text-[#46BDC6]" />
+                  <span>Coleções Ativas</span>
+                </button>
+              )}
 
-              <button
-                onClick={() => {
-                  onRoleChange('admin');
-                  onNavTabChange('galleries');
-                  onSidebarItemChange('filters');
-                }}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${
-                  activeSidebarItem === 'filters' && currentRole === 'admin'
-                    ? 'bg-[#1A142E] text-white font-bold border border-purple-500/30'
-                    : 'text-zinc-400 hover:text-white hover:bg-white/5 font-medium'
-                }`}
-              >
-                <SlidersHorizontal className="w-4 h-4 text-purple-400" />
-                <span>Filtros & Metadados</span>
-              </button>
+              {(isAdmin || isPhotographer) && (
+                <button
+                  onClick={() => {
+                    onRoleChange('admin');
+                    onNavTabChange('galleries');
+                    onSidebarItemChange('filters');
+                  }}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${
+                    activeSidebarItem === 'filters' && currentRole === 'admin'
+                      ? 'bg-[#1A142E] text-white font-bold border border-purple-500/30'
+                      : 'text-zinc-400 hover:text-white hover:bg-white/5 font-medium'
+                  }`}
+                >
+                  <SlidersHorizontal className="w-4 h-4 text-purple-400" />
+                  <span>Filtros & Metadados</span>
+                </button>
+              )}
 
-              <button
-                onClick={() => {
-                  onRoleChange('admin');
-                  onNavTabChange('financial');
-                  onSidebarItemChange('billing');
-                }}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${
-                  activeSidebarItem === 'billing' && currentRole === 'admin'
-                    ? 'bg-[#1A142E] text-white font-bold border border-purple-500/30'
-                    : 'text-zinc-400 hover:text-white hover:bg-white/5 font-medium'
-                }`}
-              >
-                <Receipt className="w-4 h-4 text-amber-400" />
-                <span>Faturamento & Extras</span>
-              </button>
+              {isAdmin && (
+                <button
+                  onClick={() => {
+                    onRoleChange('admin');
+                    onNavTabChange('financial');
+                    onSidebarItemChange('billing');
+                  }}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${
+                    activeSidebarItem === 'billing' && currentRole === 'admin'
+                      ? 'bg-[#1A142E] text-white font-bold border border-purple-500/30'
+                      : 'text-zinc-400 hover:text-white hover:bg-white/5 font-medium'
+                  }`}
+                >
+                  <Receipt className="w-4 h-4 text-amber-400" />
+                  <span>Faturamento & Extras</span>
+                </button>
+              )}
 
               <button
                 onClick={() => {
@@ -516,44 +532,48 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                 <span>Modo Apresentação</span>
               </button>
 
-              <button
-                onClick={() => {
-                  onRoleChange('admin');
-                  onNavTabChange('galleries');
-                  onSidebarItemChange('settings');
-                }}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${
-                  activeSidebarItem === 'settings' && currentRole === 'admin'
-                    ? 'bg-[#1A142E] text-white font-bold border border-purple-500/30'
-                    : 'text-zinc-400 hover:text-white hover:bg-white/5 font-medium'
-                }`}
-              >
-                <Settings className="w-4 h-4 text-zinc-400" />
-                <span>Ajustes do Estúdio</span>
-              </button>
+              {(isAdmin || isPhotographer) && (
+                <button
+                  onClick={() => {
+                    onRoleChange('admin');
+                    onNavTabChange('galleries');
+                    onSidebarItemChange('settings');
+                  }}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${
+                    activeSidebarItem === 'settings' && currentRole === 'admin'
+                      ? 'bg-[#1A142E] text-white font-bold border border-purple-500/30'
+                      : 'text-zinc-400 hover:text-white hover:bg-white/5 font-medium'
+                  }`}
+                >
+                  <Settings className="w-4 h-4 text-zinc-400" />
+                  <span>Ajustes do Estúdio</span>
+                </button>
+              )}
 
-              <button
-                onClick={() => {
-                  onRoleChange('admin');
-                  onNavTabChange('galleries');
-                  onSidebarItemChange('trash');
-                }}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all ${
-                  activeSidebarItem === 'trash' && currentRole === 'admin'
-                    ? 'bg-red-500/10 text-red-200 font-bold border border-red-500/30'
-                    : 'text-zinc-400 hover:text-white hover:bg-white/5 font-medium'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <Trash2 className="w-4 h-4 text-red-400" />
-                  <span>Lixeira</span>
-                </div>
+              {(isAdmin || isPhotographer) && (
+                <button
+                  onClick={() => {
+                    onRoleChange('admin');
+                    onNavTabChange('galleries');
+                    onSidebarItemChange('trash');
+                  }}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all ${
+                    activeSidebarItem === 'trash' && currentRole === 'admin'
+                      ? 'bg-red-500/10 text-red-200 font-bold border border-red-500/30'
+                      : 'text-zinc-400 hover:text-white hover:bg-white/5 font-medium'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <Trash2 className="w-4 h-4 text-red-400" />
+                    <span>Lixeira</span>
+                  </div>
                 {typeof trashGalleriesCount === 'number' && trashGalleriesCount > 0 && (
                   <span className="px-1.5 py-0.2 text-[10px] font-mono font-bold bg-red-500/20 text-red-300 border border-red-500/30 rounded-full">
                     {trashGalleriesCount}
                   </span>
                 )}
               </button>
+              )}
             </nav>
           </div>
 

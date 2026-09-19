@@ -32,7 +32,12 @@ export const StudioSettingsView: React.FC<StudioSettingsViewProps> = ({
   initialTab = 'perfil'
 }) => {
   const { isAdmin, isPhotographer } = useAuth();
-  const [activeTab, setActiveTab] = useState<'perfil' | 'team' | 'adobe' | 'pix'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'perfil' | 'team' | 'adobe' | 'pix'>(() => {
+    if (!isAdmin && (initialTab === 'team' || initialTab === 'pix')) {
+      return 'perfil';
+    }
+    return initialTab;
+  });
 
   // PIX Settings local state
   const [pixKeyType, setPixKeyType] = useState<'cpf' | 'cnpj' | 'email' | 'phone' | 'random'>('cnpj');

@@ -30,7 +30,7 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({
   onLogout,
   onCreateGallery
 }) => {
-  const { user, profile, signOut } = useAuth();
+  const { user, profile, signOut, isAdmin, isPhotographer } = useAuth();
   const activeGallery = galleries.find((g) => g.id === activeGalleryId);
 
   const isAuthenticated = !!user || isPhotographerAuthenticated;
@@ -45,28 +45,37 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 gap-4">
           {/* Brand Identity with LumnaLogo (Dark Cinema Variant) */}
-          <div className="flex items-center gap-3 shrink-0 cursor-pointer" onClick={() => onRoleChange('admin')}>
+          <div 
+            className="flex items-center gap-3 shrink-0 cursor-pointer" 
+            onClick={() => {
+              if (isAdmin || isPhotographer) {
+                onRoleChange('admin');
+              }
+            }}
+          >
             <LumnaLogo variant="dark" size="md" showSubtitle={true} />
           </div>
 
           {/* Center Role Mode Switcher & 1-Click Quick Actions */}
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1 bg-[#140F24]/90 p-1 rounded-xl border border-white/10 shadow-inner">
-              <button
-                onClick={() => onRoleChange('admin')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                  currentRole === 'admin'
-                    ? 'bg-[#8300E9] text-white font-semibold shadow-md shadow-[#8300E9]/30 border border-[#8300E9]'
-                    : 'text-zinc-400 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                {isAuthenticated ? (
-                  <ShieldCheck className="w-3.5 h-3.5 text-[#46BDC6]" />
-                ) : (
-                  <Lock className="w-3.5 h-3.5 text-[#F94713]" />
-                )}
-                <span>Fotógrafo</span>
-              </button>
+              {(isAdmin || isPhotographer) && (
+                <button
+                  onClick={() => onRoleChange('admin')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                    currentRole === 'admin'
+                      ? 'bg-[#8300E9] text-white font-semibold shadow-md shadow-[#8300E9]/30 border border-[#8300E9]'
+                      : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  {isAuthenticated ? (
+                    <ShieldCheck className="w-3.5 h-3.5 text-[#46BDC6]" />
+                  ) : (
+                    <Lock className="w-3.5 h-3.5 text-[#F94713]" />
+                  )}
+                  <span>Fotógrafo</span>
+                </button>
+              )}
 
               <button
                 onClick={() => onRoleChange('client')}
@@ -87,7 +96,7 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({
             </div>
 
             {/* Direct 1-Click Action: Create Gallery shortcut for Admin */}
-            {currentRole === 'admin' && isAuthenticated && onCreateGallery && (
+            {currentRole === 'admin' && (isAdmin || isPhotographer) && isAuthenticated && onCreateGallery && (
               <button
                 onClick={onCreateGallery}
                 title="Criar novo ensaio em 1 clique"
