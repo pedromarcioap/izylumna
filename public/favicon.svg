@@ -1,6 +1,21 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
-  <rect width="64" height="64" rx="16" fill="#0c0d0e"/>
-  <circle cx="32" cy="32" r="24" fill="#01743f" opacity="0.25" stroke="#01743f" stroke-width="2"/>
-  <path d="M22 24h6l2-4h8l2 4h6a4 4 0 0 1 4 4v16a4 4 0 0 1-4 4H22a4 4 0 0 1-4-4V28a4 4 0 0 1 4-4z" fill="none" stroke="#4cb963" stroke-width="3" stroke-linejoin="round"/>
-  <circle cx="32" cy="34" r="7" fill="none" stroke="#fef600" stroke-width="2.5"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="100%" height="100%">
+  <defs>
+    <radialGradient id="lumna-glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#8300E9" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#161224" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <!-- Background Glow & Circle -->
+  <circle cx="20" cy="20" r="19" fill="#161224" stroke="#8300E9" stroke-width="2"/>
+  <circle cx="20" cy="20" r="18" fill="url(#lumna-glow)"/>
+  <!-- Signature Geometric Pentagon Emblem -->
+  <polygon
+    points="20,7 32,15 28,29 12,29 8,15"
+    stroke="#8300E9"
+    stroke-width="2.5"
+    stroke-linejoin="round"
+    fill="none"
+  />
+  <!-- Central White Lumna Core -->
+  <circle cx="20" cy="20" r="3.5" fill="#FFFFFF"/>
 </svg>
