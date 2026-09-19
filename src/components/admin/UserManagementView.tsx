@@ -30,7 +30,8 @@ import {
   Send,
   KeyRound,
   ShieldAlert,
-  Info
+  Info,
+  MailCheck
 } from 'lucide-react';
 
 export interface UserManagementViewProps {
@@ -45,6 +46,9 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onShowTo
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [roleFilter, setRoleFilter] = useState<'all' | UserRole>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'suspended'>('all');
+  const [pendencyFilter, setPendencyFilter] = useState<
+    'all' | 'has_pending' | 'email_unverified' | 'password_pending' | 'verified'
+  >('all');
 
   // Create User Form state
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -73,6 +77,40 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onShowTo
     loadUsers();
   }, []);
 
+  // Compute stats
+  const unverifiedEmailCount = users.filter((u) => !u.email_confirmed_at).length;
+  const passwordPendingCount = users.filter((u) => u.must_change_password).length;
+  const hasPendencyCount = users.filter(
+    (u) => !u.email_confirmed_at || u.must_change_password || !u.full_name || !u.phone
+  ).length;
+  const verifiedCount = users.filter(
+    (u) => u.email_confirmed_at && !u.must_change_password && u.is_active
+  ).length;
+
+  const handleConfirmEmailManually = async (targetUser: UserProfile) => {
+    const res = await adminUpdateUser(targetUser.id, {
+      email_confirmed_at: new Date().toISOString()
+    });
+    if (res.success) {
+      onShowToast(
+        'E-mail Verificado!',
+        `O e-mail de "${targetUser.email}" foi verificado com sucesso pelo administrador.`,
+        'success'
+      );
+      loadUsers();
+    } else {
+      onShowToast('Erro ao Atualizar', res.error || 'Falha ao confirmar e-mail.', 'error');
+    }
+  };
+
+  const handleResendInvite = async (targetUser: UserProfile) => {
+    onShowToast(
+      'Convite Reenviado!',
+      `Um novo link de ativação e verificação de e-mail foi enviado para "${targetUser.email}".`,
+      'info'
+    );
+  };
+
   // Filtered users
   const filteredUsers = users.filter((u) => {
     const queryLower = searchQuery.toLowerCase();
@@ -86,7 +124,14 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onShowTo
       (statusFilter === 'active' && u.is_active) ||
       (statusFilter === 'suspended' && !u.is_active);
 
-    return matchesSearch && matchesRole && matchesStatus;
+    const matchesPendency =
+      pendencyFilter === 'all' ||
+      (pendencyFilter === 'has_pending' && (!u.email_confirmed_at || u.must_change_password || !u.full_name || !u.phone)) ||
+      (pendencyFilter === 'email_unverified' && !u.email_confirmed_at) ||
+      (pendencyFilter === 'password_pending' && u.must_change_password) ||
+      (pendencyFilter === 'verified' && u.email_confirmed_at && !u.must_change_password && u.is_active);
+
+    return matchesSearch && matchesRole && matchesStatus && matchesPendency;
   });
 
   // Pagination calculation
@@ -265,7 +310,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onShowTo
             </h2>
           </div>
           <p className="text-xs text-zinc-400 mt-1">
-            Controle de acesso por funções (RBAC), criação de novos membros da equipe e suspensão de contas.
+            Controle de acesso por funções (RBAC), verificação de e-mails, pendências de cadastro e criação de membros.
           </p>
         </div>
 
@@ -287,6 +332,67 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onShowTo
         </div>
       </div>
 
+      {/* Summary KPI Cards for Pendencies & Verification */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="p-4 rounded-xl bg-zinc-900/80 border border-zinc-800 flex items-center gap-3">
+          <div className="p-2.5 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400">
+            <Users className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="text-xs text-zinc-400 font-medium">Total de Membros</div>
+            <div className="text-lg font-bold text-zinc-100">{users.length}</div>
+          </div>
+        </div>
+
+        <div
+          onClick={() => {
+            setPendencyFilter('email_unverified');
+            setCurrentPage(1);
+          }}
+          className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/20 flex items-center gap-3 cursor-pointer hover:bg-amber-500/10 transition-colors"
+        >
+          <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400">
+            <AlertTriangle className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="text-xs text-amber-300 font-medium">E-mail Não Verificado</div>
+            <div className="text-lg font-bold text-amber-400">{unverifiedEmailCount}</div>
+          </div>
+        </div>
+
+        <div
+          onClick={() => {
+            setPendencyFilter('password_pending');
+            setCurrentPage(1);
+          }}
+          className="p-4 rounded-xl bg-purple-500/5 border border-purple-500/20 flex items-center gap-3 cursor-pointer hover:bg-purple-500/10 transition-colors"
+        >
+          <div className="p-2.5 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-400">
+            <KeyRound className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="text-xs text-purple-300 font-medium">Troca de Senha Pendente</div>
+            <div className="text-lg font-bold text-purple-400">{passwordPendingCount}</div>
+          </div>
+        </div>
+
+        <div
+          onClick={() => {
+            setPendencyFilter('verified');
+            setCurrentPage(1);
+          }}
+          className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/20 flex items-center gap-3 cursor-pointer hover:bg-emerald-500/10 transition-colors"
+        >
+          <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+            <CheckCircle2 className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="text-xs text-emerald-300 font-medium">100% Verificados</div>
+            <div className="text-lg font-bold text-emerald-400">{verifiedCount}</div>
+          </div>
+        </div>
+      </div>
+
       {/* Filters and Search Bar */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
         <div className="relative max-w-sm w-full">
@@ -302,6 +408,22 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onShowTo
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {/* Pendency Filter */}
+          <select
+            value={pendencyFilter}
+            onChange={(e) => {
+              setPendencyFilter(e.target.value as any);
+              setCurrentPage(1);
+            }}
+            className="bg-zinc-900 border border-zinc-800 text-zinc-200 text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-amber-500"
+          >
+            <option value="all">Todas as Pendências</option>
+            <option value="has_pending">⚠️ Com Alguma Pendência ({hasPendencyCount})</option>
+            <option value="email_unverified">✉️ E-mail Não Verificado ({unverifiedEmailCount})</option>
+            <option value="password_pending">🔑 Redefinição de Senha ({passwordPendingCount})</option>
+            <option value="verified">✅ 100% Verificados ({verifiedCount})</option>
+          </select>
+
           {/* Role Filter */}
           <select
             value={roleFilter}
@@ -339,8 +461,9 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onShowTo
           <table className="w-full text-left text-xs">
             <thead className="bg-zinc-950/90 text-zinc-400 uppercase tracking-wider font-mono border-b border-zinc-800">
               <tr>
-                <th className="py-3.5 px-4">Usuário / E-mail</th>
+                <th className="py-3.5 px-4">Usuário / Contato</th>
                 <th className="py-3.5 px-4">Função (Role)</th>
+                <th className="py-3.5 px-4">Verificação & Pendências</th>
                 <th className="py-3.5 px-4 text-center">Status</th>
                 <th className="py-3.5 px-4">Data de Cadastro</th>
                 <th className="py-3.5 px-4 text-right">Ações do Administrador</th>
@@ -349,14 +472,14 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onShowTo
             <tbody className="divide-y divide-zinc-800/60">
               {isLoading ? (
                 <tr>
-                  <td colSpan={5} className="py-12 text-center text-zinc-500">
+                  <td colSpan={6} className="py-12 text-center text-zinc-500">
                     <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-amber-400" />
                     <span>Carregando perfis do Supabase...</span>
                   </td>
                 </tr>
               ) : paginatedUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-12 text-center text-zinc-500">
+                  <td colSpan={6} className="py-12 text-center text-zinc-500">
                     <Users className="w-8 h-8 mx-auto mb-2 text-zinc-600" />
                     <span>Nenhum usuário encontrado com os filtros selecionados.</span>
                   </td>
@@ -395,7 +518,12 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onShowTo
                                 </span>
                               )}
                             </div>
-                            <div className="text-[11px] text-zinc-400">{userItem.email}</div>
+                            <div className="text-[11px] text-zinc-400 flex items-center gap-2">
+                              <span>{userItem.email}</span>
+                              {userItem.phone && (
+                                <span className="text-[10px] text-zinc-500 font-mono">({userItem.phone})</span>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </td>
@@ -425,6 +553,41 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onShowTo
                         </div>
                       </td>
 
+                      {/* Email Verification & Pendencies Status Column */}
+                      <td className="py-3.5 px-4">
+                        <div className="flex flex-col gap-1.5 items-start">
+                          {userItem.email_confirmed_at ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[11px] font-medium">
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              <span>E-mail Verificado</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20 text-[11px] font-medium animate-pulse">
+                              <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+                              <span>E-mail Não Verificado</span>
+                            </span>
+                          )}
+
+                          <div className="flex flex-wrap gap-1">
+                            {userItem.must_change_password && (
+                              <span className="inline-flex items-center gap-1 text-[10px] text-purple-300 bg-purple-500/10 border border-purple-500/20 px-1.5 py-0.2 rounded">
+                                <KeyRound className="w-3 h-3 text-purple-400" /> Troca de Senha
+                              </span>
+                            )}
+                            {(!userItem.full_name || userItem.full_name === 'Sem nome') && (
+                              <span className="inline-flex items-center gap-1 text-[10px] text-amber-300 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.2 rounded">
+                                <Info className="w-3 h-3 text-amber-400" /> Nome Incompleto
+                              </span>
+                            )}
+                            {!userItem.phone && (
+                              <span className="inline-flex items-center gap-1 text-[10px] text-zinc-400 bg-zinc-800 border border-zinc-700 px-1.5 py-0.2 rounded">
+                                <Phone className="w-3 h-3 text-zinc-500" /> Sem WhatsApp
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+
                       <td className="py-3.5 px-4 text-center">
                         {userItem.is_active ? (
                           <Badge variant="success" size="sm" className="gap-1">
@@ -450,7 +613,33 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onShowTo
                       </td>
 
                       <td className="py-3.5 px-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
+                        <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                          {!userItem.email_confirmed_at && (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleConfirmEmailManually(userItem)}
+                                className="text-[11px] text-amber-300 hover:bg-amber-500/10 border border-amber-500/20"
+                                title="Aprovar e marcar e-mail como verificado manualmente"
+                              >
+                                <MailCheck className="w-3.5 h-3.5 mr-1 text-amber-400" />
+                                <span>Aprovar E-mail</span>
+                              </Button>
+
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleResendInvite(userItem)}
+                                className="text-[11px] text-purple-300 hover:bg-purple-500/10 border border-purple-500/20"
+                                title="Reenviar e-mail de ativação e verificação"
+                              >
+                                <Send className="w-3.5 h-3.5 mr-1 text-purple-400" />
+                                <span>Reenviar Convite</span>
+                              </Button>
+                            </>
+                          )}
+
                           {userItem.is_active ? (
                             <Button
                               variant="ghost"

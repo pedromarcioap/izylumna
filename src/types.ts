@@ -14,6 +14,8 @@ export interface UserProfile {
   role: UserRole;
   is_active: boolean;
   must_change_password?: boolean;
+  email_confirmed_at?: string | null;
+  phone?: string | null;
   created_at?: string;
   updated_at?: string;
 }

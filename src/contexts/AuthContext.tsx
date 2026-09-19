@@ -31,7 +31,7 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   updateProfile: (data: { full_name?: string; avatar_url?: string }) => Promise<{ success: boolean; error?: string }>;
   changePassword: (newPassword: string) => Promise<{ success: boolean; error?: string }>;
-  adminUpdateUser: (userId: string, data: { role?: UserRole; is_active?: boolean }) => Promise<{ success: boolean; error?: string }>;
+  adminUpdateUser: (userId: string, data: Partial<UserProfile>) => Promise<{ success: boolean; error?: string }>;
   adminCreateUser: (data: AdminCreateUserOptions) => Promise<{ success: boolean; user?: UserProfile; error?: string }>;
   fetchAllProfiles: () => Promise<UserProfile[]>;
 }
@@ -212,33 +212,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const handleLocalFallback = async (): Promise<{ success: boolean; error?: string }> => {
         const allProfiles = await fetchAllProfiles();
-        let matchingProfile = allProfiles.find(
+        const matchingProfile = allProfiles.find(
           (p) =>
             p.email.toLowerCase() === emailClean ||
             (emailClean === 'admin' && p.role === 'admin') ||
             (emailClean === 'fotografo' && (p.role === 'photographer' || p.role === 'admin'))
         );
 
-        if (matchingProfile) {
-          if (!matchingProfile.is_active) {
-            setIsLoading(false);
-            return {
-              success: false,
-              error: 'A sua conta foi suspensa/desativada por um administrador. Entre em contato com o suporte.'
-            };
-          }
-        } else {
-          matchingProfile = {
-            id: generateUUID(),
-            email: emailClean,
-            full_name: splitEmailName(emailClean),
-            role: allProfiles.length === 0 ? 'admin' : 'photographer',
-            is_active: true,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
+        if (!matchingProfile) {
+          setIsLoading(false);
+          return {
+            success: false,
+            error: 'E-mail ou senha incorretos. Por favor, verifique suas credenciais ou realize o cadastro.'
           };
-          const existingLocal = getStoredProfiles();
-          saveStoredProfiles([matchingProfile, ...existingLocal.filter((p) => p.email.toLowerCase() !== emailClean)]);
+        }
+
+        if (!matchingProfile.is_active) {
+          setIsLoading(false);
+          return {
+            success: false,
+            error: 'A sua conta foi suspensa/desativada por um administrador. Entre em contato com o suporte.'
+          };
         }
 
         const mockUser: any = { id: matchingProfile.id, email: matchingProfile.email };
@@ -349,6 +343,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const emailClean = email.trim().toLowerCase();
 
+      // Check if user already exists in profiles
+      const allProfiles = await fetchAllProfiles();
+      const existingUser = allProfiles.find((p) => p.email.toLowerCase() === emailClean);
+      if (existingUser) {
+        setIsLoading(false);
+        return {
+          success: false,
+          error: `O e-mail "${emailClean}" já está cadastrado no sistema. Por favor, acesse a aba "Entrar" para realizar seu login.`
+        };
+      }
+
       // Enforce role permission: non-admins cannot assign 'admin' role
       let finalRole: UserRole = role;
       if (role === 'admin' && profile?.role !== 'admin') {
@@ -370,8 +375,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (error) {
           setIsLoading(false);
           let msg = error.message;
-          if (msg.includes('already registered') || msg.includes('already exists')) {
-            msg = `Este e-mail (${emailClean}) já está cadastrado no sistema. Por favor, faça login.`;
+          if (msg.includes('already registered') || msg.includes('already exists') || msg.includes('User already registered')) {
+            msg = `O e-mail "${emailClean}" já está cadastrado no sistema. Por favor, acesse a aba "Entrar".`;
           } else if (msg.includes('at least 6 characters')) {
             msg = 'A senha deve conter no mínimo 6 caracteres.';
           }
@@ -379,6 +384,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         if (data.user) {
+          // Check for Supabase User Enumeration Protection (returns user with empty identities array if user exists)
+          if (Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+            setIsLoading(false);
+            return {
+              success: false,
+              error: `O e-mail "${emailClean}" já está cadastrado no sistema. Por favor, acesse a aba "Entrar" para realizar seu login.`
+            };
+          }
+
           // Explicitly upsert public.profiles to guarantee matching UUID, role and name
           try {
             await supabase.from('profiles').upsert({
@@ -455,6 +469,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(mockUser);
         setProfile(mockProfile);
         localStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify({ user: mockUser, profile: mockProfile }));
+        const existingLocal = getStoredProfiles();
+        saveStoredProfiles([mockProfile, ...existingLocal.filter(p => p.email.toLowerCase() !== emailClean)]);
 
         const photoProfile: PhotographerProfile = {
           id: mockProfile.id,
@@ -474,9 +490,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           rememberMe: true,
           profile: photoProfile
         });
-
-        const existingLocal = getStoredProfiles();
-        saveStoredProfiles([mockProfile, ...existingLocal.filter(p => p.email.toLowerCase() !== emailClean)]);
 
         setIsLoading(false);
         return { success: true };
@@ -739,6 +752,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       role: targetRole,
       is_active: true,
       must_change_password: data.mustChangePassword ?? true,
+      email_confirmed_at: data.sendInvite ? null : new Date().toISOString(),
+      phone: data.phone || null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
@@ -783,6 +798,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         full_name: 'Lucas Silveira (Admin)',
         role: 'admin',
         is_active: true,
+        email_confirmed_at: '2026-01-15T10:00:00Z',
+        phone: '(11) 99123-4567',
         created_at: '2026-01-15T10:00:00Z'
       },
       {
@@ -791,6 +808,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         full_name: 'Lumina Studio Admin',
         role: 'admin',
         is_active: true,
+        email_confirmed_at: '2026-01-16T10:00:00Z',
+        phone: '(11) 98888-7777',
         created_at: '2026-01-16T10:00:00Z'
       },
       {
@@ -799,6 +818,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         full_name: 'Marcos Oliveira',
         role: 'photographer',
         is_active: true,
+        email_confirmed_at: '2026-02-10T14:30:00Z',
+        phone: '(11) 98765-4321',
         created_at: '2026-02-10T14:30:00Z'
       },
       {
@@ -807,6 +828,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         full_name: 'Beatriz Santos',
         role: 'photographer',
         is_active: true,
+        email_confirmed_at: null,
+        must_change_password: true,
+        phone: '(21) 99876-5432',
         created_at: '2026-03-01T09:15:00Z'
       },
       {
@@ -815,6 +839,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         full_name: 'Clara Costa',
         role: 'user',
         is_active: false,
+        email_confirmed_at: null,
+        must_change_password: true,
         created_at: '2026-04-12T16:00:00Z'
       }
     ];

@@ -51,10 +51,26 @@ export const PhotographerLogin: React.FC<PhotographerLoginProps> = ({
     e.preventDefault();
     setError(null);
     setSuccessMessage(null);
+
+    const emailClean = email.trim();
+    if (!emailClean || !emailClean.includes('@')) {
+      const err = 'Por favor, informe um endereço de e-mail válido.';
+      setError(err);
+      onShowToast('E-mail Inválido', err, 'error');
+      return;
+    }
+
+    if (!password) {
+      const err = 'Por favor, informe a senha de acesso.';
+      setError(err);
+      onShowToast('Senha Necessária', err, 'error');
+      return;
+    }
+
     setIsLoading(true);
 
     if (mode === 'login') {
-      const res = await signInWithPassword(email, password);
+      const res = await signInWithPassword(emailClean, password);
       setIsLoading(false);
 
       if (res.success) {
@@ -65,11 +81,15 @@ export const PhotographerLogin: React.FC<PhotographerLoginProps> = ({
         );
         onLoginSuccess();
       } else {
-        setError(res.error || 'Credenciais inválidas. Verifique seu e-mail e senha.');
+        const errMsg = res.error || 'Credenciais inválidas. Verifique seu e-mail e senha.';
+        setError(errMsg);
+        onShowToast('Falha no Login', errMsg, 'error');
       }
     } else {
       if (!fullName.trim()) {
-        setError('Por favor, informe seu nome completo.');
+        const err = 'Por favor, informe seu nome completo.';
+        setError(err);
+        onShowToast('Dados Incompletos', err, 'error');
         setIsLoading(false);
         return;
       }
@@ -77,24 +97,28 @@ export const PhotographerLogin: React.FC<PhotographerLoginProps> = ({
       // Password Strength Validation
       const validation = validatePassword(password);
       if (!validation.isValid) {
-        setError(validation.errors[0]);
+        const err = validation.errors[0];
+        setError(err);
+        onShowToast('Senha Insegura', err, 'error');
         setIsLoading(false);
         return;
       }
 
-      const res = await signUp(email, password, fullName, selectedRole);
+      const res = await signUp(emailClean, password, fullName, selectedRole);
       setIsLoading(false);
 
       if (res.success) {
         setSuccessMessage('Conta criada com sucesso! Você já está autenticado.');
         onShowToast(
           'Conta Criada com Sucesso!',
-          'Seu perfil foi registrado no banco de dados com provisioning automático.',
+          'Seu perfil foi registrado com sucesso.',
           'success'
         );
         onLoginSuccess();
       } else {
-        setError(res.error || 'Erro ao realizar cadastro.');
+        const errMsg = res.error || 'Este e-mail já está cadastrado ou ocorreu um erro durante o registro.';
+        setError(errMsg);
+        onShowToast('Falha no Cadastro', errMsg, 'error');
       }
     }
   };
