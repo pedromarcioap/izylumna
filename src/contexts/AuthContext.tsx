@@ -223,7 +223,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setIsLoading(false);
           return {
             success: false,
-            error: 'E-mail ou senha incorretos. Por favor, verifique suas credenciais ou realize o cadastro.'
+            error: 'E-mail ou senha incorretos. Por favor, verifique suas credenciais e tente novamente.'
           };
         }
 
@@ -232,6 +232,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return {
             success: false,
             error: 'A sua conta foi suspensa/desativada por um administrador. Entre em contato com o suporte.'
+          };
+        }
+
+        if (!matchingProfile.email_confirmed_at && matchingProfile.role !== 'admin') {
+          setIsLoading(false);
+          return {
+            success: false,
+            error: 'E-mail ainda não verificado. Por favor, verifique a caixa de entrada do seu e-mail ou solicite a aprovação a um administrador.'
           };
         }
 
@@ -246,7 +254,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           name: matchingProfile.full_name || splitEmailName(matchingProfile.email),
           email: matchingProfile.email,
           studioName: 'Lumina Proofing Studio',
-          phone: '',
+          phone: matchingProfile.phone || '',
           avatarUrl: matchingProfile.avatar_url || '',
           defaultWatermarkText: 'PROVA • LUMINA STUDIO • PROVA',
           defaultExtraPrice: 30
@@ -276,6 +284,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
 
         if (error) {
+          // Check if local fallback profile exists for this email before returning error
+          const allProfiles = await fetchAllProfiles();
+          const localMatch = allProfiles.find((p) => p.email.toLowerCase() === emailClean);
+          if (localMatch) {
+            return await handleLocalFallback();
+          }
+
           setIsLoading(false);
           let userFriendlyError = error.message;
           if (error.message.includes('Invalid login credentials')) {
@@ -305,7 +320,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               name: prof.full_name || splitEmailName(prof.email),
               email: prof.email,
               studioName: 'Lumina Proofing Studio',
-              phone: '',
+              phone: prof.phone || '',
               avatarUrl: prof.avatar_url || '',
               defaultWatermarkText: 'PROVA • LUMINA STUDIO • PROVA',
               defaultExtraPrice: 30
@@ -322,7 +337,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setIsLoading(false);
           return { success: true };
         }
-        // If neither error nor data.user (fallback edge case), handle fallback
         return await handleLocalFallback();
       } else {
         return await handleLocalFallback();
@@ -845,12 +859,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     ];
 
-    // Combine and remove duplicates by email
+    // Combine and remove duplicates by email, merging local admin updates onto DB/Default profiles
     const map = new Map<string, UserProfile>();
 
     defaultTeam.forEach((p) => map.set(p.email.toLowerCase(), p));
-    localProfiles.forEach((p) => map.set(p.email.toLowerCase(), p));
-    dbProfiles.forEach((p) => map.set(p.email.toLowerCase(), p));
+
+    dbProfiles.forEach((p) => {
+      const existing = map.get(p.email.toLowerCase());
+      map.set(p.email.toLowerCase(), { ...existing, ...p });
+    });
+
+    localProfiles.forEach((p) => {
+      const existing = map.get(p.email.toLowerCase());
+      map.set(p.email.toLowerCase(), { ...existing, ...p });
+    });
 
     return Array.from(map.values()).sort(
       (a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
