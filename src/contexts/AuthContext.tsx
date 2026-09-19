@@ -3,7 +3,7 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { UserProfile, UserRole, PhotographerProfile } from '../types';
 import { logoutPhotographer, savePhotographerProfile, savePhotographerSession } from '../lib/auth';
-import { validatePassword } from '../lib/passwordValidation';
+import { validatePassword, generateSecurePassword, getSecureRandomInt } from '../lib/passwordValidation';
 
 export interface AdminCreateUserOptions {
   email: string;
@@ -51,7 +51,7 @@ const generateUUID = (): string => {
     return crypto.randomUUID();
   }
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
+    const r = getSecureRandomInt(16);
     const v = c === 'x' ? r : (r & 0x3) | 0x8;
     return v.toString(16);
   });
@@ -691,7 +691,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { success: false, error: 'Por favor, informe um endereço de e-mail com formato válido.' };
     }
 
-    // Defensive validation for password
+    // Defensive validation for password & CSPRNG generation
     let userPassword = data.password;
     if (!data.sendInvite) {
       if (!userPassword) {
@@ -705,7 +705,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
       }
     } else if (!userPassword) {
-      userPassword = `Pass!${Math.random().toString(36).slice(2, 10)}9A`;
+      // Generate high-entropy CSPRNG provisional password
+      userPassword = generateSecurePassword(16);
+    } else {
+      // Validate explicitly provided password even when invite mode is selected
+      const passValidation = validatePassword(userPassword);
+      if (!passValidation.isValid) {
+        return {
+          success: false,
+          error: passValidation.errors[0] || 'A senha informada não atende aos requisitos mínimos de entropia.'
+        };
+      }
     }
 
     let assignedId = generateUUID();

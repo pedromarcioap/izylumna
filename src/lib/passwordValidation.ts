@@ -82,3 +82,105 @@ export function validatePassword(password: string, confirmPassword?: string): Pa
     label
   };
 }
+
+/**
+ * Utility function to get a cryptographically secure random integer in range [0, max - 1].
+ * Uses Web Crypto API (crypto.getRandomValues) and prevents modulo bias.
+ */
+export function getSecureRandomInt(max: number): number {
+  if (max <= 0) return 0;
+  const cryptoObj =
+    typeof window !== 'undefined' && window.crypto
+      ? window.crypto
+      : typeof crypto !== 'undefined'
+      ? crypto
+      : undefined;
+
+  if (cryptoObj && typeof cryptoObj.getRandomValues === 'function') {
+    const array = new Uint32Array(1);
+    const maxUint32 = 0xffffffff;
+    const limit = maxUint32 - (maxUint32 % max);
+    let randomVal: number;
+    do {
+      cryptoObj.getRandomValues(array);
+      randomVal = array[0];
+    } while (randomVal >= limit);
+    return randomVal % max;
+  }
+
+  // Fallback for environments lacking Web Crypto API
+  return Math.floor(Math.random() * max);
+}
+
+/**
+ * Generates a cryptographically secure random password meeting all password entropy and policy requirements.
+ * Ensures inclusion of uppercase, lowercase, numeric, and special characters.
+ * Validates the generated password against validatePassword before returning.
+ * 
+ * @param length Minimum length of the password (default: 16)
+ */
+export function generateSecurePassword(length: number = 16): string {
+  const targetLength = Math.max(length, 12);
+  const uppercaseChars = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const lowercaseChars = 'abcdefghijkmnopqrstuvwxyz';
+  const numberChars = '23456789';
+  const specialChars = '!@#$%^&*()_+-=[]{}';
+  const allChars = uppercaseChars + lowercaseChars + numberChars + specialChars;
+
+  // Guarantee at least one character from each required set
+  const requiredChars = [
+    uppercaseChars[getSecureRandomInt(uppercaseChars.length)],
+    lowercaseChars[getSecureRandomInt(lowercaseChars.length)],
+    numberChars[getSecureRandomInt(numberChars.length)],
+    specialChars[getSecureRandomInt(specialChars.length)]
+  ];
+
+  // Fill the remainder from the unified set
+  const remainingLength = targetLength - requiredChars.length;
+  const restChars: string[] = [];
+  for (let i = 0; i < remainingLength; i++) {
+    restChars.push(allChars[getSecureRandomInt(allChars.length)]);
+  }
+
+  // Combine and perform Fisher-Yates shuffle securely
+  const combined = [...requiredChars, ...restChars];
+  for (let i = combined.length - 1; i > 0; i--) {
+    const j = getSecureRandomInt(i + 1);
+    [combined[i], combined[j]] = [combined[j], combined[i]];
+  }
+
+  const generatedPassword = combined.join('');
+
+  // Assert validation compliance defensively
+  const validation = validatePassword(generatedPassword);
+  if (!validation.isValid) {
+    return generateSecurePassword(targetLength);
+  }
+
+  return generatedPassword;
+}
+
+/**
+ * Generates a cryptographically secure numeric PIN (default 6 digits).
+ */
+export function generateSecurePin(length: number = 6): string {
+  const digits = '0123456789';
+  const result: string[] = [];
+  for (let i = 0; i < length; i++) {
+    result.push(digits[getSecureRandomInt(digits.length)]);
+  }
+  return result.join('');
+}
+
+/**
+ * Generates a cryptographically secure alphanumeric token (default 32 chars).
+ */
+export function generateSecureToken(length: number = 32): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const result: string[] = [];
+  for (let i = 0; i < length; i++) {
+    result.push(chars[getSecureRandomInt(chars.length)]);
+  }
+  return result.join('');
+}
+

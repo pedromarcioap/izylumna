@@ -10,6 +10,7 @@ import { uploadPhotoFile, uploadPhotosInBatches } from '../../lib/photoUpload';
 import { extractExif } from '../../lib/exif';
 import { getPhotographerSession } from '../../lib/auth';
 import { DeleteConfirmModal } from '../common/DeleteConfirmModal';
+import { generateSecurePin } from '../../lib/passwordValidation';
 import {
   Upload,
   Plus,
@@ -199,7 +200,7 @@ export const GalleryFormModal: React.FC<GalleryFormModalProps> = ({
       setDescription('Sejam bem-vindos à sua galeria de seleção! Por favor, revisem as fotos com calma e votem nas suas favoritas.');
       setStatus('awaiting_client');
       setPrivacy('private');
-      setPinCode(Math.floor(1000 + Math.random() * 9000).toString());
+      setPinCode(generateSecurePin(4));
       setQuotaIncluded(20);
       setExcessPolicy('charge');
       setExtraPhotoPrice(session?.profile?.defaultExtraPrice || 25);
