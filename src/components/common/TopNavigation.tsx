@@ -73,7 +73,13 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({
                   ) : (
                     <Lock className="w-3.5 h-3.5 text-[#F94713]" />
                   )}
-                  <span>Fotógrafo</span>
+                  <span>
+                    {profile?.role === 'photographer_pro' || profile?.role === 'photographer_izy_pro'
+                      ? 'Fotógrafo Izy Pro'
+                      : profile?.role === 'photographer' || profile?.role === 'photographer_izy'
+                      ? 'Fotógrafo Izy'
+                      : 'Fotógrafo'}
+                  </span>
                 </button>
               )}
 

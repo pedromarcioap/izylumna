@@ -936,8 +936,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const isAdmin = profile?.role === 'admin';
-  const isPhotographerPro = profile?.role === 'photographer_pro' || isAdmin;
-  const isPhotographer = profile?.role === 'photographer' || isPhotographerPro;
+  const isPhotographerPro = profile?.role === 'photographer_pro' || profile?.role === 'photographer_izy_pro' || isAdmin;
+  const isPhotographer = profile?.role === 'photographer' || profile?.role === 'photographer_izy' || isPhotographerPro;
   const canAccessTrash = isPhotographerPro;
   const canAccessFinancial = isPhotographerPro;
 

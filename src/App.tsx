@@ -32,7 +32,7 @@ import { TrashBinView } from './components/admin/TrashBinView';
 
 
 export default function App() {
-  const { user, profile, signOut, isLoading: isAuthLoading } = useAuth();
+  const { user, profile, isPhotographerPro, signOut, isLoading: isAuthLoading } = useAuth();
   
   // Navigation & Role State
   const [currentRole, setCurrentRole] = useState<'admin' | 'client'>('admin');
@@ -175,8 +175,7 @@ export default function App() {
       showToast('Ensaio Atualizado!', `As alterações em "${saved.title}" foram salvas.`, 'success');
     } else {
       // Creating new gallery
-      const isProOrAdmin = profile?.role === 'admin' || profile?.role === 'photographer_pro';
-      if (!isProOrAdmin && profile?.role === 'photographer' && userGalleries.length >= 10) {
+      if (!isPhotographerPro && userGalleries.length >= 10) {
         showToast(
           'Limite de 10 Galerias Atingido',
           'Seu plano "Fotógrafo Izy" possui limite de 10 galerias. Faça upgrade para o "Fotógrafo Izy Pro" para galerias e espaço ilimitados!',
@@ -293,8 +292,7 @@ export default function App() {
   };
 
   const handleOpenCreateGallery = () => {
-    const isProOrAdmin = profile?.role === 'admin' || profile?.role === 'photographer_pro';
-    if (!isProOrAdmin && profile?.role === 'photographer' && userGalleries.length >= 10) {
+    if (!isPhotographerPro && userGalleries.length >= 10) {
       showToast(
         'Limite de 10 Galerias Atingido',
         'O seu plano "Fotógrafo Izy" é limitado a 10 galerias. Faça o upgrade para o "Fotógrafo Izy Pro" para ter direito a galerias e armazenamento ilimitados, faturas e lixeira.',

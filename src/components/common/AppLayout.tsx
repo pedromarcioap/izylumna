@@ -74,7 +74,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   onLogout,
   onShowToast
 }) => {
-  const { user, profile, signOut, isAdmin, isPhotographer, canAccessTrash, canAccessFinancial } = useAuth();
+  const { user, profile, signOut, isAdmin, isPhotographerPro, isPhotographer, canAccessTrash, canAccessFinancial } = useAuth();
   const activeGallery = galleries.find((g) => g.id === activeGalleryId);
 
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -358,9 +358,9 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                     <span className="inline-block mt-1 px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[9px] font-mono font-bold uppercase tracking-wider">
                       {profile?.role === 'admin'
                         ? 'Administrador'
-                        : profile?.role === 'photographer_pro'
+                        : isPhotographerPro
                         ? 'Fotógrafo Izy Pro'
-                        : profile?.role === 'photographer'
+                        : isPhotographer
                         ? 'Fotógrafo Izy'
                         : 'Usuário Comum'}
                     </span>
@@ -590,7 +590,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
             <div className="flex items-center justify-between text-[11px] font-mono">
               <span className="text-zinc-400">Armazenamento</span>
               <span className="text-white font-bold">
-                {profile?.role === 'admin' || profile?.role === 'photographer_pro'
+                {isPhotographerPro
                   ? 'Espaço Ilimitado'
                   : `${galleries.length} / 10 Galerias`}
               </span>
@@ -598,19 +598,19 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
             <div className="h-1.5 w-full bg-[#0A0714] rounded-full overflow-hidden flex border border-white/10">
               <div
                 className={`h-full ${
-                  profile?.role === 'admin' || profile?.role === 'photographer_pro'
+                  isPhotographerPro
                     ? 'bg-gradient-to-r from-[#8300E9] via-[#46BDC6] to-amber-400 w-full animate-pulse'
                     : 'bg-[#8300E9]'
                 }`}
                 style={{
                   width:
-                    profile?.role === 'admin' || profile?.role === 'photographer_pro'
+                    isPhotographerPro
                       ? '100%'
                       : `${Math.min(100, (galleries.length / 10) * 100)}%`
                 }}
               />
             </div>
-            {profile?.role === 'photographer' && (
+            {!isPhotographerPro && isPhotographer && (
               <div className="text-[10px] text-amber-300 font-mono flex items-center justify-between pt-1 border-t border-white/5">
                 <span>Plano Fotógrafo Izy</span>
                 <span className="text-purple-300 font-bold">Máx 10 Ensaios</span>

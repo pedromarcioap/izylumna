@@ -186,14 +186,16 @@ export const ProRoute: React.FC<ProRouteProps> = ({ children, onReturnToClient, 
 
         <div>
           <h2 className="text-xl font-bold text-white tracking-tight">
-            Recurso Exclusivo Fotógrafo Pro & Admin
+            Recurso Exclusivo Fotógrafo Izy Pro & Admin
           </h2>
           <p className="text-xs text-zinc-400 mt-2 leading-relaxed">
             Sua conta (<strong className="text-white">{profile?.email}</strong>) possui a função de{' '}
             <span className="px-2 py-0.5 rounded bg-white/10 text-purple-300 font-mono font-bold uppercase text-[10px]">
-              {profile?.role === 'photographer' ? 'Fotógrafo (Standard)' : profile?.role || 'user'}
+              {profile?.role === 'photographer' || profile?.role === 'photographer_izy'
+                ? 'Fotógrafo Izy (Máx 10 Galerias)'
+                : profile?.role || 'user'}
             </span>
-            . O acesso a este recurso exige o plano <strong>Fotógrafo Pro</strong> ou privilégios de Administrador.
+            . O acesso a este recurso exige o plano <strong>Fotógrafo Izy Pro</strong> ou privilégios de Administrador.
           </p>
         </div>
 

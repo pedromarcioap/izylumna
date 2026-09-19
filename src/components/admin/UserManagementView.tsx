@@ -119,7 +119,11 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onShowTo
     const emailMatch = u.email.toLowerCase().includes(queryLower);
     const matchesSearch = nameMatch || emailMatch;
 
-    const matchesRole = roleFilter === 'all' || u.role === roleFilter;
+    const matchesRole =
+      roleFilter === 'all' ||
+      u.role === roleFilter ||
+      (roleFilter === 'photographer_pro' && (u.role === 'photographer_pro' || u.role === 'photographer_izy_pro')) ||
+      (roleFilter === 'photographer' && (u.role === 'photographer' || u.role === 'photographer_izy'));
     const matchesStatus =
       statusFilter === 'all' ||
       (statusFilter === 'active' && u.is_active) ||
@@ -214,13 +218,15 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onShowTo
           </span>
         );
       case 'photographer_pro':
+      case 'photographer_izy_pro':
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-gradient-to-r from-[#8300E9]/20 to-[#46BDC6]/20 text-purple-200 border border-[#8300E9]/40 text-xs font-mono font-bold shadow-sm">
             <Sparkles className="w-3.5 h-3.5 text-[#46BDC6]" />
-            <span>Fotógrafo Pro</span>
+            <span>Fotógrafo Izy Pro</span>
           </span>
         );
       case 'photographer':
+      case 'photographer_izy':
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-purple-500/10 text-purple-300 border border-purple-500/20 text-xs font-mono font-bold">
             <Camera className="w-3.5 h-3.5" />
