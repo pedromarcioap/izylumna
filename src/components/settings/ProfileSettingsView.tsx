@@ -23,7 +23,8 @@ import {
   Lock,
   Eye,
   EyeOff,
-  Sparkles
+  Sparkles,
+  Phone
 } from 'lucide-react';
 
 export interface ProfileSettingsViewProps {
@@ -35,6 +36,7 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({ onShow
   const { user, profile, updateProfile, changePassword, isAdmin, isPhotographer } = useAuth();
 
   const [fullName, setFullName] = useState<string>(profile?.full_name || '');
+  const [whatsapp, setWhatsapp] = useState<string>(profile?.whatsapp || profile?.phone || '');
   const [avatarUrl, setAvatarUrl] = useState<string>(profile?.avatar_url || '');
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
@@ -43,6 +45,7 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({ onShow
   useEffect(() => {
     if (profile) {
       setFullName(profile.full_name || '');
+      setWhatsapp(profile.whatsapp || profile.phone || '');
       setAvatarUrl(profile.avatar_url || '');
     }
   }, [profile]);
@@ -139,7 +142,9 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({ onShow
 
     const res = await updateProfile({
       full_name: fullName.trim(),
-      avatar_url: avatarUrl.trim()
+      avatar_url: avatarUrl.trim(),
+      phone: whatsapp.trim(),
+      whatsapp: whatsapp.trim()
     });
 
     setIsSaving(false);
@@ -260,12 +265,20 @@ export const ProfileSettingsView: React.FC<ProfileSettingsViewProps> = ({ onShow
               />
 
               <Input
-                label="Endereço de E-mail"
-                value={user?.email || profile?.email || ''}
-                disabled
-                className="opacity-70 cursor-not-allowed"
+                label="WhatsApp / Telefone"
+                value={whatsapp}
+                onChange={(e) => setWhatsapp(e.target.value)}
+                placeholder="(11) 99999-9999"
+                leftIcon={<Phone className="w-4 h-4 text-zinc-400" />}
               />
             </div>
+
+            <Input
+              label="Endereço de E-mail"
+              value={user?.email || profile?.email || ''}
+              disabled
+              className="opacity-70 cursor-not-allowed"
+            />
 
             <Input
               label="URL da Imagem do Avatar (opcional)"

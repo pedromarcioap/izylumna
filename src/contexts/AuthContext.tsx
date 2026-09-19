@@ -10,6 +10,7 @@ export interface AdminCreateUserOptions {
   fullName: string;
   role: UserRole;
   phone?: string;
+  whatsapp?: string;
   password?: string;
   sendInvite?: boolean;
   mustChangePassword?: boolean;
@@ -27,9 +28,9 @@ interface AuthContextType {
   canAccessFinancial: boolean;
   isSupabaseConnected: boolean;
   signInWithPassword: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  signUp: (email: string, password: string, fullName: string, role?: UserRole) => Promise<{ success: boolean; error?: string }>;
+  signUp: (email: string, password: string, fullName: string, role?: UserRole, whatsapp?: string) => Promise<{ success: boolean; error?: string }>;
   signOut: () => Promise<void>;
-  updateProfile: (data: { full_name?: string; avatar_url?: string }) => Promise<{ success: boolean; error?: string }>;
+  updateProfile: (data: { full_name?: string; avatar_url?: string; phone?: string; whatsapp?: string }) => Promise<{ success: boolean; error?: string }>;
   changePassword: (newPassword: string) => Promise<{ success: boolean; error?: string }>;
   adminUpdateUser: (userId: string, data: Partial<UserProfile>) => Promise<{ success: boolean; error?: string }>;
   adminCreateUser: (data: AdminCreateUserOptions) => Promise<{ success: boolean; user?: UserProfile; error?: string }>;
@@ -105,8 +106,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               role: localMatch.role,
               email_confirmed_at: dbProf.email_confirmed_at ?? localMatch.email_confirmed_at,
               must_change_password: dbProf.must_change_password ?? localMatch.must_change_password,
-              phone: dbProf.phone ?? localMatch.phone
-            })
+              phone: dbProf.phone ?? localMatch.phone,
+              whatsapp: dbProf.whatsapp ?? localMatch.whatsapp ?? dbProf.phone ?? localMatch.phone
+            }),
+            whatsapp: dbProf.whatsapp ?? dbProf.phone ?? localMatch?.whatsapp ?? localMatch?.phone ?? null
           };
         }
       } catch (e) {
@@ -355,11 +358,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     email: string,
     password: string,
     fullName: string,
-    role: UserRole = 'user'
+    role: UserRole = 'user',
+    whatsapp?: string
   ): Promise<{ success: boolean; error?: string }> => {
     setIsLoading(true);
     try {
       const emailClean = email.trim().toLowerCase();
+      const whatsappClean = whatsapp?.trim() || '';
 
       // Check if user already exists in profiles
       const allProfiles = await fetchAllProfiles();
@@ -385,7 +390,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           options: {
             data: {
               full_name: fullName.trim(),
-              role: finalRole
+              role: finalRole,
+              phone: whatsappClean,
+              whatsapp: whatsappClean
             }
           }
         });
@@ -419,6 +426,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               full_name: fullName.trim(),
               role: finalRole,
               is_active: true,
+              phone: whatsappClean || null,
+              whatsapp: whatsappClean || null,
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString()
             });
@@ -448,6 +457,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             full_name: fullName.trim(),
             role: finalRole,
             is_active: true,
+            phone: whatsappClean || null,
+            whatsapp: whatsappClean || null,
             created_at: new Date().toISOString()
           });
 
@@ -456,7 +467,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             name: fullName.trim() || splitEmailName(emailClean),
             email: emailClean,
             studioName: 'Lumina Proofing Studio',
-            phone: '',
+            phone: whatsappClean,
+            whatsapp: whatsappClean,
             avatarUrl: '',
             defaultWatermarkText: 'PROVA • LUMINA STUDIO • PROVA',
             defaultExtraPrice: 30
@@ -482,6 +494,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           full_name: fullName.trim(),
           role: finalRole,
           is_active: true,
+          phone: whatsappClean || null,
+          whatsapp: whatsappClean || null,
           created_at: new Date().toISOString()
         };
         setUser(mockUser);
@@ -495,7 +509,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           name: mockProfile.full_name || splitEmailName(mockProfile.email),
           email: mockProfile.email,
           studioName: 'Lumina Proofing Studio',
-          phone: '',
+          phone: whatsappClean,
+          whatsapp: whatsappClean,
           avatarUrl: mockProfile.avatar_url || '',
           defaultWatermarkText: 'PROVA • LUMINA STUDIO • PROVA',
           defaultExtraPrice: 30
@@ -576,7 +591,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const updateProfile = async (data: { full_name?: string; avatar_url?: string }): Promise<{ success: boolean; error?: string }> => {
+  const updateProfile = async (data: {
+    full_name?: string;
+    avatar_url?: string;
+    phone?: string;
+    whatsapp?: string;
+  }): Promise<{ success: boolean; error?: string }> => {
     if (!user && !profile) return { success: false, error: 'Usuário não autenticado.' };
 
     const targetUserId = user?.id || profile?.id;
@@ -589,6 +609,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .update({
             ...(data.full_name !== undefined && { full_name: data.full_name }),
             ...(data.avatar_url !== undefined && { avatar_url: data.avatar_url }),
+            ...(data.phone !== undefined && { phone: data.phone }),
+            ...(data.whatsapp !== undefined && { whatsapp: data.whatsapp }),
             updated_at: new Date().toISOString()
           })
           .eq('id', targetUserId);
@@ -605,6 +627,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             ...profile,
             ...(data.full_name !== undefined && { full_name: data.full_name }),
             ...(data.avatar_url !== undefined && { avatar_url: data.avatar_url }),
+            ...(data.phone !== undefined && { phone: data.phone }),
+            ...(data.whatsapp !== undefined && { whatsapp: data.whatsapp }),
             updated_at: new Date().toISOString()
           }
         : null;
@@ -791,6 +815,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           role: targetRole,
           is_active: true,
           must_change_password: data.mustChangePassword ?? true,
+          phone: data.phone || data.whatsapp || null,
+          whatsapp: data.whatsapp || data.phone || null,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         });
@@ -811,7 +837,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       is_active: true,
       must_change_password: data.mustChangePassword ?? true,
       email_confirmed_at: data.sendInvite ? null : new Date().toISOString(),
-      phone: data.phone || null,
+      phone: data.phone || data.whatsapp || null,
+      whatsapp: data.whatsapp || data.phone || null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };

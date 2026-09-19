@@ -19,7 +19,8 @@ import {
   UserPlus,
   User,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Phone
 } from 'lucide-react';
 
 export interface PhotographerLoginProps {
@@ -39,6 +40,7 @@ export const PhotographerLogin: React.FC<PhotographerLoginProps> = ({
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [whatsapp, setWhatsapp] = useState('');
   const [selectedRole, setSelectedRole] = useState<UserRole>('photographer');
 
   const [showPassword, setShowPassword] = useState(false);
@@ -104,7 +106,7 @@ export const PhotographerLogin: React.FC<PhotographerLoginProps> = ({
         return;
       }
 
-      const res = await signUp(emailClean, password, fullName, selectedRole);
+      const res = await signUp(emailClean, password, fullName, selectedRole, whatsapp.trim());
       setIsLoading(false);
 
       if (res.success) {
@@ -127,6 +129,7 @@ export const PhotographerLogin: React.FC<PhotographerLoginProps> = ({
     setEmail('admin@lumina.com');
     setPassword('admin123');
     setFullName('Lucas Silveira');
+    setWhatsapp('(11) 98765-4321');
     setError(null);
   };
 
@@ -189,15 +192,26 @@ export const PhotographerLogin: React.FC<PhotographerLoginProps> = ({
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             {mode === 'signup' && (
-              <Input
-                label="Nome Completo *"
-                type="text"
-                placeholder="Ex: Lucas Silveira"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                leftIcon={<User className="w-4 h-4" />}
-                required
-              />
+              <>
+                <Input
+                  label="Nome Completo *"
+                  type="text"
+                  placeholder="Ex: Lucas Silveira"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  leftIcon={<User className="w-4 h-4" />}
+                  required
+                />
+
+                <Input
+                  label="WhatsApp / Telefone"
+                  type="tel"
+                  placeholder="(11) 99999-9999"
+                  value={whatsapp}
+                  onChange={(e) => setWhatsapp(e.target.value)}
+                  leftIcon={<Phone className="w-4 h-4" />}
+                />
+              </>
             )}
 
             <Input

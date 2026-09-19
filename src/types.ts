@@ -16,6 +16,7 @@ export interface UserProfile {
   must_change_password?: boolean;
   email_confirmed_at?: string | null;
   phone?: string | null;
+  whatsapp?: string | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -307,6 +308,7 @@ export interface PhotographerProfile {
   email: string;
   studioName: string;
   phone?: string;
+  whatsapp?: string;
   avatarUrl?: string;
   defaultWatermarkText?: string;
   defaultWatermarkPosition?: 'grid' | 'center' | 'both' | 'bottom-right';

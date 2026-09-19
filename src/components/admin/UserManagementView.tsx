@@ -535,8 +535,11 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onShowTo
                             </div>
                             <div className="text-[11px] text-zinc-400 flex items-center gap-2">
                               <span>{userItem.email}</span>
-                              {userItem.phone && (
-                                <span className="text-[10px] text-zinc-500 font-mono">({userItem.phone})</span>
+                              {(userItem.whatsapp || userItem.phone) && (
+                                <span className="text-[10px] text-emerald-400/90 font-mono inline-flex items-center gap-1 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                                  <Phone className="w-3 h-3 text-emerald-400" />
+                                  <span>{userItem.whatsapp || userItem.phone}</span>
+                                </span>
                               )}
                             </div>
                           </div>
@@ -595,7 +598,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onShowTo
                                 <Info className="w-3 h-3 text-amber-400" /> Nome Incompleto
                               </span>
                             )}
-                            {!userItem.phone && (
+                            {!(userItem.whatsapp || userItem.phone) && (
                               <span className="inline-flex items-center gap-1 text-[10px] text-zinc-400 bg-zinc-800 border border-zinc-700 px-1.5 py-0.2 rounded">
                                 <Phone className="w-3 h-3 text-zinc-500" /> Sem WhatsApp
                               </span>
