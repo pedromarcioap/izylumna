@@ -107,8 +107,8 @@ export const FiltersMetadataView: React.FC<FiltersMetadataViewProps> = ({
     navigator.clipboard.writeText(filenames);
     setIsCopiedLightroom(true);
     onShowToast(
-      'Filtro Lightroom Copiado!',
-      `${filteredPhotos.length} nomes de arquivo copiados para a área de transferência.`,
+      'Filtro Lightroom Copiado (Ctrl+C / Ctrl+V)!',
+      `${filteredPhotos.length} nomes de arquivo copiados para a área de transferência. Cole no filtro do Lightroom.`,
       'success'
     );
     setTimeout(() => setIsCopiedLightroom(false), 3000);

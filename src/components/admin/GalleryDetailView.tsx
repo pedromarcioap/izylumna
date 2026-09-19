@@ -391,8 +391,8 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
     }
 
     onShowToast(
-      'Copiado para o Lightroom!',
-      `${exportList.length} nomes de arquivos copiados para o filtro do Lightroom.`,
+      'Copiado para o Clipboard (Ctrl+C / Ctrl+V)!',
+      `${exportList.length} nomes de arquivos copiados para a área de transferência. Pressione Ctrl+V no Filtro de Texto do Lightroom.`,
       'success'
     );
   };
@@ -615,18 +615,18 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
               variant="secondary"
               size="sm"
               onClick={() => handleCopyLightroom(false)}
-              className="font-mono text-xs"
-              title="Copiar lista de fotos para colar na busca do Lightroom"
+              className="font-mono text-xs bg-amber-500/10 border-amber-500/30 text-amber-300 hover:bg-amber-500/20"
+              title="Copiar lista de fotos com extensão para a área de transferência (Ctrl+C / Ctrl+V)"
             >
               {copiedWithExt ? (
                 <>
                   <Check className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Copiado!</span>
+                  <span>Copiado! ✓</span>
                 </>
               ) : (
                 <>
                   <Copy className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Copiar p/ Lightroom</span>
+                  <span>Copiar p/ Lightroom (Ctrl+C)</span>
                 </>
               )}
             </Button>
@@ -636,9 +636,10 @@ export const GalleryDetailView: React.FC<GalleryDetailViewProps> = ({
               size="sm"
               onClick={() => handleCopyLightroom(true)}
               className="font-mono text-xs hidden md:inline-flex"
+              title="Copiar lista de fotos sem extensão de arquivo (.jpg)"
             >
               {copiedNoExt ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-zinc-400" />}
-              <span>Sem .ext</span>
+              <span>Sem .ext (Ctrl+C)</span>
             </Button>
 
             <Button variant="outline" size="sm" onClick={handleDownloadTxt}>

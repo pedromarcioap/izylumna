@@ -5,6 +5,7 @@ import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 import { SafeImage } from '../common/SafeImage';
 import { exportToLightroomCSV, exportToLightroomTxt, exportSelectionSummary } from '../../lib/exportUtils';
+import { generateLightroomSelectionString } from '../../lib/storage';
 import {
   Cloud,
   RefreshCw,
@@ -21,7 +22,9 @@ import {
   ArrowRight,
   ShieldCheck,
   Zap,
-  FolderKanban
+  FolderKanban,
+  Copy,
+  Check
 } from 'lucide-react';
 
 export interface PosProductionViewProps {
@@ -76,6 +79,31 @@ export const PosProductionView: React.FC<PosProductionViewProps> = ({
         'success'
       );
     }, 2000);
+  };
+
+  const [copiedGalleryId, setCopiedGalleryId] = useState<string | null>(null);
+
+  const handleCopyLightroomClipboard = (gallery: Gallery, stripExtension = false) => {
+    const selectedPhotos = gallery.photos.filter((p) => {
+      const votes = gallery.clientSelection?.votes?.[p.id] || [];
+      return votes.length > 0;
+    });
+
+    if (selectedPhotos.length === 0) {
+      onShowToast('Nenhuma Foto Selecionada', 'Esta galeria ainda não possui fotos marcadas.', 'warning');
+      return;
+    }
+
+    const filterString = generateLightroomSelectionString(selectedPhotos, stripExtension);
+    navigator.clipboard.writeText(filterString);
+    setCopiedGalleryId(gallery.id);
+    setTimeout(() => setCopiedGalleryId(null), 2500);
+
+    onShowToast(
+      'Copiado para o Clipboard (Ctrl+C / Ctrl+V)!',
+      `${selectedPhotos.length} nomes de arquivos copiados. Cole diretamente no Filtro de Texto do Lightroom (Ctrl+F -> Contém).`,
+      'success'
+    );
   };
 
   const handleExportCSV = (gallery: Gallery) => {
@@ -290,6 +318,26 @@ export const PosProductionView: React.FC<PosProductionViewProps> = ({
 
                   {/* Right: Quick Export Buttons */}
                   <div className="flex flex-wrap items-center gap-2 self-end md:self-auto">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => handleCopyLightroomClipboard(gallery, false)}
+                      className="text-xs bg-amber-500/10 border-amber-500/30 text-amber-300 hover:bg-amber-500/20 font-medium"
+                      title="Copiar lista de fotos para a área de transferência (Ctrl+C / Ctrl+V)"
+                    >
+                      {copiedGalleryId === gallery.id ? (
+                        <>
+                          <Check className="w-3.5 h-3.5 mr-1.5 text-emerald-400" />
+                          <span>Copiado!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5 mr-1.5 text-amber-400" />
+                          <span>Copiar p/ Lightroom</span>
+                        </>
+                      )}
+                    </Button>
+
                     <Button
                       variant="outline"
                       size="sm"
