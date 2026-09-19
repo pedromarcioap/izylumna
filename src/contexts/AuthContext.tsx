@@ -577,36 +577,66 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const updateProfile = async (data: { full_name?: string; avatar_url?: string }): Promise<{ success: boolean; error?: string }> => {
-    if (!user) return { success: false, error: 'Usuário não autenticado.' };
+    if (!user && !profile) return { success: false, error: 'Usuário não autenticado.' };
+
+    const targetUserId = user?.id || profile?.id;
+    const targetEmail = user?.email || profile?.email;
 
     try {
-      if (isSupabaseConfigured && supabase && isValidUUID(user.id)) {
+      if (isSupabaseConfigured && supabase && targetUserId && isValidUUID(targetUserId)) {
         const { error } = await supabase
           .from('profiles')
           .update({
-            full_name: data.full_name,
-            avatar_url: data.avatar_url,
+            ...(data.full_name !== undefined && { full_name: data.full_name }),
+            ...(data.avatar_url !== undefined && { avatar_url: data.avatar_url }),
             updated_at: new Date().toISOString()
           })
-          .eq('id', user.id);
+          .eq('id', targetUserId);
 
         if (error) {
-          console.warn('Erro ao atualizar perfil no Supabase:', error.message);
+          console.error('Erro ao atualizar perfil no Supabase:', error.message);
+          return { success: false, error: `Erro no Supabase: ${error.message}` };
         }
       }
 
-      setProfile((prev) =>
-        prev
-          ? {
-              ...prev,
-              ...(data.full_name !== undefined && { full_name: data.full_name }),
-              ...(data.avatar_url !== undefined && { avatar_url: data.avatar_url })
-            }
-          : null
-      );
+      // Update in-memory state
+      const updatedProfile: UserProfile | null = profile
+        ? {
+            ...profile,
+            ...(data.full_name !== undefined && { full_name: data.full_name }),
+            ...(data.avatar_url !== undefined && { avatar_url: data.avatar_url }),
+            updated_at: new Date().toISOString()
+          }
+        : null;
+
+      if (updatedProfile) {
+        setProfile(updatedProfile);
+
+        // Update local profiles storage (LOCAL_PROFILES_KEY)
+        const existingLocal = getStoredProfiles();
+        const filtered = existingLocal.filter(
+          (p) =>
+            (!targetUserId || p.id !== targetUserId) &&
+            (!targetEmail || p.email.toLowerCase() !== targetEmail.toLowerCase())
+        );
+        saveStoredProfiles([updatedProfile, ...filtered]);
+
+        // Update local session storage if present
+        try {
+          const storedSession = localStorage.getItem(LOCAL_SESSION_KEY);
+          if (storedSession) {
+            const parsed = JSON.parse(storedSession);
+            parsed.profile = updatedProfile;
+            localStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify(parsed));
+          }
+        } catch (e) {
+          console.warn('Erro ao atualizar sessão local em updateProfile:', e);
+        }
+      }
 
       return { success: true };
     } catch (e: any) {
+      console.error('Erro ao atualizar perfil:', e);
       return { success: false, error: e.message || 'Erro ao atualizar perfil.' };
     }
   };

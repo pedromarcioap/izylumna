@@ -24,6 +24,7 @@ import {
 import { LumnaLogo } from './LumnaLogo';
 import { Gallery, PhotographerProfile } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
+import { sanitizeImageUrl, PLACEHOLDER_IMAGE } from '../../lib/utils';
 import { UserProfileModal } from '../settings/UserProfileModal';
 import {
   getStoredNotifications,
@@ -321,13 +322,25 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
               onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
               className="flex items-center gap-2 p-1.5 rounded-xl bg-[#120E22] hover:bg-white/10 border border-white/10 transition-colors"
             >
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#8300E9] to-[#7000C8] text-white border border-[#46BDC6]/50 flex items-center justify-center font-bold text-xs shadow-md">
-                {profile?.full_name
-                  ? profile.full_name.slice(0, 2).toUpperCase()
-                  : photographerProfile?.name
-                  ? photographerProfile.name.slice(0, 2).toUpperCase()
-                  : 'IZ'}
-              </div>
+              {profile?.avatar_url ? (
+                <img
+                  src={sanitizeImageUrl(profile.avatar_url)}
+                  alt={profile.full_name || 'Avatar'}
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = PLACEHOLDER_IMAGE;
+                  }}
+                  className="w-8 h-8 rounded-xl object-cover border border-[#46BDC6]/50 shadow-md"
+                />
+              ) : (
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#8300E9] to-[#7000C8] text-white border border-[#46BDC6]/50 flex items-center justify-center font-bold text-xs shadow-md">
+                  {profile?.full_name
+                    ? profile.full_name.slice(0, 2).toUpperCase()
+                    : photographerProfile?.name
+                    ? photographerProfile.name.slice(0, 2).toUpperCase()
+                    : 'IZ'}
+                </div>
+              )}
               <ChevronDown className={`w-3.5 h-3.5 text-zinc-400 transition-transform duration-200 ${isUserMenuOpen ? 'rotate-180 text-white' : ''}`} />
             </button>
 
@@ -336,13 +349,25 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
               <div className="absolute right-0 mt-2 w-72 rounded-2xl bg-[#120E22] border border-white/10 shadow-2xl overflow-hidden z-50 text-xs animate-in fade-in duration-150">
                 {/* Header User Details */}
                 <div className="p-4 bg-[#0A0714] border-b border-white/10 flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#8300E9] to-[#46BDC6] text-white flex items-center justify-center font-bold text-sm shadow-inner shrink-0">
-                    {profile?.full_name
-                      ? profile.full_name.slice(0, 2).toUpperCase()
-                      : photographerProfile?.name
-                      ? photographerProfile.name.slice(0, 2).toUpperCase()
-                      : 'IZ'}
-                  </div>
+                  {profile?.avatar_url ? (
+                    <img
+                      src={sanitizeImageUrl(profile.avatar_url)}
+                      alt={profile.full_name || 'Avatar'}
+                      onError={(e) => {
+                        e.currentTarget.onerror = null;
+                        e.currentTarget.src = PLACEHOLDER_IMAGE;
+                      }}
+                      className="w-10 h-10 rounded-xl object-cover border border-[#46BDC6]/50 shadow-inner shrink-0"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#8300E9] to-[#46BDC6] text-white flex items-center justify-center font-bold text-sm shadow-inner shrink-0">
+                      {profile?.full_name
+                        ? profile.full_name.slice(0, 2).toUpperCase()
+                        : photographerProfile?.name
+                        ? photographerProfile.name.slice(0, 2).toUpperCase()
+                        : 'IZ'}
+                    </div>
+                  )}
                   <div className="flex-1 min-w-0">
                     <div className="font-bold text-white truncate text-sm">
                       {profile?.full_name || photographerProfile?.name || 'Usuário Lumina'}
