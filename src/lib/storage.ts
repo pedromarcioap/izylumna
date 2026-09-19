@@ -555,6 +555,10 @@ export async function getGalleryByPinAsync(pinCode: string): Promise<Gallery | n
   }
 }
 
+export function isValidUuid(id?: string): boolean {
+  return Boolean(id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id));
+}
+
 /**
  * Save or update a Gallery in Supabase with automatic local fallback.
  * Strictly guarantees gallery ID generation and creation order before photos.
@@ -563,8 +567,8 @@ export async function saveGalleryAsync(gallery: Gallery): Promise<Gallery> {
   const now = new Date().toISOString();
 
   // Ensure gallery ID is a valid UUID
-  const isUUID = gallery.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(gallery.id);
-  const galleryId = isUUID ? gallery.id : crypto.randomUUID();
+  const isUUID = isValidUuid(gallery.id);
+  const galleryId = isUUID ? gallery.id! : crypto.randomUUID();
 
   const existingPins = cachedGalleries.filter((g) => g.id !== gallery.id && g.id !== galleryId).map((g) => g.pinCode || '');
   let pinCode = gallery.pinCode?.trim();
@@ -577,9 +581,12 @@ export async function saveGalleryAsync(gallery: Gallery): Promise<Gallery> {
     ? gallery.coverPhotoUrl
     : (cleanPhotos[0]?.url || '');
 
+  const validUserId = isValidUuid(gallery.userId) ? gallery.userId : undefined;
+
   const updatedGallery: Gallery = {
     ...gallery,
     id: galleryId,
+    userId: validUserId || gallery.userId,
     coverPhotoUrl: cleanCoverUrl,
     photos: cleanPhotos,
     pinCode,
@@ -605,7 +612,7 @@ export async function saveGalleryAsync(gallery: Gallery): Promise<Gallery> {
   try {
     const galleryPayload: any = {
       id: galleryId,
-      user_id: gallery.userId || null,
+      user_id: validUserId || null,
       title: gallery.title || 'Galeria sem título',
       client_name: gallery.clientName || 'Cliente',
       client_email: gallery.clientEmail || '',
@@ -635,14 +642,26 @@ export async function saveGalleryAsync(gallery: Gallery): Promise<Gallery> {
       updated_at: now
     };
 
-    // Upsert gallery row first with schema fallback
+    // Upsert gallery row first with dynamic schema fallback
     let galPayload: any = { ...galleryPayload };
     let { error: galErr } = await supabase.from('galleries').upsert(galPayload, { onConflict: 'id' });
-    if (galErr && galErr.message?.includes("user_id")) {
-      delete galPayload.user_id;
-      const retryResult = await supabase.from('galleries').upsert(galPayload, { onConflict: 'id' });
-      galErr = retryResult.error;
+
+    for (let attempt = 0; attempt < 5 && galErr; attempt++) {
+      const match = galErr.message?.match(/Could not find the '([^']+)' column/i);
+      if (match && match[1] && match[1] in galPayload && match[1] !== 'id') {
+        const missingCol = match[1];
+        delete galPayload[missingCol];
+        const retryResult = await supabase.from('galleries').upsert(galPayload, { onConflict: 'id' });
+        galErr = retryResult.error;
+      } else if (galErr.message?.includes("user_id") && galPayload.user_id) {
+        delete galPayload.user_id;
+        const retryResult = await supabase.from('galleries').upsert(galPayload, { onConflict: 'id' });
+        galErr = retryResult.error;
+      } else {
+        break;
+      }
     }
+
     if (galErr) {
       console.warn('[Supabase Sync Warning] Failed to upsert gallery (operating in local fallback):', galErr.message || galErr);
       return updatedGallery;

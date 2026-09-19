@@ -169,33 +169,35 @@ export default function App() {
         userId: galleryToEdit.userId || currentUserId,
         updatedAt: new Date().toISOString()
       };
-      await saveGalleryAsync(fullUpdated);
+      const saved = await saveGalleryAsync(fullUpdated);
       updatedList = await getGalleriesAsync();
       setGalleries(updatedList);
-      showToast('Ensaio Atualizado!', `As alterações em "${fullUpdated.title}" foram salvas.`, 'success');
+      showToast('Ensaio Atualizado!', `As alterações em "${saved.title}" foram salvas.`, 'success');
     } else {
       // Creating new gallery
+      const isUUID = galleryData.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(galleryData.id);
       const newGallery: Gallery = {
-        id: `gal-${Date.now()}`,
-        userId: currentUserId,
+        ...galleryData,
+        id: isUUID ? galleryData.id! : crypto.randomUUID(),
+        userId: currentUserId || galleryData.userId,
         title: galleryData.title || 'Novo Ensaio Lumina',
         clientName: galleryData.clientName || 'Cliente Lumina',
-        clientEmail: galleryData.clientEmail || 'cliente@exemplo.com',
+        clientEmail: galleryData.clientEmail || '',
         clientPhone: galleryData.clientPhone || '',
         eventDate: galleryData.eventDate || new Date().toISOString().split('T')[0],
         description: galleryData.description || 'Ensaio fotográfico Lumina',
         coverPhotoUrl: galleryData.coverPhotoUrl || 'https://images.unsplash.com/photo-1537633552985-df8429e8048b?auto=format&fit=crop&w=1200&q=80',
-        status: 'awaiting_client',
+        status: galleryData.status || 'awaiting_client',
         privacy: galleryData.privacy || 'private',
         pinCode: galleryData.pinCode || Math.floor(1000 + Math.random() * 9000).toString(),
         quotaIncluded: galleryData.quotaIncluded || 20,
         maxContractedPhotos: galleryData.maxContractedPhotos || 50,
         excessPolicy: galleryData.excessPolicy || 'charge',
-        extraPhotoPrice: galleryData.extraPhotoPrice || 30.0,
+        extraPhotoPrice: galleryData.extraPhotoPrice ?? 30.0,
         watermarkEnabled: galleryData.watermarkEnabled ?? true,
         watermarkText: galleryData.watermarkText || 'IZY LUMNA PROOFING',
         photos: galleryData.photos || [],
-        clientSelection: {
+        clientSelection: galleryData.clientSelection || {
           selectedPhotoIds: [],
           comments: {},
           status: 'pending'
@@ -203,11 +205,11 @@ export default function App() {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
-      await saveGalleryAsync(newGallery);
+      const saved = await saveGalleryAsync(newGallery);
       updatedList = await getGalleriesAsync();
       setGalleries(updatedList);
-      setActiveGalleryId(newGallery.id);
-      showToast('Ensaio Criado!', `A galeria "${newGallery.title}" foi publicada com PIN ${newGallery.pinCode}.`, 'success');
+      setActiveGalleryId(saved.id);
+      showToast('Ensaio Criado!', `A galeria "${saved.title}" foi publicada com PIN ${saved.pinCode}.`, 'success');
     }
     setIsFormModalOpen(false);
     setGalleryToEdit(null);

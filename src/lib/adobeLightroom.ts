@@ -164,10 +164,17 @@ export async function exchangeAdobeCodeForToken(code: string, userId: string): P
   }
 }
 
+const isValidUuid = (id?: string): boolean =>
+  Boolean(id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id));
+
 /**
  * Fetches the active Adobe integration record for a given user, auto-refreshing token if expired.
  */
-export async function getValidAdobeAccessToken(userId: string): Promise<{ accessToken: string; catalogId?: string; integration: PhotographerIntegration } | null> {
+export async function getValidAdobeAccessToken(userId?: string): Promise<{ accessToken: string; catalogId?: string; integration: PhotographerIntegration } | null> {
+  if (!isValidUuid(userId)) {
+    return null;
+  }
+
   const { data: integration, error } = await supabase
     .from('photographer_integrations')
     .select('*')
@@ -258,7 +265,11 @@ export async function refreshAdobeToken(integration: PhotographerIntegration): P
 /**
  * Disconnects Adobe Lightroom integration by deleting integration row
  */
-export async function disconnectAdobeIntegration(userId: string): Promise<boolean> {
+export async function disconnectAdobeIntegration(userId?: string): Promise<boolean> {
+  if (!isValidUuid(userId)) {
+    return false;
+  }
+
   const { error } = await supabase
     .from('photographer_integrations')
     .delete()
