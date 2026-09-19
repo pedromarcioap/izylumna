@@ -156,3 +156,62 @@ export const StaffRoute: React.FC<StaffRouteProps> = ({ children, onReturnToClie
 
   return <>{children}</>;
 };
+
+export interface ProRouteProps {
+  children: React.ReactNode;
+  onReturnToClient?: () => void;
+  fallback?: React.ReactNode;
+}
+
+export const ProRoute: React.FC<ProRouteProps> = ({ children, onReturnToClient, fallback }) => {
+  const { user, profile, isPhotographerPro, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center p-6 text-zinc-400">
+        <Loader2 className="w-8 h-8 text-[#8300E9] animate-spin mb-3" />
+        <p className="text-sm font-medium">Validando permissões do plano Fotógrafo Pro...</p>
+      </div>
+    );
+  }
+
+  if (!user || !profile || !isPhotographerPro) {
+    if (fallback) return <>{fallback}</>;
+
+    return (
+      <div className="max-w-lg mx-auto my-16 p-8 rounded-2xl bg-[#120E22] border border-[#8300E9]/30 text-center shadow-2xl backdrop-blur-xl space-y-5 animate-in fade-in zoom-in-95 duration-200">
+        <div className="mx-auto w-16 h-16 rounded-2xl bg-[#8300E9]/10 border border-[#8300E9]/30 flex items-center justify-center text-[#8300E9] shadow-lg">
+          <ShieldAlert className="w-8 h-8" />
+        </div>
+
+        <div>
+          <h2 className="text-xl font-bold text-white tracking-tight">
+            Recurso Exclusivo Fotógrafo Pro & Admin
+          </h2>
+          <p className="text-xs text-zinc-400 mt-2 leading-relaxed">
+            Sua conta (<strong className="text-white">{profile?.email}</strong>) possui a função de{' '}
+            <span className="px-2 py-0.5 rounded bg-white/10 text-purple-300 font-mono font-bold uppercase text-[10px]">
+              {profile?.role === 'photographer' ? 'Fotógrafo (Standard)' : profile?.role || 'user'}
+            </span>
+            . O acesso a este recurso exige o plano <strong>Fotógrafo Pro</strong> ou privilégios de Administrador.
+          </p>
+        </div>
+
+        {onReturnToClient && (
+          <div className="pt-2 flex justify-center">
+            <Button
+              onClick={onReturnToClient}
+              variant="outline"
+              className="text-xs border-purple-500/40 text-purple-300 hover:bg-purple-500/10"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              <span>Voltar às Coleções</span>
+            </Button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+};

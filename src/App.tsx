@@ -22,7 +22,7 @@ import { PhotographerLogin } from './components/admin/PhotographerLogin';
 import { ClientPortalView } from './components/client/ClientPortalView';
 import { AdobeOAuthCallbackView } from './components/admin/AdobeOAuthCallbackView';
 import { useAuth } from './contexts/AuthContext';
-import { ProtectedRoute, AdminRoute, StaffRoute } from './components/auth/ProtectedRoute';
+import { ProtectedRoute, AdminRoute, StaffRoute, ProRoute } from './components/auth/ProtectedRoute';
 import { PosProductionView } from './components/admin/PosProductionView';
 import { FinancialExtrasView } from './components/admin/FinancialExtrasView';
 import { FiltersMetadataView } from './components/admin/FiltersMetadataView';
@@ -365,7 +365,7 @@ export default function App() {
                   />
                 </StaffRoute>
               ) : activeSidebarItem === 'trash' ? (
-                <StaffRoute onReturnToClient={() => setCurrentRole('client')}>
+                <ProRoute onReturnToClient={() => setCurrentRole('client')}>
                   <TrashBinView
                     trashGalleries={userTrashGalleries}
                     onRestoreGallery={handleRestoreGallery}
@@ -373,7 +373,7 @@ export default function App() {
                     onEmptyTrash={handleEmptyTrash}
                     onRefresh={refreshGalleriesAndTrash}
                   />
-                </StaffRoute>
+                </ProRoute>
               ) : activeSidebarItem === 'filters' ? (
                 <StaffRoute onReturnToClient={() => setCurrentRole('client')}>
                   <FiltersMetadataView
@@ -396,12 +396,12 @@ export default function App() {
                   />
                 </StaffRoute>
               ) : activeNavTab === 'financial' || activeSidebarItem === 'billing' ? (
-                <AdminRoute onReturnToClient={() => setCurrentRole('client')}>
+                <ProRoute onReturnToClient={() => setCurrentRole('client')}>
                   <FinancialExtrasView
                     galleries={userGalleries}
                     onShowToast={showToast}
                   />
-                </AdminRoute>
+                </ProRoute>
               ) : (
                 <StaffRoute onReturnToClient={() => setCurrentRole('client')}>
                   <AdminDashboard

@@ -21,7 +21,10 @@ interface AuthContextType {
   profile: UserProfile | null;
   isLoading: boolean;
   isAdmin: boolean;
+  isPhotographerPro: boolean;
   isPhotographer: boolean;
+  canAccessTrash: boolean;
+  canAccessFinancial: boolean;
   isSupabaseConnected: boolean;
   signInWithPassword: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   signUp: (email: string, password: string, fullName: string, role?: UserRole) => Promise<{ success: boolean; error?: string }>;
@@ -727,7 +730,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const isAdmin = profile?.role === 'admin';
-  const isPhotographer = profile?.role === 'photographer' || isAdmin;
+  const isPhotographerPro = profile?.role === 'photographer_pro' || isAdmin;
+  const isPhotographer = profile?.role === 'photographer' || isPhotographerPro;
+  const canAccessTrash = isPhotographerPro;
+  const canAccessFinancial = isPhotographerPro;
 
   return (
     <AuthContext.Provider
@@ -737,7 +743,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         profile,
         isLoading,
         isAdmin,
+        isPhotographerPro,
         isPhotographer,
+        canAccessTrash,
+        canAccessFinancial,
         isSupabaseConnected: isSupabaseConfigured,
         signInWithPassword,
         signUp,

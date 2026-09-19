@@ -73,7 +73,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   onLogout,
   onShowToast
 }) => {
-  const { user, profile, signOut, isAdmin, isPhotographer } = useAuth();
+  const { user, profile, signOut, isAdmin, isPhotographer, canAccessTrash, canAccessFinancial } = useAuth();
   const activeGallery = galleries.find((g) => g.id === activeGalleryId);
 
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -123,15 +123,12 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
           className="flex items-center gap-3 cursor-pointer shrink-0 hover:opacity-90 transition-opacity"
         >
           <div className="flex items-center gap-2">
-            <span className="px-1.5 py-0.5 text-[10px] font-mono font-extrabold bg-[#1A142E] text-purple-300 border border-purple-500/30 rounded">
-              CC_
-            </span>
-            <LumnaLogo variant="dark" size="sm" showSubtitle={true} />
+            <LumnaLogo variant="dark" size="md" showSubtitle={true} />
           </div>
         </div>
 
-        {/* Center: Main Navigation Tabs */}
-        <div className="hidden md:flex items-center gap-1.5 bg-[#120E22] p-1 rounded-xl border border-white/10">
+        {/* Center: Primary Navigation Tabs */}
+        <nav className="hidden md:flex items-center gap-1 bg-[#120E22] p-1 rounded-xl border border-white/10">
           {(isAdmin || isPhotographer) && (
             <button
               onClick={() => {
@@ -169,7 +166,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
             </button>
           )}
 
-          {isAdmin && (
+          {canAccessFinancial && (
             <button
               onClick={() => {
                 onRoleChange('admin');
@@ -200,7 +197,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
           >
             <span>Portal do Cliente</span>
           </button>
-        </div>
+        </nav>
 
         {/* Right: Actions, Notifications & Profile Menu */}
         <div className="flex items-center gap-3">
@@ -498,7 +495,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                 </button>
               )}
 
-              {isAdmin && (
+              {canAccessFinancial && (
                 <button
                   onClick={() => {
                     onRoleChange('admin');
@@ -550,7 +547,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                 </button>
               )}
 
-              {(isAdmin || isPhotographer) && (
+              {canAccessTrash && (
                 <button
                   onClick={() => {
                     onRoleChange('admin');

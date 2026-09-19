@@ -4,7 +4,7 @@ export type GalleryStatus = 'draft' | 'awaiting_client' | 'completed';
 
 export type PrivacyType = 'public' | 'private';
 
-export type UserRole = 'admin' | 'photographer' | 'user';
+export type UserRole = 'admin' | 'photographer_pro' | 'photographer' | 'user';
 
 export interface UserProfile {
   id: string;
