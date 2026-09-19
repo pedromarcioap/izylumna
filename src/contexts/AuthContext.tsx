@@ -135,7 +135,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     async function initAuth() {
       if (isSupabaseConfigured && supabase) {
         try {
-          const { data: { session: initialSession } } = await supabase.auth.getSession();
+          const { data: { session: initialSession }, error } = await supabase.auth.getSession();
+          if (error && ((error as any).status === 401 || error.message?.includes('JWT') || error.message?.includes('expired'))) {
+            console.info('[Supabase Auth] Token expirado detectado na inicialização, limpando sessão...');
+            await supabase.auth.signOut();
+          }
           if (mounted) {
             setSession(initialSession);
             setUser(initialSession?.user ?? null);
@@ -757,7 +761,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .select('*')
           .order('created_at', { ascending: false });
 
-        if (!error && data) {
+        if (error) {
+          if ((error as any).status === 401 || error.code === 'PGRST301') {
+            console.info('[Supabase Info] Token expirado ao buscar perfis. Efetuando fallback para perfis armazenados.');
+          }
+        } else if (data) {
           dbProfiles = data as UserProfile[];
         }
       } catch (e) {
