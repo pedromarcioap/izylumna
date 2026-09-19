@@ -206,65 +206,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         'fotografo'
       ].includes(emailClean);
 
-      if (isSupabaseConfigured && supabase) {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: emailClean,
-          password
-        });
-
-        if (error) {
-          if (isDemoEmail) {
-            console.info('Demonstração: Supabase Auth não possui a conta demo, utilizando fallback local para:', emailClean);
-          } else {
-            setIsLoading(false);
-            let userFriendlyError = error.message;
-            if (error.message.includes('Invalid login credentials')) {
-              userFriendlyError = 'E-mail ou senha incorretos. Por favor, verifique suas credenciais e tente novamente.';
-            } else if (error.message.includes('Email not confirmed')) {
-              userFriendlyError = 'E-mail ainda não confirmado. Por favor, verifique a caixa de entrada do seu e-mail.';
-            } else if (error.message.includes('Too many requests')) {
-              userFriendlyError = 'Muitas tentativas de login. Por favor, aguarde alguns minutos e tente novamente.';
-            } else if (error.message.includes('User not found')) {
-              userFriendlyError = 'Usuário não encontrado. Verifique o e-mail informado ou realize o cadastro.';
-            }
-            return { success: false, error: userFriendlyError };
-          }
-        } else if (data.user) {
-          const prof = await fetchUserProfile(data.user.id, data.user.email || emailClean);
-          if (prof && !prof.is_active) {
-            await supabase.auth.signOut();
-            setIsLoading(false);
-            return {
-              success: false,
-              error: 'A sua conta foi suspensa/desativada por um administrador. Entre em contato com o suporte.'
-            };
-          }
-          setProfile(prof);
-          if (prof) {
-            const photoProfile: PhotographerProfile = {
-              id: prof.id,
-              name: prof.full_name || splitEmailName(prof.email),
-              email: prof.email,
-              studioName: 'Lumina Proofing Studio',
-              phone: '',
-              avatarUrl: prof.avatar_url || '',
-              defaultWatermarkText: 'PROVA • LUMINA STUDIO • PROVA',
-              defaultExtraPrice: 30
-            };
-            savePhotographerProfile(photoProfile);
-            savePhotographerSession({
-              isAuthenticated: true,
-              token: `token_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-              loginTime: new Date().toISOString(),
-              rememberMe: true,
-              profile: photoProfile
-            });
-          }
-          setIsLoading(false);
-          return { success: true };
-        }
-      } else {
-        // Local simulation login
+      const handleLocalFallback = async (): Promise<{ success: boolean; error?: string }> => {
         const allProfiles = await fetchAllProfiles();
         let matchingProfile = allProfiles.find(
           (p) =>
@@ -322,6 +264,70 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         setIsLoading(false);
         return { success: true };
+      };
+
+      if (isSupabaseConfigured && supabase) {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: emailClean,
+          password
+        });
+
+        if (error) {
+          if (isDemoEmail) {
+            console.info('Demonstração: Supabase Auth não possui a conta demo, utilizando fallback local para:', emailClean);
+            return await handleLocalFallback();
+          } else {
+            setIsLoading(false);
+            let userFriendlyError = error.message;
+            if (error.message.includes('Invalid login credentials')) {
+              userFriendlyError = 'E-mail ou senha incorretos. Por favor, verifique suas credenciais e tente novamente.';
+            } else if (error.message.includes('Email not confirmed')) {
+              userFriendlyError = 'E-mail ainda não confirmado. Por favor, verifique a caixa de entrada do seu e-mail.';
+            } else if (error.message.includes('Too many requests')) {
+              userFriendlyError = 'Muitas tentativas de login. Por favor, aguarde alguns minutos e tente novamente.';
+            } else if (error.message.includes('User not found')) {
+              userFriendlyError = 'Usuário não encontrado. Verifique o e-mail informado ou realize o cadastro.';
+            }
+            return { success: false, error: userFriendlyError };
+          }
+        } else if (data.user) {
+          const prof = await fetchUserProfile(data.user.id, data.user.email || emailClean);
+          if (prof && !prof.is_active) {
+            await supabase.auth.signOut();
+            setIsLoading(false);
+            return {
+              success: false,
+              error: 'A sua conta foi suspensa/desativada por um administrador. Entre em contato com o suporte.'
+            };
+          }
+          setProfile(prof);
+          if (prof) {
+            const photoProfile: PhotographerProfile = {
+              id: prof.id,
+              name: prof.full_name || splitEmailName(prof.email),
+              email: prof.email,
+              studioName: 'Lumina Proofing Studio',
+              phone: '',
+              avatarUrl: prof.avatar_url || '',
+              defaultWatermarkText: 'PROVA • LUMINA STUDIO • PROVA',
+              defaultExtraPrice: 30
+            };
+            savePhotographerProfile(photoProfile);
+            savePhotographerSession({
+              isAuthenticated: true,
+              token: `token_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+              loginTime: new Date().toISOString(),
+              rememberMe: true,
+              profile: photoProfile
+            });
+          }
+          setIsLoading(false);
+          return { success: true };
+        }
+        // If neither error nor data.user (fallback edge case), handle fallback
+        return await handleLocalFallback();
+      } else {
+        return await handleLocalFallback();
       }
     } catch (e: any) {
       setIsLoading(false);
@@ -339,17 +345,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const emailClean = email.trim().toLowerCase();
 
-      // Prevent registration of existing emails
-      const allProfiles = await fetchAllProfiles();
-      const existing = allProfiles.find((p) => p.email.toLowerCase() === emailClean);
-      if (existing) {
-        setIsLoading(false);
-        return {
-          success: false,
-          error: `Este e-mail (${emailClean}) já está cadastrado no sistema. Por favor, utilize a opção "Entrar" com suas credenciais.`
-        };
-      }
-
       // Enforce role permission: non-admins cannot assign 'admin' role
       let finalRole: UserRole = role;
       if (role === 'admin' && profile?.role !== 'admin') {
@@ -358,7 +353,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (isSupabaseConfigured && supabase) {
         const { data, error } = await supabase.auth.signUp({
-          email: email.trim(),
+          email: emailClean,
           password,
           options: {
             data: {
@@ -370,12 +365,74 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (error) {
           setIsLoading(false);
-          return { success: false, error: error.message };
+          let msg = error.message;
+          if (msg.includes('already registered') || msg.includes('already exists')) {
+            msg = `Este e-mail (${emailClean}) já está cadastrado no sistema. Por favor, faça login.`;
+          } else if (msg.includes('at least 6 characters')) {
+            msg = 'A senha deve conter no mínimo 6 caracteres.';
+          }
+          return { success: false, error: msg };
         }
 
         if (data.user) {
-          const prof = await fetchUserProfile(data.user.id, data.user.email || email);
-          setProfile(prof);
+          // Explicitly upsert public.profiles to guarantee matching UUID, role and name
+          try {
+            await supabase.from('profiles').upsert({
+              id: data.user.id,
+              email: emailClean,
+              full_name: fullName.trim(),
+              role: finalRole,
+              is_active: true,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            });
+          } catch (e) {
+            console.warn('Note on profile upsert during signUp:', e);
+          }
+
+          // If session wasn't auto-established, attempt signInWithPassword
+          if (!data.session) {
+            const loginRes = await supabase.auth.signInWithPassword({
+              email: emailClean,
+              password
+            });
+            if (loginRes.data?.session) {
+              setSession(loginRes.data.session);
+              setUser(loginRes.data.user);
+            }
+          } else {
+            setSession(data.session);
+            setUser(data.user);
+          }
+
+          const prof = await fetchUserProfile(data.user.id, data.user.email || emailClean);
+          setProfile(prof || {
+            id: data.user.id,
+            email: emailClean,
+            full_name: fullName.trim(),
+            role: finalRole,
+            is_active: true,
+            created_at: new Date().toISOString()
+          });
+
+          const photoProfile: PhotographerProfile = {
+            id: data.user.id,
+            name: fullName.trim() || splitEmailName(emailClean),
+            email: emailClean,
+            studioName: 'Lumina Proofing Studio',
+            phone: '',
+            avatarUrl: '',
+            defaultWatermarkText: 'PROVA • LUMINA STUDIO • PROVA',
+            defaultExtraPrice: 30
+          };
+          savePhotographerProfile(photoProfile);
+          savePhotographerSession({
+            isAuthenticated: true,
+            token: `token_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+            loginTime: new Date().toISOString(),
+            rememberMe: true,
+            profile: photoProfile
+          });
         }
         setIsLoading(false);
         return { success: true };
@@ -413,6 +470,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           rememberMe: true,
           profile: photoProfile
         });
+
+        const existingLocal = getStoredProfiles();
+        saveStoredProfiles([mockProfile, ...existingLocal.filter(p => p.email.toLowerCase() !== emailClean)]);
 
         setIsLoading(false);
         return { success: true };
@@ -600,72 +660,84 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { success: false, error: 'Por favor, informe um endereço de e-mail com formato válido.' };
     }
 
-    // Validate email uniqueness
-    const allProfiles = await fetchAllProfiles();
-    const existingUser = allProfiles.find((p) => p.email.toLowerCase() === emailClean);
-    if (existingUser) {
-      return {
-        success: false,
-        error: `Não é possível cadastrar: O e-mail "${emailClean}" já pertence a um usuário cadastrado no sistema.`
-      };
-    }
-
-    // Defensive validation if manual password is used (Approach B)
+    // Defensive validation for password
+    let userPassword = data.password;
     if (!data.sendInvite) {
-      if (!data.password) {
+      if (!userPassword) {
         return { success: false, error: 'A definição da senha é estritamente obrigatória quando o convite por e-mail não estiver selecionado.' };
       }
-      const passValidation = validatePassword(data.password);
+      const passValidation = validatePassword(userPassword);
       if (!passValidation.isValid) {
         return {
           success: false,
           error: passValidation.errors[0] || 'A senha informada não atende aos requisitos mínimos de entropia.'
         };
       }
+    } else if (!userPassword) {
+      userPassword = `Pass!${Math.random().toString(36).slice(2, 10)}9A`;
     }
 
-    const newProfile: UserProfile = {
-      id: generateUUID(),
-      email: emailClean,
-      full_name: fullNameClean,
-      role: data.role || 'photographer',
-      is_active: true,
-      must_change_password: data.mustChangePassword ?? true,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
+    let assignedId = generateUUID();
+    const targetRole = data.role || 'photographer';
 
-    if (isSupabaseConfigured && supabase && isValidUUID(newProfile.id)) {
+    if (isSupabaseConfigured && supabase) {
       try {
-        if (data.sendInvite) {
-          if (supabase.auth.admin && typeof (supabase.auth.admin as any).inviteUserByEmail === 'function') {
-            const { error: inviteError } = await (supabase.auth.admin as any).inviteUserByEmail(emailClean, {
-              data: { full_name: fullNameClean, role: newProfile.role }
-            });
-            if (inviteError) {
-              console.warn('Supabase invite trigger note:', inviteError.message);
+        // Register user in Supabase Auth so signInWithPassword works for this user
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email: emailClean,
+          password: userPassword,
+          options: {
+            data: {
+              full_name: fullNameClean,
+              role: targetRole
             }
           }
+        });
+
+        if (authError) {
+          if (authError.message.includes('already registered') || authError.message.includes('already exists')) {
+            return {
+              success: false,
+              error: `Não é possível cadastrar: O e-mail "${emailClean}" já pertence a um usuário cadastrado.`
+            };
+          }
+          console.warn('Note on Supabase Auth signUp in adminCreateUser:', authError.message);
         }
 
-        const { error } = await supabase.from('profiles').insert([{
-          id: newProfile.id,
-          email: newProfile.email,
-          full_name: newProfile.full_name,
-          role: newProfile.role,
-          is_active: true,
-          must_change_password: newProfile.must_change_password,
-          created_at: newProfile.created_at,
-          updated_at: newProfile.updated_at
-        }]);
+        if (authData?.user) {
+          assignedId = authData.user.id;
+        }
 
-        if (error) {
-          console.warn('Supabase profile creation fallback note:', error.message);
+        // Upsert into public.profiles
+        const { error: profileError } = await supabase.from('profiles').upsert({
+          id: assignedId,
+          email: emailClean,
+          full_name: fullNameClean,
+          role: targetRole,
+          is_active: true,
+          must_change_password: data.mustChangePassword ?? true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
+
+        if (profileError) {
+          console.warn('Supabase profile creation note:', profileError.message);
         }
       } catch (e: any) {
         console.warn('Failed to insert user profile into Supabase:', e);
       }
     }
+
+    const newProfile: UserProfile = {
+      id: assignedId,
+      email: emailClean,
+      full_name: fullNameClean,
+      role: targetRole,
+      is_active: true,
+      must_change_password: data.mustChangePassword ?? true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
 
     // Save to local cache so it immediately reflects in UI
     const existing = getStoredProfiles();

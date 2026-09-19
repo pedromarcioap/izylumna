@@ -48,6 +48,64 @@ export const PresentationModeView: React.FC<PresentationModeViewProps> = ({
     return () => clearInterval(timer);
   }, [isPlaying, speed, photos.length]);
 
+  // Ambient audio playback with safe promise handling to avoid AbortError
+  useEffect(() => {
+    if (isAudioMuted || !isPlaying) return;
+
+    let audioCtx: AudioContext | null = null;
+    let oscillator: OscillatorNode | null = null;
+    let gainNode: GainNode | null = null;
+    let isCancelled = false;
+
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioContextClass) {
+        audioCtx = new AudioContextClass();
+        oscillator = audioCtx.createOscillator();
+        gainNode = audioCtx.createGain();
+
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(220, audioCtx.currentTime);
+        gainNode.gain.setValueAtTime(0.012, audioCtx.currentTime);
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+
+        const resumePromise = audioCtx.resume();
+        if (resumePromise !== undefined) {
+          resumePromise
+            .then(() => {
+              if (!isCancelled && oscillator) {
+                oscillator.start();
+              }
+            })
+            .catch((err) => {
+              if (err?.name !== 'AbortError') {
+                console.info('Presentation mode audio policy info:', err);
+              }
+            });
+        }
+      }
+    } catch (e) {
+      // Audio context blocked or not supported
+    }
+
+    return () => {
+      isCancelled = true;
+      try {
+        if (oscillator) {
+          oscillator.stop();
+          oscillator.disconnect();
+        }
+        if (audioCtx && audioCtx.state !== 'closed') {
+          audioCtx.close().catch(() => {});
+        }
+      } catch (e) {
+        // Safe cleanup ignore
+      }
+    };
+  }, [isAudioMuted, isPlaying]);
+
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
