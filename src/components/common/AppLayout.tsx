@@ -247,28 +247,47 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                       Nenhuma notificação por enquanto.
                     </div>
                   ) : (
-                    notifications.map((n) => (
-                      <div
-                        key={n.id}
-                        onClick={() => {
-                          toggleNotificationRead(n.id);
-                          setNotifications(getStoredNotifications());
-                        }}
-                        className={`p-3 text-xs transition-colors cursor-pointer hover:bg-white/5 ${
-                          !n.isRead ? 'bg-purple-500/10' : ''
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <span className="font-semibold text-white">{n.title}</span>
-                          <span className="text-[10px] text-zinc-500 font-mono">
-                            {new Date(n.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </span>
+                    notifications.map((n) => {
+                      const formattedTime = (() => {
+                        if (n.createdIso) {
+                          const dateObj = new Date(n.createdIso);
+                          if (!isNaN(dateObj.getTime())) {
+                            return dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                          }
+                        }
+                        if (n.timestamp) {
+                          const dateObj = new Date(n.timestamp);
+                          if (!isNaN(dateObj.getTime())) {
+                            return dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                          }
+                          return n.timestamp;
+                        }
+                        return 'Agora';
+                      })();
+
+                      return (
+                        <div
+                          key={n.id}
+                          onClick={() => {
+                            toggleNotificationRead(n.id);
+                            setNotifications(getStoredNotifications());
+                          }}
+                          className={`p-3 text-xs transition-colors cursor-pointer hover:bg-white/5 ${
+                            !n.isRead ? 'bg-purple-500/10' : ''
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <span className="font-semibold text-white">{n.title}</span>
+                            <span className="text-[10px] text-zinc-500 font-mono">
+                              {formattedTime}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-zinc-300 mt-1 leading-relaxed">
+                            {n.message || n.description}
+                          </p>
                         </div>
-                        <p className="text-[11px] text-zinc-400 mt-1 leading-relaxed">
-                          {n.description}
-                        </p>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
 

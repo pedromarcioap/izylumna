@@ -98,10 +98,11 @@ export default function App() {
   const showToast = (
     title: string,
     description?: string,
-    type: 'success' | 'info' | 'warning' | 'error' = 'info'
+    type: 'success' | 'info' | 'warning' | 'error' = 'info',
+    duration?: number
   ) => {
-    const id = Date.now().toString();
-    setToasts((prev) => [...prev, { id, title, description, type }]);
+    const id = `${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    setToasts((prev) => [...prev, { id, title, description, type, duration }]);
   };
 
   const removeToast = (id: string) => {
@@ -247,7 +248,7 @@ export default function App() {
 
   return (
     <>
-      <ToastContainer toasts={toasts} onClose={removeToast} />
+      <ToastContainer toasts={toasts} onClose={removeToast} onDismiss={removeToast} />
 
       <AppLayout
         currentRole={currentRole}

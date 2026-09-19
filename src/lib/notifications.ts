@@ -5,6 +5,7 @@ export interface NotificationItem {
   type: 'vote' | 'payment' | 'comment' | 'user';
   title: string;
   message: string;
+  description?: string;
   timestamp: string;
   createdIso: string;
   isRead: boolean;
@@ -21,6 +22,7 @@ const DEFAULT_INITIAL_NOTIFICATIONS: NotificationItem[] = [
     type: 'vote',
     title: 'Votação em Aberto',
     message: 'Marina Alencar adicionou novos votos na galeria "Casamento Marina & Lucas".',
+    description: 'Marina Alencar adicionou novos votos na galeria "Casamento Marina & Lucas".',
     timestamp: 'há 10 min',
     createdIso: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
     isRead: false
@@ -29,7 +31,8 @@ const DEFAULT_INITIAL_NOTIFICATIONS: NotificationItem[] = [
     id: 'n-default-2',
     type: 'payment',
     title: 'Pagamento PIX Confirmado',
-    message: 'Recebido R$ 360,00 (+12 fotos extras selecionadas) no Ensaio Casamento.',
+    message: 'Cliente Marina Alencar confirmou o pagamento PIX de R$ 360,00 (+12 fotos extras selecionadas) no Ensaio Casamento.',
+    description: 'Cliente Marina Alencar confirmou o pagamento PIX de R$ 360,00 (+12 fotos extras selecionadas) no Ensaio Casamento.',
     timestamp: 'há 25 min',
     createdIso: new Date(Date.now() - 25 * 60 * 1000).toISOString(),
     isRead: false
@@ -38,7 +41,8 @@ const DEFAULT_INITIAL_NOTIFICATIONS: NotificationItem[] = [
     id: 'n-default-3',
     type: 'comment',
     title: 'Novo Comentário',
-    message: 'Camila Rossi: "Poderia enviar uma versão em alta resolução desta foto?"',
+    message: 'Camila Rossi comentou na foto "DSC_0412" na galeria "Ensaio Casamento": "Poderia enviar uma versão em alta resolução desta foto?"',
+    description: 'Camila Rossi comentou na foto "DSC_0412" na galeria "Ensaio Casamento": "Poderia enviar uma versão em alta resolução desta foto?"',
     timestamp: 'há 1h',
     createdIso: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
     isRead: false
@@ -53,8 +57,14 @@ export function getStoredNotifications(): NotificationItem[] {
       return DEFAULT_INITIAL_NOTIFICATIONS;
     }
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) {
-      return parsed;
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      // Ensure description & createdIso compatibility
+      return parsed.map((item: any) => ({
+        ...item,
+        message: item.message || item.description || '',
+        description: item.description || item.message || '',
+        createdIso: item.createdIso || new Date().toISOString()
+      }));
     }
     return DEFAULT_INITIAL_NOTIFICATIONS;
   } catch (e) {
@@ -72,15 +82,17 @@ export function saveStoredNotifications(items: NotificationItem[]): void {
 }
 
 export function addAppNotification(
-  payload: Omit<NotificationItem, 'id' | 'timestamp' | 'createdIso' | 'isRead'> & { timestamp?: string }
+  payload: Omit<NotificationItem, 'id' | 'timestamp' | 'createdIso' | 'isRead'> & { timestamp?: string; description?: string }
 ): NotificationItem {
   const current = getStoredNotifications();
   const createdIso = new Date().toISOString();
+  const messageText = payload.message || payload.description || '';
   const newNotification: NotificationItem = {
     id: `notif-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
     type: payload.type,
     title: payload.title,
-    message: payload.message,
+    message: messageText,
+    description: messageText,
     timestamp: payload.timestamp || 'Agora',
     createdIso,
     isRead: false,
@@ -127,13 +139,14 @@ export function notifyVoteEvent(params: {
     message = `${params.voterName} removeu o voto da foto "${params.photoName || 'Foto'}" na galeria "${params.galleryTitle}".`;
   } else if (params.action === 'reset') {
     title = 'Votação Zerada';
-    message = `Votos de ${params.voterName} foram zerados na galeria "${params.galleryTitle}".`;
+    message = `${params.voterName} zerou os votos na galeria "${params.galleryTitle}".`;
   }
 
   addAppNotification({
     type: 'vote',
     title,
     message,
+    description: message,
     galleryId: params.galleryId
   });
 }
@@ -156,6 +169,7 @@ export function notifyRatingEvent(params: {
     type: 'vote',
     title,
     message,
+    description: message,
     galleryId: params.galleryId
   });
 }
@@ -167,10 +181,12 @@ export function notifyCommentEvent(params: {
   commentText: string;
   galleryId?: string;
 }) {
+  const message = `${params.commenterName} comentou na foto "${params.photoName}" ("${params.galleryTitle}"): "${params.commentText}".`;
   addAppNotification({
     type: 'comment',
     title: 'Novo Comentário em Foto',
-    message: `${params.commenterName}: "${params.commentText}" na foto "${params.photoName}" ("${params.galleryTitle}").`,
+    message,
+    description: message,
     galleryId: params.galleryId
   });
 }
@@ -180,10 +196,12 @@ export function notifyFinalizeEvent(params: {
   voterName: string;
   galleryId?: string;
 }) {
+  const message = `${params.voterName} finalizou a escolha de fotos na galeria "${params.galleryTitle}".`;
   addAppNotification({
     type: 'user',
     title: 'Seleção Finalizada',
-    message: `${params.voterName} finalizou a escolha de fotos na galeria "${params.galleryTitle}".`,
+    message,
+    description: message,
     galleryId: params.galleryId
   });
 }
