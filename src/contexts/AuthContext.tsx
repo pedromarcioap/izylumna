@@ -97,11 +97,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .single();
 
         if (!error && data) {
+          const dbProf = data as UserProfile;
           return {
-            ...(data as UserProfile),
+            ...dbProf,
             ...(localMatch && {
               is_active: localMatch.is_active,
-              role: localMatch.role
+              role: localMatch.role,
+              email_confirmed_at: dbProf.email_confirmed_at ?? localMatch.email_confirmed_at,
+              must_change_password: dbProf.must_change_password ?? localMatch.must_change_password,
+              phone: dbProf.phone ?? localMatch.phone
             })
           };
         }
@@ -609,10 +613,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const adminUpdateUser = async (
     targetUserId: string,
-    data: { role?: UserRole; is_active?: boolean }
+    data: Partial<UserProfile>
   ): Promise<{ success: boolean; error?: string }> => {
     if (!profile || profile.role !== 'admin') {
-      return { success: false, error: 'Somente administradores possuem permissão para alterar funções de usuários.' };
+      return { success: false, error: 'Somente administradores possuem permissão para alterar usuários.' };
     }
 
     const isSelf =
@@ -642,7 +646,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
-      // Always update local profiles storage to persist status/role changes
+      // Always update local profiles storage to persist status/role/verification changes
       const existingLocal = getStoredProfiles();
       const allProfiles = await fetchAllProfiles();
       const targetUser = allProfiles.find(
@@ -876,12 +880,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     dbProfiles.forEach((p) => {
       const existing = map.get(p.email.toLowerCase());
-      map.set(p.email.toLowerCase(), { ...existing, ...p });
+      map.set(p.email.toLowerCase(), {
+        ...existing,
+        ...p,
+        email_confirmed_at: p.email_confirmed_at ?? existing?.email_confirmed_at ?? null,
+        must_change_password: p.must_change_password ?? existing?.must_change_password ?? false,
+        phone: p.phone ?? existing?.phone ?? null
+      });
     });
 
     localProfiles.forEach((p) => {
       const existing = map.get(p.email.toLowerCase());
-      map.set(p.email.toLowerCase(), { ...existing, ...p });
+      map.set(p.email.toLowerCase(), {
+        ...existing,
+        ...p,
+        email_confirmed_at: p.email_confirmed_at ?? existing?.email_confirmed_at ?? null,
+        must_change_password: p.must_change_password ?? existing?.must_change_password ?? false,
+        phone: p.phone ?? existing?.phone ?? null
+      });
     });
 
     return Array.from(map.values()).sort(

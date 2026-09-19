@@ -97,7 +97,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({ onShowTo
         `O e-mail de "${targetUser.email}" foi verificado com sucesso pelo administrador.`,
         'success'
       );
-      loadUsers();
+      await loadUsers();
     } else {
       onShowToast('Erro ao Atualizar', res.error || 'Falha ao confirmar e-mail.', 'error');
     }
