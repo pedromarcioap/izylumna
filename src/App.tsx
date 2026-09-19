@@ -102,7 +102,13 @@ export default function App() {
     duration?: number
   ) => {
     const id = `${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
-    setToasts((prev) => [...prev, { id, title, description, type, duration }]);
+    setToasts((prev) => {
+      const isDuplicate = prev.some(
+        (t) => t.title === title && t.description === description && t.type === type
+      );
+      if (isDuplicate) return prev;
+      return [...prev, { id, title, description, type, duration }];
+    });
   };
 
   const removeToast = (id: string) => {

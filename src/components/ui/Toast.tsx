@@ -14,9 +14,9 @@ const ToastItem: React.FC<{
   onDismiss: (id: string) => void;
   defaultDuration?: number;
 }> = ({ toast, onDismiss, defaultDuration = 4000 }) => {
-  const dismiss = () => {
+  const dismiss = React.useCallback(() => {
     onDismiss(toast.id);
-  };
+  }, [toast.id, onDismiss]);
 
   useEffect(() => {
     const timeout = toast.duration ?? defaultDuration;
@@ -26,7 +26,7 @@ const ToastItem: React.FC<{
       }, timeout);
       return () => clearTimeout(timer);
     }
-  }, [toast.id, toast.duration, defaultDuration]);
+  }, [toast.id, toast.duration, defaultDuration, dismiss]);
 
   const iconMap = {
     success: <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />,
@@ -54,8 +54,13 @@ const ToastItem: React.FC<{
         )}
       </div>
       <button
-        onClick={dismiss}
-        className="text-zinc-400 hover:text-white p-1 rounded transition-colors shrink-0"
+        type="button"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          dismiss();
+        }}
+        className="text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors shrink-0 cursor-pointer"
         aria-label="Dispensar aviso"
       >
         <X className="w-4 h-4" />

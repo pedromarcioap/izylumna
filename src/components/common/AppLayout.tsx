@@ -249,13 +249,13 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                   ) : (
                     notifications.map((n) => {
                       const formattedTime = (() => {
-                        if (n.createdIso) {
+                        if (n.createdIso && n.createdIso !== 'Invalid Date' && !n.createdIso.includes('NaN')) {
                           const dateObj = new Date(n.createdIso);
                           if (!isNaN(dateObj.getTime())) {
                             return dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                           }
                         }
-                        if (n.timestamp) {
+                        if (n.timestamp && n.timestamp !== 'Invalid Date' && !n.timestamp.includes('NaN')) {
                           const dateObj = new Date(n.timestamp);
                           if (!isNaN(dateObj.getTime())) {
                             return dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
