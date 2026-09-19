@@ -3,6 +3,7 @@ import { Gallery } from './types';
 export const INITIAL_GALLERIES: Gallery[] = [
   {
     id: 'gal-marina-lucas',
+    userId: '00000000-0000-4000-a000-000000000002',
     title: 'Casamento Marina & Lucas',
     clientName: 'Marina Alencar & Lucas Silveira',
     clientEmail: 'marina.alencar@exemplo.com.br',
@@ -392,6 +393,7 @@ export const INITIAL_GALLERIES: Gallery[] = [
   },
   {
     id: 'gal-camila-tomas',
+    userId: '00000000-0000-4000-a000-000000000003',
     title: 'Ensaio Gestante - Esperando Helena',
     clientName: 'Camila Rossi & Tomás Veiga',
     clientEmail: 'camila.rossi@gmail.com',
@@ -680,6 +682,7 @@ export const INITIAL_GALLERIES: Gallery[] = [
   },
   {
     id: 'gal-editorial-clara',
+    userId: '00000000-0000-4000-a000-000000000001',
     title: 'Editorial Urbano & Retratos - Clara Menezes',
     clientName: 'Clara Menezes',
     clientEmail: 'claramenezes.fashion@gmail.com',

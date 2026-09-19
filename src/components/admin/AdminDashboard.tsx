@@ -57,7 +57,7 @@ export interface AdminDashboardProps {
   onCreateGallery: () => void;
   onEditGallery: (gallery: Gallery) => void;
   onDeleteGallery: (id: string) => void;
-  onViewGalleryDetails: (gallery: Gallery) => void;
+  onViewGalleryDetails: (galleryOrId: Gallery | string) => void;
   onOpenClientView: (galleryId: string) => void;
   onShowToast: (title: string, description?: string, type?: 'success' | 'info' | 'warning' | 'error') => void;
 }

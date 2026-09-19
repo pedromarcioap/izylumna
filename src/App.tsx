@@ -133,6 +133,21 @@ export default function App() {
     showToast('Sessão Encerrada', 'Você saiu da área administrativa.', 'info');
   };
 
+  const isUserAdmin = profile?.role === 'admin';
+  const currentUserId = profile?.id || user?.id || photographerSession.profile?.id;
+
+  const userGalleries = React.useMemo(() => {
+    if (isUserAdmin) return galleries;
+    if (!currentUserId) return galleries;
+    return galleries.filter((g) => !g.userId || g.userId === currentUserId);
+  }, [galleries, isUserAdmin, currentUserId]);
+
+  const userTrashGalleries = React.useMemo(() => {
+    if (isUserAdmin) return trashGalleries;
+    if (!currentUserId) return trashGalleries;
+    return trashGalleries.filter((g) => !g.userId || g.userId === currentUserId);
+  }, [trashGalleries, isUserAdmin, currentUserId]);
+
   const handleSaveGallery = async (galleryData: Partial<Gallery>) => {
     let updatedList: Gallery[];
     if (galleryToEdit) {
@@ -140,6 +155,7 @@ export default function App() {
       const fullUpdated: Gallery = {
         ...galleryToEdit,
         ...galleryData,
+        userId: galleryToEdit.userId || currentUserId,
         updatedAt: new Date().toISOString()
       };
       await saveGalleryAsync(fullUpdated);
@@ -150,6 +166,7 @@ export default function App() {
       // Creating new gallery
       const newGallery: Gallery = {
         id: `gal-${Date.now()}`,
+        userId: currentUserId,
         title: galleryData.title || 'Novo Ensaio Lumina',
         clientName: galleryData.clientName || 'Cliente Lumina',
         clientEmail: galleryData.clientEmail || 'cliente@exemplo.com',
@@ -221,8 +238,22 @@ export default function App() {
     showToast('Lixeira Esvaziada', 'Todos os ensaios da lixeira foram removidos permanentemente.', 'info');
   };
 
-  const handleViewGalleryDetails = (galleryId: string) => {
-    setDetailGalleryId(galleryId);
+  const handleViewGalleryDetails = (galleryOrId: Gallery | string) => {
+    const id = typeof galleryOrId === 'string' ? galleryOrId : galleryOrId?.id;
+    if (!id) return;
+
+    const targetGallery = galleries.find((g) => g.id === id);
+    if (!targetGallery) {
+      showToast('Galeria Não Encontrada', 'A galeria solicitada não existe ou foi removida.', 'error');
+      return;
+    }
+
+    if (!isUserAdmin && targetGallery.userId && targetGallery.userId !== currentUserId) {
+      showToast('Acesso Negado', 'Você só possui permissão para acessar os ensaios criados pela sua conta.', 'error');
+      return;
+    }
+
+    setDetailGalleryId(id);
     setAdminSubView('detail');
   };
 
@@ -264,8 +295,8 @@ export default function App() {
             setAdminSubView('list');
           }
         }}
-        galleries={galleries}
-        trashGalleriesCount={trashGalleries.length}
+        galleries={userGalleries}
+        trashGalleriesCount={userTrashGalleries.length}
         activeGalleryId={activeGalleryId}
         onSelectGallery={(id) => setActiveGalleryId(id)}
         onCreateGallery={() => {
@@ -325,7 +356,7 @@ export default function App() {
               ) : activeSidebarItem === 'trash' ? (
                 <StaffRoute onReturnToClient={() => setCurrentRole('client')}>
                   <TrashBinView
-                    trashGalleries={trashGalleries}
+                    trashGalleries={userTrashGalleries}
                     onRestoreGallery={handleRestoreGallery}
                     onPermanentDeleteGallery={handlePermanentDeleteGallery}
                     onEmptyTrash={handleEmptyTrash}
@@ -335,7 +366,7 @@ export default function App() {
               ) : activeSidebarItem === 'filters' ? (
                 <StaffRoute onReturnToClient={() => setCurrentRole('client')}>
                   <FiltersMetadataView
-                    galleries={galleries}
+                    galleries={userGalleries}
                     onShowToast={showToast}
                   />
                 </StaffRoute>
@@ -348,7 +379,7 @@ export default function App() {
               ) : activeNavTab === 'pos_production' ? (
                 <StaffRoute onReturnToClient={() => setCurrentRole('client')}>
                   <PosProductionView
-                    galleries={galleries}
+                    galleries={userGalleries}
                     onViewGalleryDetails={handleViewGalleryDetails}
                     onShowToast={showToast}
                   />
@@ -356,14 +387,14 @@ export default function App() {
               ) : activeNavTab === 'financial' || activeSidebarItem === 'billing' ? (
                 <AdminRoute onReturnToClient={() => setCurrentRole('client')}>
                   <FinancialExtrasView
-                    galleries={galleries}
+                    galleries={userGalleries}
                     onShowToast={showToast}
                   />
                 </AdminRoute>
               ) : (
                 <StaffRoute onReturnToClient={() => setCurrentRole('client')}>
                   <AdminDashboard
-                    galleries={galleries}
+                    galleries={userGalleries}
                     photographerProfile={{
                       ...photographerSession.profile,
                       name: profile?.full_name || photographerSession.profile.name || 'Usuário Lumina',

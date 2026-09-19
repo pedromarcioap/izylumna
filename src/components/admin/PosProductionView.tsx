@@ -29,7 +29,7 @@ import {
 
 export interface PosProductionViewProps {
   galleries: Gallery[];
-  onViewGalleryDetails: (gallery: Gallery) => void;
+  onViewGalleryDetails: (galleryOrId: Gallery | string) => void;
   onShowToast: (title: string, description?: string, type?: 'success' | 'info' | 'warning' | 'error') => void;
 }
 

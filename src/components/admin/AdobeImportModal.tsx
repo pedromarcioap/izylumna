@@ -99,6 +99,7 @@ export const AdobeImportModal: React.FC<AdobeImportModalProps> = ({
       // 3. Create new Gallery object
       const newGallery: Gallery = {
         id: `gal_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        userId: userId,
         title: album.payload.name || 'Nova Galeria Lightroom',
         clientName: 'Cliente Adobe Lightroom',
         clientEmail: '',

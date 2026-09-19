@@ -107,6 +107,7 @@ export interface ClientSelectionData {
 
 export interface Gallery {
   id: string;
+  userId?: string; // ID of the photographer/user who created this gallery
   title: string;
   clientName: string;
   clientEmail?: string;

@@ -204,6 +204,7 @@ function mapRowToGallery(row: any, photosRows: any[] = [], selectionRow: any = n
 
   return {
     id: row.id,
+    userId: row.user_id || row.user_id || row.userId || undefined,
     title: row.title || 'Galeria sem título',
     clientName: row.client_name || 'Cliente',
     clientEmail: row.client_email || '',
@@ -602,8 +603,9 @@ export async function saveGalleryAsync(gallery: Gallery): Promise<Gallery> {
   }
 
   try {
-    const galleryPayload = {
+    const galleryPayload: any = {
       id: galleryId,
+      user_id: gallery.userId || null,
       title: gallery.title || 'Galeria sem título',
       client_name: gallery.clientName || 'Cliente',
       client_email: gallery.clientEmail || '',
@@ -633,8 +635,14 @@ export async function saveGalleryAsync(gallery: Gallery): Promise<Gallery> {
       updated_at: now
     };
 
-    // Upsert gallery row first
-    const { error: galErr } = await supabase.from('galleries').upsert(galleryPayload, { onConflict: 'id' });
+    // Upsert gallery row first with schema fallback
+    let galPayload: any = { ...galleryPayload };
+    let { error: galErr } = await supabase.from('galleries').upsert(galPayload, { onConflict: 'id' });
+    if (galErr && galErr.message?.includes("user_id")) {
+      delete galPayload.user_id;
+      const retryResult = await supabase.from('galleries').upsert(galPayload, { onConflict: 'id' });
+      galErr = retryResult.error;
+    }
     if (galErr) {
       console.warn('[Supabase Sync Warning] Failed to upsert gallery (operating in local fallback):', galErr.message || galErr);
       return updatedGallery;
