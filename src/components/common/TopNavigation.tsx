@@ -2,7 +2,7 @@ import React from 'react';
 import { ShieldCheck, UserCheck, RefreshCw, Lock, LogOut, PlusCircle } from 'lucide-react';
 import { Gallery, PhotographerProfile } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
-import { sanitizeImageUrl, PLACEHOLDER_IMAGE } from '../../lib/utils';
+import { sanitizeImageUrl, PLACEHOLDER_IMAGE, DEFAULT_AVATAR_IMAGE } from '../../lib/utils';
 import { LumnaLogo } from './LumnaLogo';
 
 export interface TopNavigationProps {
@@ -131,21 +131,15 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({
             {/* User Profile Pill */}
             {profile && (
               <div className="hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-xl bg-[#140F24] border border-white/10">
-                {profile.avatar_url ? (
-                  <img
-                    src={sanitizeImageUrl(profile.avatar_url)}
-                    alt={profile.full_name || profile.email}
-                    onError={(e) => {
-                      e.currentTarget.onerror = null;
-                      e.currentTarget.src = PLACEHOLDER_IMAGE;
-                    }}
-                    className="w-6 h-6 rounded-full object-cover border border-[#46BDC6]/50"
-                  />
-                ) : (
-                  <div className="w-6 h-6 rounded-full bg-[#8300E9] text-white flex items-center justify-center text-[10px] font-bold">
-                    {(profile.full_name || profile.email).charAt(0).toUpperCase()}
-                  </div>
-                )}
+                <img
+                  src={sanitizeImageUrl(profile.avatar_url, DEFAULT_AVATAR_IMAGE)}
+                  alt={profile.full_name || profile.email}
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = DEFAULT_AVATAR_IMAGE;
+                  }}
+                  className="w-6 h-6 rounded-full object-cover border border-[#46BDC6]/50"
+                />
                 <span className="text-xs text-zinc-200 max-w-[110px] truncate font-medium">
                   {profile.full_name || profile.email.split('@')[0]}
                 </span>
