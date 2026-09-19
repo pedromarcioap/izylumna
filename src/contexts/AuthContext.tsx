@@ -266,6 +266,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { success: true };
       };
 
+      if (isDemoEmail) {
+        console.info('Demonstração: utilizando conta demo local para:', emailClean);
+        return await handleLocalFallback();
+      }
+
       if (isSupabaseConfigured && supabase) {
         const { data, error } = await supabase.auth.signInWithPassword({
           email: emailClean,
@@ -273,23 +278,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
 
         if (error) {
-          if (isDemoEmail) {
-            console.info('Demonstração: Supabase Auth não possui a conta demo, utilizando fallback local para:', emailClean);
-            return await handleLocalFallback();
-          } else {
-            setIsLoading(false);
-            let userFriendlyError = error.message;
-            if (error.message.includes('Invalid login credentials')) {
-              userFriendlyError = 'E-mail ou senha incorretos. Por favor, verifique suas credenciais e tente novamente.';
-            } else if (error.message.includes('Email not confirmed')) {
-              userFriendlyError = 'E-mail ainda não confirmado. Por favor, verifique a caixa de entrada do seu e-mail.';
-            } else if (error.message.includes('Too many requests')) {
-              userFriendlyError = 'Muitas tentativas de login. Por favor, aguarde alguns minutos e tente novamente.';
-            } else if (error.message.includes('User not found')) {
-              userFriendlyError = 'Usuário não encontrado. Verifique o e-mail informado ou realize o cadastro.';
-            }
-            return { success: false, error: userFriendlyError };
+          setIsLoading(false);
+          let userFriendlyError = error.message;
+          if (error.message.includes('Invalid login credentials')) {
+            userFriendlyError = 'E-mail ou senha incorretos. Por favor, verifique suas credenciais e tente novamente.';
+          } else if (error.message.includes('Email not confirmed')) {
+            userFriendlyError = 'E-mail ainda não confirmado. Por favor, verifique a caixa de entrada do seu e-mail.';
+          } else if (error.message.includes('Too many requests')) {
+            userFriendlyError = 'Muitas tentativas de login. Por favor, aguarde alguns minutos e tente novamente.';
+          } else if (error.message.includes('User not found')) {
+            userFriendlyError = 'Usuário não encontrado. Verifique o e-mail informado ou realize o cadastro.';
           }
+          return { success: false, error: userFriendlyError };
         } else if (data.user) {
           const prof = await fetchUserProfile(data.user.id, data.user.email || emailClean);
           if (prof && !prof.is_active) {
